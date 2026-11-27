@@ -18,10 +18,10 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 
 ## Branches and versions
 - `main` = the stable released version. Branch **`stable/v1.1.0`** is the frozen v1.1.0 rollback point (this session could not push tags; add tag `v1.1.0` from GitHub Releases if wanted).
-- Work for the next version happens on **`release/1.1.1`** (branched from `v1.1.0`).
+- Work for the next version happens on **`release/1.1.2`** (branched from the finished v1.1.1 on `main`). v1.1.2 = bug fixes for v1.1.1 found by testers; it must keep running on local devices (one Windows PC, no hosting). Frozen copies: `stable/v1.1.0`, `stable/v1.1.1`.
 - One bug or change = one commit (message starts with its ID, e.g. `BUG-003: …`), so any fix can be reverted alone.
 - **Version plan:** v1.1.1 = V2-I school verification + bug fixes → v2.0.0 interface overhaul → v2.1.0 its bug fixes → v3.0.0 online hosting + PostgreSQL + all of V2-J (performance and uptime evidence). Don't start hosting/PostgreSQL/Redis/SMTP/V2-J work before v3.0.0 unless asked; keep the code PostgreSQL-compatible meanwhile. Details in `docs/ROADMAP.md`.
-- When the owner approves 1.1.1: merge `release/1.1.1` into `main`, tag `v1.1.1`. Never rewrite or delete history.
+- When the owner approves a version: merge its `release/…` branch into `main` and add a frozen `stable/v<version>` branch (tags can be added on GitHub). Never rewrite or delete history.
 - Log every fix in `docs/BUG_REPORTS.md` and add a "Changes in <version>" section to `HANDOFF.md`.
 
 ## Reports required for EVERY version (owner's rule since v1.1.1)

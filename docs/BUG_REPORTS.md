@@ -1,6 +1,6 @@
-# Bug reports and change requests — v1.1.1
+# Bug reports and change requests — v1.1.1 log, new reports go to v1.1.2
 
-Testers: add one entry per problem. Developers/Claude: fix on branch `release/1.1.1`, one commit per entry (`BUG-001: …` or `CHG-001: …`), then fill in the Fix and Status columns.
+Testers: add one entry per problem. Developers/Claude: fix on branch `release/1.1.2`, one commit per entry (`BUG-001: …` or `CHG-001: …`), then fill in the Fix and Status columns.
 
 Each version also has a test report: `docs/TEST_REPORT_v1.1.1.md` (and one per later version).
 

@@ -24,7 +24,8 @@ The V2 list was written before v1.1.0. The four sessions already built most of i
 | Version | Goal | Status |
 | --- | --- | --- |
 | **v1.1.0** | Sessions 1–4 integrated. Covers most V1 and V2 goals. | Released (`main`) |
-| **v1.1.1** | V2-I school account verification + bug fixes + easier start. | Built on `release/1.1.1`, waiting for owner approval (rollback: `stable/v1.1.0`) |
+| **v1.1.1** | V2-I school account verification, chat/media, speed + bug fixes + easier start. | Released on `main` (rollback: `stable/v1.1.0`) |
+| **v1.1.2** | Bug fixes for v1.1.1 from testers (`docs/BUG_REPORTS.md`). Must keep running on local devices. Branch `release/1.1.2`. | Waiting for bug reports |
 | **v2.0.0** | Interface overhaul. Lead: *(to be named)* | Planned |
 | **v2.1.0** | Fix bugs found in 2.0.0 **+ adaptive layout**: every page adapts from PC to phone using relative sizes (percentages / fluid units) instead of fixed pixel sizes. | Planned |
 | **v3.0.0** | Online hosting: put the app on the internet, move SQLite → PostgreSQL, all of V2-J (2.5-second and uptime evidence). | Planned |
