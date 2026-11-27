@@ -1,0 +1,44 @@
+FIND-IT v1.1.1 - HOW TO RUN IT ON YOUR WINDOWS PC
+=================================================
+
+You only need to do steps 1-2 once.
+
+1. GET THE FILES
+   - On GitHub, open the repository, click the green "Code" button, then "Download ZIP".
+     (Choose the branch first if you want v1.1.1 before it is released: release/1.1.1.)
+   - Right-click the ZIP > "Extract All..." > pick a simple folder such as
+     C:\FindIT   (avoid OneDrive folders and folders with very long names).
+
+2. DOUBLE-CLICK  FindIT.cmd
+   - If Windows shows "Windows protected your PC": click "More info" > "Run anyway".
+   - If Python is missing, the window offers to install it (type Y). When it
+     finishes, close the window and double-click FindIT.cmd again.
+   - The first start installs everything by itself (a few minutes, needs internet).
+
+3. USE THE MENU
+   - Press 1 (or wait 20 seconds) to start. Your browser opens
+     http://127.0.0.1:8000/ by itself.
+   - KEEP THE BLACK WINDOW OPEN while you use Find-IT. Close it to stop.
+   - Press 2 in the menu to see the demo sign-ins.
+     Students sign in with their EMAIL, for example:
+         alex.finder@example.com   password DemoFindIt!2026
+     Admin:  findit-admin           password DemoAdmin!2026
+
+4. TESTING EMAIL VERIFICATION
+   - Emails are not really sent yet (that comes with online hosting in v3.0.0).
+   - Open "Test inbox" in the top menu to read them, for example the 6-digit
+     verification code. They also appear in the black window.
+
+OPTIONAL
+   - Run make_desktop_shortcut.cmd once to get a "Find-IT" icon on your Desktop.
+   - Menu 3 = start over with fresh demo data (a backup is made first).
+   - Menu 4 = automatic checks. Menu 5 = backup. Menu 6 = Developer account.
+
+SOMETHING WENT WRONG?
+   - "Find-IT already seems to be running": another black window is open; use it
+     or close it.
+   - Packages could not be installed: check the internet and double-click again.
+   - Anything else: take a screenshot of the black window and send it to the
+     developers (docs/BUG_REPORTS.md explains how to report a problem).
+
+Demo accounts and data are fictional. Never type real student data into the demo.

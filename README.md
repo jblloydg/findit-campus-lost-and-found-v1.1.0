@@ -1,4 +1,4 @@
-# Find-IT v1.1.0
+# Find-IT v1.1.1
 
 Campus lost-and-found web app for Davao Oriental State University. This project follows the Padlet 5 design and the editable [Find-IT Figma file](https://www.figma.com/design/HlBvwAA17U86RADmkm56Fk/Find-IT-Padlet-5-System-Design).
 
@@ -15,67 +15,51 @@ The local demo uses fictional accounts and a local SQLite database. It does not 
 - Duplicate-submit protection on every form, daily backups with command-line restore, and an automated test suite.
 - Student, staff, and administrator workflows, status history, notifications, staff chat review, and administrator reports.
 - Responsive pages styled to match the navy and teal Padlet wireframes.
+- **New in 1.1.1:** optional email verification (✔ Verified badge, Test inbox for local testing), sign-in with email, Student ID rules with ID reviews, lower limits and a warning for unverified students, Report & block, and a protected Developer account. See **HANDOFF.md → Changes in 1.1.1**.
 
 Version 1.1.0 combines four development sessions; see **HANDOFF.md** for what came from each, the decisions taken where they differed, setup steps and quick checks.
 
 ## Run locally on Windows
 
-**Quickest:** double-click `FindIT.cmd` (first run sets everything up, then opens the site). Run `make_desktop_shortcut.cmd` once for a Desktop shortcut. Manual steps:
+**Read `START-HERE.txt`.** In short:
 
-1. Install Python 3.12 or later.
-2. Open this folder in VS Code, then open a PowerShell terminal in the project folder.
-3. Create and activate a virtual environment:
+1. Download the ZIP from GitHub and extract it to a simple folder such as `C:\FindIT`.
+2. Double-click **`FindIT.cmd`**. The first time it installs everything by itself (it can even install Python for you).
+3. Press **1** (or wait 20 seconds). Your browser opens http://127.0.0.1:8000/. Keep the black window open; close it to stop.
 
-   ~~~powershell
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-   ~~~
+The menu also shows the demo sign-ins (2), resets the demo data (3), runs the automatic checks (4), makes a backup (5) and creates the Developer account (6). Run `make_desktop_shortcut.cmd` once for a Desktop icon.
 
-4. Install the project packages:
-
-   ~~~powershell
-   python -m pip install --upgrade pip
-   pip install -r requirements.txt
-   ~~~
-
-5. Create the local database tables and fictional demo accounts (the migrations are already in the repository; do not run makemigrations):
-
-   ~~~powershell
-   python manage.py migrate
-   python manage.py seed_demo
-   ~~~
-
-6. Start the website and its local timer runner:
-
-   ~~~powershell
-   .\start_findit.ps1
-   ~~~
-
-7. Open http://127.0.0.1:8000/.
-
-If PowerShell blocks the starter script, run it for this terminal only:
+<details><summary>Manual steps for developers (PowerShell)</summary>
 
 ~~~powershell
-powershell -ExecutionPolicy Bypass -File .\start_findit.ps1
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1          # if blocked: Set-ExecutionPolicy -Scope Process Bypass
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python manage.py migrate             # migrations are in the repo; do not run makemigrations
+python manage.py seed_demo           # fictional demo data, local only
+.\start_findit.ps1                   # website + timer runner; stop with Ctrl+C
 ~~~
-
-Stop the website with Ctrl+C; the local timer process stops with it.
+</details>
 
 ## Fictional demo accounts
 
-| Role | Sign-in name | Password |
+**Students sign in with their email.** A student whose Student ID is ✔ Verified can also type the Student ID.
+
+| Role | Sign-in | Password |
 | --- | --- | --- |
-| Student / finder | 2026-0001 | DemoFindIt!2026 |
-| Student / claimant | 2026-0002 | DemoFindIt!2026 |
-| Student / second claimant | 2026-0003 | DemoFindIt!2026 |
-| Student / declined claimant | 2026-0004 | DemoFindIt!2026 |
+| Student / finder (verified) | alex.finder@example.com or 2026-0001 | DemoFindIt!2026 |
+| Student / claimant (verified) | jamie.claimant@example.com or 2026-0002 | DemoFindIt!2026 |
+| Student / second claimant (verified) | sam.second@example.com or 2026-0003 | DemoFindIt!2026 |
+| Student / declined claimant (verified) | riley.third@example.com or 2026-0004 | DemoFindIt!2026 |
+| Student, **not verified** (shows the limits and warning) | casey.unverified@example.com | DemoFindIt!2026 |
 | Staff (security guard) | security.demo | DemoStaff!2026 |
 | Staff (verified moderator) | moderator.demo | DemoStaff!2026 |
 | Administrator | findit-admin | DemoAdmin!2026 |
 
-These accounts are created only when you run **seed_demo**. Their passwords are public demo credentials. Never run the demo seeder on a real or hosted site.
+These accounts are created only when you run **seed_demo**, which refuses to run on an online site (DEBUG off). Their passwords are public demo credentials.
 
-To create a separate administrator account, run **python manage.py createsuperuser**; superusers receive the app administrator role. Administrators can create staff accounts from **Staff → Staff accounts**.
+**Developer account (yours, not a demo account):** run `python manage.py create_developer` (or menu option 6). You type the password privately; it is never in the code. Only the Developer can make or remove administrators and open `/django-admin/`. `createsuperuser` no longer creates administrators.
 
 ## Main routes
 
@@ -87,12 +71,15 @@ To create a separate administrator account, run **python manage.py createsuperus
 - **/staff/** — staff review and moderation workspace
 - **/staff/scan/** — guard-house QR scanner; **/staff/walk-in/** — record a walk-in item
 - **/staff/categories/** and **/staff/questions/** — administrator-managed categories and question bank
-- **/django-admin/** — Django model administration for administrators
+- **/verify-email/** — verify your email (optional); **/test-inbox/** — local test emails (this PC only)
+- **/profile/student-id/**, **/id-review/new/**, **/profile/blocked/** — Student ID, ID review request, blocked people
+- **/staff/id-reviews/** — Student ID reviews (verified moderators and administrators)
+- **/django-admin/** — Django model administration, **Developer only**
 
 ## Status and privacy behavior
 
 - A new found post is **Open for Claim**. The first claim changes it to **Claim in Progress**.
-- Claims are **Submitted**, then **Approved** or **Declined** by the finder or staff. Several claims can be approved; the finder records **Returned** to any approved claimant, who confirms receipt (**Claimed**). Claims with seven days of inactivity expire.
+- Claims are **Submitted**, then **Approved** or **Declined** by the finder or staff. Several claims can be approved; the finder records **Returned** to any approved claimant, who confirms receipt (**Claimed**). Claims with seven days of inactivity expire (three days for unverified students).
 - The finder says they are bringing an item to the guard house; it becomes **At Guard House** only when staff confirm receipt (QR scan, typed code, or the post page). Claims and chats stay open for the administrator's guard-house grace days; while the item is there the finder sends status requests instead of changing the status.
 - An author, staff member, or administrator can close or remove a listing. Removal hides it from active browse but preserves chat and claim history.
 - Administrators can set an optional guard-house grace period and optional archive auto-delete period. Blank settings mean disabled. Permanent deletion removes the post, photo, claims, and chats together. Posts connected to a pending safety report are retained until the report is resolved.
@@ -103,7 +90,7 @@ To create a separate administrator account, run **python manage.py createsuperus
 
 The project can use PostgreSQL through **DATABASE_URL** and Redis through **REDIS_URL**; see **.env.example**. Before hosting, set a private **DJANGO_SECRET_KEY**, **DJANGO_DEBUG=0**, correct allowed hosts and CSRF origins, configure durable media storage, run database migrations, and provide an external scheduler for **python manage.py process_due**. Never deploy with demo accounts.
 
-No hosting provider or student-verification method has been selected. Confirm campus data-retention, account-verification, and moderation policies before using real student accounts.
+No hosting provider has been selected. v1.1.1 verifies email ownership only (emails are printed locally); real email sending and school-ID barcode checks are planned for v3.0.0. Confirm campus data-retention, account-verification, and moderation policies before using real student accounts.
 
 ## Design references
 
