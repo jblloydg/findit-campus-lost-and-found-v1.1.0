@@ -56,7 +56,7 @@ class StudentIdRequiredMiddleware:
     def __call__(self, request):
         user = getattr(request, "user", None)
         if (
-            user is not None and user.is_authenticated and request.method == "GET"
+            user is not None and user.is_authenticated
             and not request.path.startswith(self.ALLOWED_PREFIXES)
         ):
             from .verification import needs_student_id
