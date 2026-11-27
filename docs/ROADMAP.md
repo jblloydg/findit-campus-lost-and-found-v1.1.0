@@ -48,7 +48,7 @@ The V2 list was written before v1.1.0. The four sessions already built most of i
 Also: PostgreSQL testing and switch, hosting provider, HTTPS, real email (SMTP) for password resets and verification, Redis for live chat across processes, uptime monitor (rest of V2-J), scheduled backups on the server.
 
 ### v2.0.0 / v2.1.0 — interface
-- **v2.0.0:** interface overhaul (lead to be named).
+- **v2.0.0:** interface overhaul (3 front-end developers, wireframes first). Includes the **version label**: small light-gray "Find-IT v…" near the bottom of every page, read from the `VERSION` file (placement from the wireframes; see CLAUDE.md).
 - **v2.1.0:** bug fixes for 2.0.0 and an **adaptive layout**: pages scale from PC to phone with
   relative sizes (%, `rem`, `vw`, `clamp()`), not fixed `px`; chat bubbles, photos and videos
   size themselves to the screen; touch-friendly buttons. (v1.1.1 only made the phone fast, not

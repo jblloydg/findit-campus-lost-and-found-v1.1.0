@@ -205,12 +205,6 @@ CAPTCHA_FONT_SIZE = 30
 # or https://findit.example.edu when hosted. Blank = the address the finder's browser used.
 FINDIT_SITE_URL = os.getenv("FINDIT_SITE_URL", "").rstrip("/")
 
-# App version shown at the bottom of every page (CHG-007). Change it ONLY in the VERSION file.
-try:
-    FINDIT_VERSION = (BASE_DIR / "VERSION").read_text(encoding="utf-8").strip() or "unknown"
-except OSError:
-    FINDIT_VERSION = "unknown"
-
 # Backups (session 4 engine, core/backups.py). Never inside STATIC_ROOT or MEDIA_ROOT.
 # FINDIT_BACKUP_RETENTION_DAYS (session 1's name) is accepted as an alias.
 BACKUP_DIR = Path(os.getenv("FINDIT_BACKUP_DIR", str(BASE_DIR / "backups")))

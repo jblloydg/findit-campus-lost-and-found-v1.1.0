@@ -24,9 +24,10 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 - When the owner approves a version: merge its `release/…` branch into `main` and add a frozen `stable/v<version>` branch (tags can be added on GitHub). Never rewrite or delete history.
 - Log every fix in `docs/BUG_REPORTS.md` and add a "Changes in <version>" section to `HANDOFF.md`.
 
-## Version label (owner's rule since v1.1.1)
-- Every page shows the app version at the bottom (small light-gray "Find-IT v…" in the footer).
-- It comes from the **`VERSION`** file. For every version update, change `VERSION` (e.g. `1.1.2`) in the same work, so the label always matches the version people are running. Never type the number anywhere else.
+## Version label (owner's instruction — implement in v2.0.0, not before)
+- From **v2.0.0** (after all v2.0.0 wireframes are integrated), every page shows the app version near the bottom: small, light-gray text such as "Find-IT v2.0.0". Its exact place is decided in the v2.0.0 wireframes.
+- The number must come from the **`VERSION`** file (read once by the app), never typed into pages.
+- For **every** version update from then on, change `VERSION` in the same work, so the label always matches the version people are running.
 
 ## Reports required for EVERY version (owner's rule since v1.1.1)
 Before a version is pushed for approval, it must include, in plain text (readable in any Claude session):
@@ -61,7 +62,7 @@ Run the bug hunt again after any big change (e.g. chat, media) and once more on 
 ```powershell
 python manage.py migrate            # never run makemigrations on a server; commit new migrations
 python manage.py seed_demo          # fictional demo data (local only)
-python manage.py test core          # 203 tests; keep them passing, add tests for each fix
+python manage.py test core          # 202 tests; keep them passing, add tests for each fix
 python manage.py create_developer   # the owner's Developer account (password typed privately)
 python manage.py makemigrations --check --dry-run   # must say "No changes detected" before committing
 python manage.py backup_now [--list] / restore_backup NAME
