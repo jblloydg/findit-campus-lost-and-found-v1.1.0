@@ -49,7 +49,7 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 ```powershell
 python manage.py migrate            # never run makemigrations on a server; commit new migrations
 python manage.py seed_demo          # fictional demo data (local only)
-python manage.py test core          # 180 tests; keep them passing, add tests for each fix
+python manage.py test core          # 183 tests; keep them passing, add tests for each fix
 python manage.py create_developer   # the owner's Developer account (password typed privately)
 python manage.py makemigrations --check --dry-run   # must say "No changes detected" before committing
 python manage.py backup_now [--list] / restore_backup NAME

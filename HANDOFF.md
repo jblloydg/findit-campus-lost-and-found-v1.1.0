@@ -20,7 +20,7 @@ All accounts, names and photos in the demo are fictional. The repository contain
 | Rollback point | branch `stable/v1.1.0` → `bd1bf55` (GitHub refused tag pushes from this session, so a branch is used; tag `v1.1.0` can be added later from GitHub's Releases page) |
 | `main` | unchanged (v1.1.0) until the owner approves; then merge `release/1.1.1` and tag `v1.1.1` |
 
-Commits (each can be reverted on its own): `V2-I …` (feature), `BUG-001`, `V2-I: … form submissions too`, `CHG-002`, `BUG-002`, `BUG-003`, the docs commit, a merge of the owner's README edit from `main`, and `CHG-003` (chat queue).
+Commits (each can be reverted on its own): `V2-I …` (feature), `BUG-001`, `V2-I: … form submissions too`, `CHG-002`, `BUG-002`, `BUG-003`, the docs commit, a merge of the owner's README edit from `main`, `CHG-003` (chat queue), `BUG-005`, `BUG-004`, `CHG-004 / BUG-006` (notification queue), and the final docs commit.
 
 ### A. Email verification (optional) — V2-I
 
@@ -86,14 +86,19 @@ All database access uses Django's ORM, which sends what people type as **separat
 - If a waiting message is refused (limit, chat closed), the reason shows under the chat box and the text is put back.
 - Forms (claims, comments, question answers, approvals…) already had one-time keys (`core/idempotency.py`); the guard-house Scan page already had its offline queue.
 - Tested in a real browser: chat open → server stopped → messages typed (one pressed twice) → server started → both messages sent once, nothing duplicated after reload.
+- **Notifications (CHG-004):** the saved notices on the server are the queue. Each time the page (re)connects, the server sends the true unread counts and the page fetches any notices it missed. Each notice id is shown and counted once, also after a reload. The red Messages count updates live. Both connections reconnect by themselves within about 10 seconds (immediately when the tab is shown again or the PC is back online). Open pages also re-check once a minute, so notices made by the timer runner appear without reloading (BUG-006).
+- Browser test across a server restart: a live approval notice appeared once; two notices and one chat message created while the server was down appeared about 6 seconds after it came back; the badges matched the database; nothing was shown twice after reload.
 
 ### I. Bugs found and fixed (details in `docs/BUG_REPORTS.md`)
 
 - **BUG-001** chat never showed the server's error messages, and the typed text was lost when a message was refused.
 - **BUG-002** a damaged `claim_id`/student value crashed *Mark returned* and the guard-house pickup (500 error).
 - **BUG-003** an impossible date (e.g. 2026-99-99) in the report filters crashed the report lists.
+- **BUG-004** live notices and chat updates were pushed before the database save was final.
+- **BUG-005** the chat connection crashed on valid JSON that is not an object (e.g. `[1]`).
+- **BUG-006** notices made by the timer runner never reached pages that were already open.
 
-How they were found: every page opened as every demo role (about 490 pages, 0 crashes after the fixes), every form action sent empty and hostile data as every role (77 routes), a live run of the real server (sign-up → Test inbox code → limited chat over WebSocket → verify → sign in with Student ID), the timer runner, and a backup/restore round trip.
+How they were found (two rounds; the second after the chat/notification queue, run on the whole program): every page opened as every demo role plus a Developer account (about 1,150 pages including /django-admin/, 0 crashes after the fixes), forms without the security (CSRF) token refused, `check --deploy` with online settings, every form action sent empty and hostile data as every role (77 routes), a live run of the real server (sign-up → Test inbox code → limited chat over WebSocket → verify → sign in with Student ID), the timer runner, and a backup/restore round trip.
 
 ### Database changes — migration `0012_v111_school_verification`
 
