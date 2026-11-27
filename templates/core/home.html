@@ -33,7 +33,6 @@
         {% with cover=post.cover_photo %}{% if cover %}<img class="post-photo" src="{{ cover.preview_url }}" alt="Photo of {{ post.display_title }}" loading="lazy" decoding="async">{% else %}<div class="post-photo photo-placeholder"><span aria-hidden="true">◈</span><small>No photo added</small></div>{% endif %}{% endwith %}
         {% if post.photos.all|length > 1 %}<span class="photo-count-badge">{{ post.photos.all|length }} photos</span>{% endif %}
         <div class="post-card-body">
-<<<<<<< HEAD
           <div class="card-meta"><span class="type-pill type-{{ post.post_type|lower }}">{{ post.get_post_type_display }}</span>{% if post.category %}<span class="subtle-chip">{{ post.category.name }}</span>{% endif %}<span class="status-dot">{{ post.get_status_display }}</span></div>
           <h3>{{ post.display_title }}</h3>
           {% if location_enabled and post.location %}<p class="item-tags"><span class="location-tag">📍 {{ post.location }}</span></p>{% endif %}
