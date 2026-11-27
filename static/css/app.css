@@ -750,3 +750,5 @@ body:has(.unverified-warning) .site-footer { padding-bottom: 70px; }
 .chat-upload-progress span { display: block; height: 100%; width: 0; background: #1f9e8e; transition: width .2s; }
 .chat-message.is-failed .message-bubble { border-color: #c62828; }
 .chat-local-preview { display: block; max-width: 200px; max-height: 200px; border-radius: 8px; margin-top: 6px; opacity: .8; }
+/* CHG-007: app version at the bottom of every page */
+.app-version { color: #a3b1bb; font-size: .7rem; letter-spacing: .02em; }

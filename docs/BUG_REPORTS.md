@@ -43,6 +43,7 @@ For a change request (CHG), replace Expected/Actual with **What to change** and 
 | PERF-003 | Photos compressed on upload, originals never stored/sent; previews in lists; lazy loading | High | Owner | Fixed (on release/1.1.1) | 65d24c4 | 3.9 MB → 271 KB |
 | CHG-006 | Photos and videos in chats: re-encoded, private, limits (unverified 3 per chat + smaller sizes), on-device upload queue, quiet slow-down of heavy floods | High | Owner | Fixed (on release/1.1.1) | fc5650d | |
 | BUG-007 | Chat media files stayed on disk after a chat/post was permanently deleted | Low | Claude (code check) | Fixed before release | fc5650d | |
+| CHG-007 | App version shown at the bottom of every page (light gray "Find-IT v…"), read from the VERSION file; rule: bump VERSION with every version update | Medium | Owner | Done (on release/1.1.2) | see `git log --grep CHG-007` | Lets testers check which version they are running |
 | BUG-002 | A damaged `claim_id` or student value crashed "Mark returned" and guard-house pickup (error 500) | Low (needs a tampered form) | Claude (form fuzzing) | Fixed (on release/1.1.1) | 115cd90 | Now 404 / clear message |
 | BUG-003 | An impossible date such as 2026-99-99 in report filters crashed /staff/reports/ and /staff/general-reports/ (error 500) | Low | Claude (address fuzzing) | Fixed (on release/1.1.1) | e221ac3 | Invalid dates are ignored, like Browse |
 

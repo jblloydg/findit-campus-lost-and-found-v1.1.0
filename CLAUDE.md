@@ -24,6 +24,10 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 - When the owner approves a version: merge its `release/…` branch into `main` and add a frozen `stable/v<version>` branch (tags can be added on GitHub). Never rewrite or delete history.
 - Log every fix in `docs/BUG_REPORTS.md` and add a "Changes in <version>" section to `HANDOFF.md`.
 
+## Version label (owner's rule since v1.1.1)
+- Every page shows the app version at the bottom (small light-gray "Find-IT v…" in the footer).
+- It comes from the **`VERSION`** file. For every version update, change `VERSION` (e.g. `1.1.2`) in the same work, so the label always matches the version people are running. Never type the number anywhere else.
+
 ## Reports required for EVERY version (owner's rule since v1.1.1)
 Before a version is pushed for approval, it must include, in plain text (readable in any Claude session):
 1. **`docs/CHANGES_v<version>.md`** — what changed: features, speed changes, bugs fixed, migrations, new packages, what is not included. Model: `docs/CHANGES_v1.1.1.md`.
@@ -57,7 +61,7 @@ Run the bug hunt again after any big change (e.g. chat, media) and once more on 
 ```powershell
 python manage.py migrate            # never run makemigrations on a server; commit new migrations
 python manage.py seed_demo          # fictional demo data (local only)
-python manage.py test core          # 202 tests; keep them passing, add tests for each fix
+python manage.py test core          # 203 tests; keep them passing, add tests for each fix
 python manage.py create_developer   # the owner's Developer account (password typed privately)
 python manage.py makemigrations --check --dry-run   # must say "No changes detected" before committing
 python manage.py backup_now [--list] / restore_backup NAME

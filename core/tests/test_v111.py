@@ -933,3 +933,14 @@ class ChatMediaTests(FindItTestCase):
         self.conversation.save()
         self.assertEqual(self.send(self.alice, self.jpeg_with_hidden_payload()).status_code, 400)
         self.assertEqual(self.send(self.bob, self.jpeg_with_hidden_payload(), "x").status_code, 403)
+
+
+
+class VersionLabelTests(FindItTestCase):
+    """CHG-007: every page shows the app version from the VERSION file."""
+
+    def test_footer_shows_version(self):
+        from django.conf import settings
+        version = (settings.BASE_DIR / "VERSION").read_text().strip()
+        self.assertContains(self.client.get("/login/"), f"Find-IT v{version}")
+        self.assertContains(self.client_for(self.alice).get("/home/"), f"Find-IT v{version}")
