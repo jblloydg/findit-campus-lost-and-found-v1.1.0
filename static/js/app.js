@@ -432,13 +432,13 @@ document.addEventListener("DOMContentLoaded", function () {
     confirmModal.innerHTML = '<section class="modal-card confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text">' +
       '<span class="confirm-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 2.4 17.5A2 2 0 0 0 4.1 20.5h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h0"/></svg></span>' +
       '<h2 id="confirm-title"></h2><p id="confirm-text"></p>' +
-      '<div class="confirm-actions"><button type="button" class="button button-outline button-small" data-confirm-cancel>Cancel</button><button type="button" class="button button-danger button-small" data-confirm-ok></button></div></section>';
+      '<div class="confirm-actions"><button type="button" class="button button-outline button-small" data-confirm-cancel>Cancel</button><button type="button" class="button button-danger button-small" data-confirm-accept></button></div></section>';
     document.body.appendChild(confirmModal);
     var close = function () { confirmModal.classList.remove("is-open"); confirmModal.setAttribute("aria-hidden", "true"); if (pendingButton) pendingButton.focus(); pendingForm = null; };
     confirmModal.querySelector("[data-confirm-cancel]").addEventListener("click", close);
     confirmModal.addEventListener("click", function (e) { if (e.target === confirmModal) close(); });
     document.addEventListener("keydown", function (e) { if (e.key === "Escape" && confirmModal.classList.contains("is-open")) close(); });
-    confirmModal.querySelector("[data-confirm-ok]").addEventListener("click", function () {
+    confirmModal.querySelector("[data-confirm-accept]").addEventListener("click", function () {
       var form = pendingForm, button = pendingButton;
       confirmModal.classList.remove("is-open");
       if (!form) return;
@@ -456,7 +456,7 @@ document.addEventListener("DOMContentLoaded", function () {
       pendingForm = form; pendingButton = button;
       confirmModal.querySelector("#confirm-title").textContent = button.getAttribute("data-confirm") || "Are you sure?";
       confirmModal.querySelector("#confirm-text").textContent = button.getAttribute("data-confirm-text") || "";
-      confirmModal.querySelector("[data-confirm-ok]").textContent = button.getAttribute("data-confirm-ok") || button.textContent.trim();
+      confirmModal.querySelector("[data-confirm-accept]").textContent = button.getAttribute("data-confirm-ok") || button.textContent.trim();
       confirmModal.classList.add("is-open");
       confirmModal.setAttribute("aria-hidden", "false");
       confirmModal.querySelector("[data-confirm-cancel]").focus();
