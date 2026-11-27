@@ -26,6 +26,6 @@ For a change request (CHG), replace Expected/Actual with **What to change** and 
 
 | ID | Summary | Priority | Reported by | Status | Fix commit | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| — | *(none yet)* | | | | | |
+| CHG-001 | Example Student ID changed to 2020-0001, example name Juan / Cruz (sign-in, sign-up, help text, Figma sign-in card) | High (privacy) | Owner | Fixed, also copied to main | 95ff430 (main: bd1bf55) | Old example was the owner's real account |
 
 Status values: Open → Confirmed → Fixed (on release/1.1.1) → Verified by tester → Released in v1.1.1.
