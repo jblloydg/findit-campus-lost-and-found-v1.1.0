@@ -6,6 +6,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
+from django.db.models.functions import Coalesce, TruncDate
+from django.utils.dateparse import parse_date
 from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -23,6 +25,7 @@ from .models import (
     ChatQuestion, GuardhouseIntake, InAppNotification, ItemPost, PostShare, PostStatusEvent, Profile, QuestionTemplate, StaffAuditLog,
     StatusChangeRequest, SystemSettings, TurnInTicket, VerificationQuestion,
 )
+from .matching import find_possible_matches
 from .permissions import is_admin, is_staff_or_admin, role_of
 from .services import (
     archive_post, audit, close_claim, close_post, confirm_claimed,
@@ -77,6 +80,17 @@ def logout_view(request):
     return redirect("landing")
 
 
+def _parse_filter_date(value):
+    """Session 3: a date from a YYYY-MM-DD query value, or None if blank or invalid."""
+    value = (value or "").strip()
+    if not value:
+        return None
+    try:
+        return parse_date(value)
+    except ValueError:
+        return None
+
+
 @login_required
 def home(request):
     posts = (
@@ -98,6 +112,19 @@ def home(request):
         posts = posts.filter(status=status)
     if category.isdigit():
         posts = posts.filter(category_id=int(category))
+    else:
+        category = ""
+    date_from = _parse_filter_date(request.GET.get("date_from"))
+    date_to = _parse_filter_date(request.GET.get("date_to"))
+    if date_from and date_to and date_from > date_to:
+        date_from, date_to = date_to, date_from
+    if date_from or date_to:
+        # Session 3: the item date is the approximate date; posts without one use the day they were posted.
+        posts = posts.annotate(item_date=Coalesce("approximate_date", TruncDate("created_at")))
+        if date_from:
+            posts = posts.filter(item_date__gte=date_from)
+        if date_to:
+            posts = posts.filter(item_date__lte=date_to)
     return render(request, "core/home.html", {
         "posts": posts[:100],
         "q": q,
@@ -106,6 +133,9 @@ def home(request):
         "selected_category": category,
         "status_choices": ItemPost.Status.choices,
         "categories": Category.objects.filter(is_active=True),
+        "date_from": date_from.isoformat() if date_from else "",
+        "date_to": date_to.isoformat() if date_to else "",
+        "filters_active": bool(q or post_type or status or category or date_from or date_to),
     })
 
 
@@ -186,6 +216,13 @@ def post_detail(request, post_id):
     for application in applications:
         application.can_decide = can_decide_claim(request.user, application)
         application.rank = application.approval_rank
+    show_matches = (
+        can_manage
+        and post.post_type == ItemPost.Type.LOST
+        and not post.is_archived
+        and post.status not in {ItemPost.Status.CLAIMED, ItemPost.Status.CLOSED, ItemPost.Status.RETURNED}
+    )
+    possible_matches = find_possible_matches(post) if show_matches else []
     my_ticket = None
     if request.user.is_authenticated:
         my_ticket = post.turn_in_tickets.filter(finder=request.user).first()
@@ -217,6 +254,8 @@ def post_detail(request, post_id):
         "shared_by_author": post.shares.filter(user_id=post.author_id).exists(),
         "share_count": post.shares.count(),
         "panel_conversation": panel_conversation,
+        "show_matches": show_matches,
+        "possible_matches": possible_matches,
         "my_ticket": my_ticket,
         "my_ticket_qr": _qr_svg(request, my_ticket) if my_ticket else "",
         "intake": getattr(post, "intake", None) if post.status == ItemPost.Status.TURNED_OVER else None,
@@ -278,6 +317,14 @@ def create_post(request):
                     note="Listing created.",
                 )
             messages.success(request, "Your post is live.")
+            if post.post_type == ItemPost.Type.LOST:
+                match_count = len(find_possible_matches(post))
+                if match_count:
+                    messages.info(
+                        request,
+                        f"We found {match_count} possible match{'es' if match_count != 1 else ''} among found items. "
+                        "See Possible matches on your post.",
+                    )
             return redirect("post-detail", post_id=post.pk)
     return render(request, "core/post_form.html", {
         "form": form, "captcha_form": CaptchaOnlyForm(), "question_options": _question_options(form),

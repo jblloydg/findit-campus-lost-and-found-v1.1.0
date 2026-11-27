@@ -70,6 +70,27 @@
       </section>
       {% endif %}
 
+      {% if show_matches %}
+      <section class="matches-section" id="possible-matches">
+        <span class="eyebrow">Only you and staff see this</span><h2>Possible matches</h2>
+        <p class="muted matches-intro">Open found items that look similar (same category and similar words). Check the photos and message the finder or claim it if it's yours.</p>
+        {% if possible_matches %}
+        <div class="match-list">
+          {% for match in possible_matches %}
+          <a class="match-row" href="{% url 'post-detail' match.post.pk %}">
+            <div class="match-score {% if match.score >= 70 %}match-strong{% else %}match-good{% endif %}"><strong>{{ match.score }}</strong><small>match score</small></div>
+            <div class="match-body">
+              <div class="card-meta"><span class="type-pill type-found">Found</span>{% if match.post.category %}<span class="subtle-chip">{{ match.post.category.name }}</span>{% endif %}</div>
+              <h3>{{ match.post.display_title }}</h3>
+              {% if match.post.description %}<p class="clamp-2">{{ match.post.description }}</p>{% endif %}
+              <div class="match-foot"><span>{% if match.post.approximate_date %}Found {{ match.post.approximate_date|date:"M j, Y" }}{% else %}Posted {{ match.post.created_at|date:"M j, Y" }}{% endif %}</span><span>View post →</span></div>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}<p class="muted">No similar found items yet. Check back later.</p>{% endif %}
+      </section>
+      {% endif %}
       <section class="comments-section" id="comments">
         <div class="section-heading"><div><span class="eyebrow">Community</span><h2>Comments</h2></div><span class="muted">{{ comments|length }}</span></div>
       {% if user.is_authenticated and can_interact %}
