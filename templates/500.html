@@ -4,7 +4,12 @@
 <style>body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f2f6f8;color:#17324d;display:grid;place-items:center;min-height:100vh}
 main{max-width:460px;margin:24px;padding:32px;background:#fff;border:1px solid #dfe7ec;border-radius:18px;text-align:center}
 h1{font-size:1.5rem;margin:.4rem 0}p{color:#5d7183;line-height:1.5}a{display:inline-block;margin-top:12px;padding:10px 18px;border-radius:10px;background:#008b87;color:#fff;text-decoration:none;font-weight:700}
-small{color:#008b87;font-weight:800;letter-spacing:.08em}</style></head>
+small{color:#008b87;font-weight:800;letter-spacing:.08em}
+/* DES-002: DOrSU monument background. Plain path, no template tags, so this page still works when Django is failing. */
+body{background:linear-gradient(180deg,rgba(238,243,238,.84),rgba(238,243,238,.94)) fixed,#eef3ee url("/static/img/campus/dorsu-monument.jpg") 50% 34%/cover no-repeat fixed}
+main{box-shadow:0 1px 2px rgba(11,42,35,.06),0 10px 30px rgba(11,42,35,.08)}
+p{color:#475a6b}
+@media (forced-colors:active),print{body{background:#fff}}</style></head>
 <body><main><small>ERROR 500</small><h1>Something went wrong</h1>
 <p>Find-IT hit an unexpected problem and recorded it for the administrators. Your last action may not have been saved. Please try again in a moment.</p>
 <a href="/home/">Back to Find-IT</a></main></body></html>

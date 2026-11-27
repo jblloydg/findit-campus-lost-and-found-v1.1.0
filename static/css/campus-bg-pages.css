@@ -1,0 +1,104 @@
+/* ==========================================================================
+   Find-IT — DOrSU monument background on the CURRENT pages (DES-002)
+   --------------------------------------------------------------------------
+   Loaded after app.css and campus-bg.css by templates/core/base.html.
+   It only ADDS to the existing design: no layout, spacing or structure in
+   app.css is changed. It does two things:
+
+   1. Darkens three existing text colours a little (same hue) so text that
+      sits straight on the photo still passes WCAG 4.5 : 1. Measured over the
+      real photo and wash at 390, 768, 1280 and 1920 px wide:
+        --muted     #64778a -> #475a6b   (3.2 : 1 -> 4.9 : 1)
+        lead text   #536a7d -> #455b6d   (3.9 : 1 -> 4.8 : 1)
+        --teal-dark #00736f -> #00625e   (3.9 : 1 -> 5.0 : 1)
+      Navy headings were already 8.8 : 1 and are unchanged.
+
+   2. On the dark green "hero" pages (landing, log in, sign up, password
+      reset), turns the text that sits straight on the photo light, so it
+      reads on the green wash. Text inside white cards keeps its colours.
+        white headings     10.5 : 1 desktop / 7.3 : 1 phone (worst case)
+        light-sage accent   7.3 : 1 desktop / 5.1 : 1 phone
+
+   When the v2.0.0 pages replace these templates, this file can be deleted;
+   campus-bg.css stays.
+   ========================================================================== */
+
+/* ---------- 1. Readable text colours on every photo page ---------- */
+body.campus-bg {
+  --muted: #475a6b;
+  --teal-dark: #00625e;
+  /* Keep the existing palette visible behind the cards: app.css paints
+     body with --canvas, campus-bg.css replaces it with the photo layer. */
+  background-color: var(--fi-canvas);
+}
+body.campus-bg .lead { color: #455b6d; }
+body.campus-bg .eyebrow { color: var(--teal-dark); }
+
+/* The sticky top bar stays white as before; a touch of blur lets the
+   monument show through softly as the page scrolls under it. */
+body.campus-bg .topbar {
+  background: rgba(255, 255, 255, .9);
+  -webkit-backdrop-filter: blur(0.75rem);
+  backdrop-filter: blur(0.75rem);
+}
+
+/* ---------- 2. Hero pages: text that sits straight on the photo ---------- */
+/* Text inherits the normal dark ink. Only the parts below are made light,
+   so nothing inside a white card ever turns white by accident. */
+body.campus-bg--hero { color: var(--ink); }
+
+/* Landing page story (left column on desktop, top on phones) */
+.campus-bg--hero .landing-story h1,
+.campus-bg--hero .landing-story strong,
+.campus-bg--hero .landing-bottom h2 { color: #f4f7f2; }
+.campus-bg--hero .landing-story .text-teal { color: #b8d6c6; }
+.campus-bg--hero .landing-story > .eyebrow,
+.campus-bg--hero .landing-bottom .eyebrow { color: #b8d6c6; }
+.campus-bg--hero .landing-story .lead { color: #d5e3db; }
+.campus-bg--hero .story-points small { color: #d5e3db; }
+.campus-bg--hero .story-icon {
+  color: #f4f7f2;
+  background: rgba(255, 255, 255, .1);
+  border: 1px solid rgba(255, 255, 255, .16);
+}
+/* The privacy note keeps its solid light card, so its text stays dark. */
+.campus-bg--hero .privacy-note strong { color: var(--navy); }
+
+/* The lower landing strip spans the whole width, including the lighter
+   right side of the wash, so its text uses full white (4.9 : 1 worst case). */
+.campus-bg--hero .landing-bottom { border-top-color: rgba(255, 255, 255, .16); }
+.campus-bg--hero .landing-bottom > p { color: #f4f7f2; }
+
+/* Footer on hero pages */
+.campus-bg--hero .site-footer {
+  color: #f4f7f2;
+  border-top-color: rgba(255, 255, 255, .16);
+}
+
+/* Auth cards float on the photo: a slightly deeper shadow separates them. */
+.campus-bg--hero .auth-card {
+  box-shadow: 0 1px 2px rgba(11, 42, 35, .12), 0 1.5rem 3.5rem rgba(6, 24, 20, .35);
+}
+
+/* ---------- 3. Accessibility fallbacks (same rules as campus-bg.css) ---------- */
+@media (prefers-reduced-transparency: reduce) {
+  body.campus-bg .topbar { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+@media (forced-colors: active) {
+  .campus-bg--hero .landing-story h1,
+  .campus-bg--hero .landing-story strong,
+  .campus-bg--hero .landing-story .lead,
+  .campus-bg--hero .story-points small,
+  .campus-bg--hero .landing-bottom h2,
+  .campus-bg--hero .landing-bottom > p,
+  .campus-bg--hero .site-footer { color: CanvasText; }
+}
+@media print {
+  .campus-bg--hero .landing-story h1,
+  .campus-bg--hero .landing-story strong,
+  .campus-bg--hero .landing-story .lead,
+  .campus-bg--hero .story-points small,
+  .campus-bg--hero .landing-bottom h2,
+  .campus-bg--hero .landing-bottom > p,
+  .campus-bg--hero .site-footer { color: #000; }
+}

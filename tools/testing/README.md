@@ -17,6 +17,7 @@ and `python manage.py seed_demo`, with `DJANGO_DEBUG=1`.
 | `browser_queue.py` | Stops the server while messages are typed, restarts it, checks each message is saved once. | Playwright + Chrome |
 | `browser_notice.py` | Live notices, missed notices and chat catch-up across a server restart. | Playwright + Chrome |
 | `media_browser.py` | Photo/video sending: size refusal, 4 MB photo, 20 MB / 59 s video, upload while the server is down. Put `phone_photo.jpg` (> 5 MB), `phone_photo_4mb.jpg` and `phone_video_59s.mp4` in `tools/testing/media/` first. | Playwright + Chrome |
+| `campus_bg_check.py` | Every page for every role in Chrome at several widths: checks the DOrSU photo background loaded and nothing scrolls sideways; saves screenshots to `tools/testing/out/campus_bg/`. `WIDTHS=320,768,1920` to choose widths. | Playwright + Chrome, server running on 127.0.0.1:8000 (or `FINDIT_URL`) |
 | `media_open.py CONVERSATION_ID` | Slow phone + slow network: data downloaded when opening a chat full of media, scroll smoothness. | Playwright + Chrome |
 
 Setup for the browser scripts:

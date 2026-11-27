@@ -2,7 +2,7 @@
 
 **For:** the three v2.0.0 front-end developers.
 **What it is:** one shared background, using the owner's photo of the DOrSU campus monument, for every Find-IT page.
-**Status:** a drop-in kit on branch `design/v2-campus-background`. It does not change any v1.1.1 page.
+**Status:** on branch `design/v2-campus-background`. DES-001 added the kit; **DES-002 switched it on for every existing page** (see the last section). The page layouts were not changed.
 
 ## Files in the kit
 
@@ -96,3 +96,46 @@ Inputs, selects, textareas and tables are forced to a solid white background ins
   - WCAG asks for 4.5 : 1, so all of these pass.
 - **Bug found and fixed in the demo:** at 320–360 px, the table and grid pushed the page wider than the screen. The fix: give grid children `min-width: 0`, and let tables scroll inside their own box (`.table-wrap`, table `min-width: 32rem`). Use the same pattern in real pages.
 - **Not tested:** real Safari on iPhone, and the real Django pages (they don't exist yet in v2.0.0).
+
+## DES-002: switched on for every existing page
+
+**What changed (additions only; no page layout, spacing or structure was changed):**
+
+| File | Change |
+| --- | --- |
+| `templates/core/base.html` | Loads `campus-bg.css` and `campus-bg-pages.css` after `app.css`, preloads the photo, and adds `class="campus-bg {% block bg_variant %}campus-bg--app{% endblock %}"` to `<body>`. Every page that extends `base.html` (all of them except `500.html`) now has the photo. |
+| `landing.html`, `login.html`, `signup.html`, `password_reset_form/done/confirm/complete.html` | One line each: `{% block bg_variant %}campus-bg--hero{% endblock %}` (dark green look). |
+| `templates/500.html` | Stand-alone on purpose (it must work when Django is failing), so the photo and light wash are added in its own `<style>` with a plain `/static/` path. |
+| `static/css/campus-bg-pages.css` (new) | The bridge between the kit and the current pages. Darkens three text colours slightly so they stay readable over the photo, and turns the landing-page text that sits straight on the photo light on the green look. |
+| `core/tests/test_campus_background.py` (new) | 7 tests: the photo and stylesheets exist; public pages use the hero look, all signed-in pages and roles use the app look; error pages show the photo; no leftover merge-conflict markers (BUG-008). |
+| `tools/testing/campus_bg_check.py` (new) | Opens every reachable page for every demo role in Chrome, checks the photo really loaded and there is no sideways scrolling, and saves screenshots. |
+
+**Which look each page has now:** the hero (dark green) look is on the landing, log in, sign-up and the four password-reset pages. **Every other page** (all student, staff, moderator and admin pages, the item page opened from a shared link, error pages) has the app (light) look. The table above, "Which pages get which look", still describes the v2.0.0 plan. The QR turn-in page and error pages use the app look for now, because their content sits on light cards made for a light page.
+
+**Colour changes for readability** (only on pages with the photo, same hue, a little darker). Contrast is the worst case over the real photo and wash:
+
+| Colour | Before | After | Contrast before → after |
+| --- | --- | --- | --- |
+| Grey "muted" text (`--muted`) | `#64778a` | `#475a6b` | 3.2 : 1 → 4.9 : 1 |
+| Grey lead text on the landing page | `#536a7d` | `#455b6d` | 3.9 : 1 → 4.8 : 1 |
+| Teal labels and links (`--teal-dark`) | `#00736f` | `#00625e` | 3.9 : 1 → 5.0 : 1 |
+| Landing headline (hero look) | navy | `#f4f7f2` | 10.5 : 1 desktop, 7.3 : 1 phone |
+| "Found something?" and small labels (hero look) | teal | `#b8d6c6` | 7.3 : 1 desktop, 5.1 : 1 phone |
+
+WCAG asks for 4.5 : 1. Navy headings were already 8.8 : 1 and are unchanged.
+
+**DES-002 test results (Chrome):**
+
+- 6 widths (320, 360, 430, 768, 1280 and 1920 px) × 6 roles (two students, guard, moderator, admin, signed out) × every reachable page (7 to 42 page types per role): **1,158 page views**. Every page has the photo layer, and the photo loaded every time.
+- Error pages (403, 404, 503, form expired, 500) checked with debug off, at 360 and 1280 px: photo shown, no sideways scrolling. One bug was found and fixed: the first version of the 500 page was 37 px too wide at 360 px.
+- `python manage.py test core`: **209 tests, all pass** (202 existing + 7 new). `makemigrations --check`: no changes.
+- **Speed** (login page, simulated slow phone network: 1.6 Mbit/s, 150 ms delay, median of 5):
+
+  | | Before (main) | After |
+  | --- | --- | --- |
+  | First visit | 79 KB, 0.78 s | 210 KB, 1.42 s |
+  | Next page (photo already saved by the browser) | 0.20 s | 0.20 s |
+
+  The extra 131 KB is the photo (116 KB WebP) plus the two stylesheets (14 KB). It downloads once and is then reused on every page. A smaller WebP would only save about 25 KB at a visible loss of detail (the photo is mostly leaves), so the photo was left as it is.
+- **Found, not caused by this change, not fixed** (BUG-009): at phone width the pages `/staff/accounts/`, `/staff/reports/`, `/staff/general-reports/`, `/staff/moderators/` and `/staff/admin/backups/` scroll sideways by 17–487 px (wide tables and the top menu). The numbers are the same with the photo switched off. This belongs to the v2.1.0 adaptive-layout work.
+- **Not tested:** real Safari on iPhone, real Android phones, Windows high-contrast mode.

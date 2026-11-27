@@ -7,9 +7,12 @@
   <meta name="theme-color" content="#17344f">
   <title>{% block title %}Find-IT · Davao Oriental State University{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'css/campus-bg.css' %}">
+  <link rel="stylesheet" href="{% static 'css/campus-bg-pages.css' %}">
+  <link rel="preload" as="image" type="image/webp" href="{% static 'img/campus/dorsu-monument.webp' %}">
   {% block extra_head %}{% endblock %}
 </head>
-<body data-user-authenticated="{{ user.is_authenticated|yesno:'true,false' }}" data-user-id="{% if user.is_authenticated %}{{ user.pk }}{% endif %}">
+<body class="campus-bg {% block bg_variant %}campus-bg--app{% endblock %}" data-user-authenticated="{{ user.is_authenticated|yesno:'true,false' }}" data-user-id="{% if user.is_authenticated %}{{ user.pk }}{% endif %}">
   <header class="topbar">
     <a class="brand" href="{% if user.is_authenticated %}{% url 'home' %}{% else %}{% url 'landing' %}{% endif %}">
       <span class="brand-mark" aria-hidden="true">F</span>
