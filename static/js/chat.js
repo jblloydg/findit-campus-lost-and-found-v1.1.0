@@ -8,7 +8,8 @@ document.addEventListener("DOMContentLoaded", function () {
   var canSend = panel.getAttribute("data-can-send") === "true";
   var protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   var socket = new WebSocket(protocol + "//" + window.location.host + "/ws/conversations/" + conversationId + "/");
-  var connectionText = null;
+  var connectionText = document.getElementById("chat-status");
+  var lastSent = { id: null, text: "" };
 
   function formatTime(value) {
     var date = new Date(value);
@@ -45,10 +46,17 @@ document.addEventListener("DOMContentLoaded", function () {
   socket.addEventListener("message", function (event) {
     var data;
     try { data = JSON.parse(event.data); } catch (error) { return; }
-    if (data.type === "message") addMessage(data);
+    if (data.type === "message") {
+      addMessage(data);
+      if (data.client_id && data.client_id === lastSent.id) { lastSent = { id: null, text: "" }; if (connectionText) connectionText.textContent = ""; }
+    }
     if (data.type === "event" && data.event === "question") refreshQuestions();
     if (data.type === "error") {
       if (connectionText) connectionText.textContent = data.message;
+      // Not sent: give the text back so it is not lost.
+      if (input && lastSent.text && (!data.client_id || data.client_id === lastSent.id) && !input.value) {
+        input.value = lastSent.text;
+      }
     }
   });
   socket.addEventListener("close", function () {
@@ -92,6 +100,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Same id for an accidental double send of the same text, so the server saves it once.
     if (!pendingId || form.getAttribute("data-last-text") !== text) pendingId = newId();
     form.setAttribute("data-last-text", text);
+    lastSent = { id: pendingId, text: text };
     socket.send(JSON.stringify({ message: text, client_id: pendingId }));
     input.value = "";
     pendingId = null;
