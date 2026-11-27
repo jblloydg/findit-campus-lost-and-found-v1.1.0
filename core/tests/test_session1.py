@@ -45,6 +45,11 @@ def make_user(username, role=Profile.Role.STUDENT, email="", superuser=False, **
         user.save()
     user.profile.role = role
     user.profile.student_id = username if role == Profile.Role.STUDENT else None
+    if role == Profile.Role.STUDENT:
+        # v1.1.1: these tests use verified students (Student ID sign-in allowed, normal limits).
+        from django.utils import timezone
+        user.profile.email_verified_at = timezone.now()
+        user.profile.student_id_locked = True
     user.profile.save()
     return user
 
@@ -75,7 +80,7 @@ class AccountTestBase(TestCase):
 class RegistrationTests(AccountTestBase):
     def test_student_registration_creates_student_and_signs_in(self):
         response = self.client.post(reverse("signup"), self.signup_data(), follow=True)
-        user = User.objects.get(username="2026-2001")
+        user = User.objects.get(email="nina@example.com")  # v1.1.1: username is an internal handle
         self.assertEqual(user.profile.role, Profile.Role.STUDENT)
         self.assertEqual(user.profile.student_id, "2026-2001")
         self.assertEqual((user.first_name, user.last_name, user.email), ("Nina", "Newcomer", "nina@example.com"))
@@ -85,19 +90,20 @@ class RegistrationTests(AccountTestBase):
 
     def test_role_cannot_be_chosen_during_registration(self):
         self.client.post(reverse("signup"), self.signup_data(role="admin", is_superuser="1", is_staff="1"))
-        user = User.objects.get(username="2026-2001")
+        user = User.objects.get(email="nina@example.com")
         self.assertEqual(user.profile.role, Profile.Role.STUDENT)
         self.assertFalse(user.is_staff or user.is_superuser)
 
     def test_duplicate_student_id_rejected(self):
+        # v1.1.1: only a VERIFIED (locked) Student ID is blocked; 2026-1001 is verified here.
         response = self.client.post(reverse("signup"), self.signup_data(student_id="2026-1001"))
-        self.assertContains(response, "That Student ID already has an account.")
-        self.assertEqual(User.objects.filter(username="2026-1001").count(), 1)
+        self.assertContains(response, "That Student ID is verified by another account.")
+        self.assertEqual(Profile.objects.filter(student_id="2026-1001").count(), 1)
 
     def test_duplicate_email_rejected_case_insensitive(self):
         response = self.client.post(reverse("signup"), self.signup_data(email="STUDENT1@example.com"))
         self.assertContains(response, "That email address is already used by another account.")
-        self.assertFalse(User.objects.filter(username="2026-2001").exists())
+        self.assertFalse(User.objects.filter(email="nina@example.com").exists())
 
     def test_student_id_format_checked(self):
         response = self.client.post(reverse("signup"), self.signup_data(student_id="20262001"))
@@ -111,7 +117,7 @@ class RegistrationTests(AccountTestBase):
     def test_weak_password_rejected(self):
         response = self.client.post(reverse("signup"), self.signup_data(password1="12345678", password2="12345678"))
         self.assertIn("password1", response.context["form"].errors)
-        self.assertFalse(User.objects.filter(username="2026-2001").exists())
+        self.assertFalse(User.objects.filter(email="nina@example.com").exists())
 
     def test_password_mismatch_rejected(self):
         response = self.client.post(reverse("signup"), self.signup_data(password2="Different-Pass-77"))
@@ -143,14 +149,14 @@ class LoginTests(AccountTestBase):
 
     def test_wrong_password_shows_error(self):
         response = self.login("2026-1001", password="wrong-password")
-        self.assertContains(response, "Incorrect Student ID / username or password")
+        self.assertContains(response, "Incorrect email / username or password")
         self.assertNotIn(SESSION_KEY, self.client.session)
 
     def test_suspended_account_cannot_log_in(self):
         self.staff.is_active = False
         self.staff.save()
         response = self.login("guard.one")
-        self.assertContains(response, "Incorrect Student ID / username or password")
+        self.assertContains(response, "Incorrect email / username or password")
         self.assertNotIn(SESSION_KEY, self.client.session)
 
     def test_login_page_has_password_toggle_and_csrf(self):
@@ -495,7 +501,9 @@ class AdminAccountEditTests(ModerationTestBase):
         return data
 
     def test_admin_edits_account_details_and_role(self):
-        self.client.force_login(self.admin)
+        # v1.1.1: only the Developer can make someone an administrator.
+        developer = make_user("dev.one", role=Profile.Role.DEVELOPER, superuser=True, first_name="Dev")
+        self.client.force_login(developer)
         url = reverse("edit-account", args=[self.staff.pk])
         self.assertEqual(self.client.get(url).status_code, 200)
         response = self.client.post(url, self.edit_data(self.staff, first_name="Regina", role="admin"), follow=True)
@@ -530,8 +538,8 @@ class AdminAccountEditTests(ModerationTestBase):
         lone_admin = make_user("admin.two", role=Profile.Role.ADMIN, first_name="Second")
         self.admin.is_active = False
         self.admin.save()
-        helper = make_user("admin.three", role=Profile.Role.ADMIN, first_name="Third")
-        self.client.force_login(helper)
+        helper = make_user("admin.three", role=Profile.Role.DEVELOPER, first_name="Third")
+        self.client.force_login(helper)  # v1.1.1: changing an admin needs the Developer
         # helper and lone_admin are both active admins: demoting one is fine.
         self.client.post(reverse("edit-account", args=[lone_admin.pk]), self.edit_data(lone_admin, role="staff"))
         lone_admin.refresh_from_db()
@@ -541,7 +549,7 @@ class AdminAccountEditTests(ModerationTestBase):
         self.assertEqual(response.status_code, 403)
 
     def test_role_change_away_from_staff_revokes_moderator(self):
-        self.client.force_login(self.admin)
+        self.client.force_login(make_user("dev.two", role=Profile.Role.DEVELOPER, first_name="Dev"))
         self.client.post(reverse("edit-account", args=[self.moderator.pk]), self.edit_data(self.moderator, role="admin"))
         verification = ModeratorVerification.objects.get(staff=self.moderator)
         self.assertEqual(verification.status, ModeratorVerification.Status.REVOKED)
@@ -955,7 +963,7 @@ class SecurityReportTests(ModerationTestBase):
     # -- password hashing ---------------------------------------------------
     def test_passwords_are_hashed_never_plain_text(self):
         self.client.post(reverse("signup"), self.signup_data())
-        for user in [User.objects.get(username="2026-2001"), self.student, self.admin]:
+        for user in [User.objects.get(email="nina@example.com"), self.student, self.admin]:
             self.assertNotEqual(user.password, TEST_PASSWORD)
             self.assertNotIn(TEST_PASSWORD, user.password)
             self.assertEqual(identify_hasher(user.password).algorithm, "pbkdf2_sha256")
@@ -1206,7 +1214,8 @@ class ClaimPrivacyTests(ModerationTestBase):
         self.client.force_login(self.admin)
         self.assertContains(self.client.get(self.url()), "SECRET-ANSWER-3")
         self.assertTrue(StaffAuditLog.objects.filter(action="viewed_claim_form", actor=self.admin).exists())
-        self.assertEqual(self.client.get(f"/django-admin/core/claimanswer/").status_code in {200, 404}, True)
+        # v1.1.1: the Django back-office is Developer-only; an administrator is sent to its sign-in page.
+        self.assertEqual(self.client.get(f"/django-admin/core/claimanswer/").status_code, 302)
 
     def test_answers_not_in_notifications_or_chat(self):
         self.client.force_login(self.third)

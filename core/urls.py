@@ -1,7 +1,7 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path
 
-from .forms import FindItSetPasswordForm
+from .forms import FindItPasswordResetForm, FindItSetPasswordForm
 
 from . import views
 
@@ -14,10 +14,19 @@ urlpatterns = [
     path("profile/", views.my_profile, name="my-profile"),
     path("profile/edit/", views.edit_profile, name="edit-profile"),
     path("profile/password/", views.change_password, name="change-password"),
+    path("verify-email/", views.verify_email, name="verify-email"),
+    path("profile/student-id/", views.change_student_id_view, name="change-student-id"),
+    path("profile/blocked/", views.blocked_people, name="blocked-people"),
+    path("id-review/new/", views.id_review_new, name="id-review-new"),
+    path("staff/id-reviews/", views.id_reviews, name="id-reviews"),
+    path("staff/id-reviews/<int:case_id>/", views.id_review_detail, name="id-review-detail"),
+    path("people/<int:user_id>/report-block/", views.report_block, name="report-block"),
+    path("test-inbox/", views.test_inbox, name="test-inbox"),
     path("password-reset/", auth_views.PasswordResetView.as_view(
         template_name="core/password_reset_form.html",
         email_template_name="core/email/password_reset_email.txt",
         subject_template_name="core/email/password_reset_subject.txt",
+        form_class=FindItPasswordResetForm,
     ), name="password_reset"),
     path("password-reset/sent/", auth_views.PasswordResetDoneView.as_view(
         template_name="core/password_reset_done.html",

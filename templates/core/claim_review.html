@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load findit_tags %}
 {% block title %}Private claim form · Find-IT{% endblock %}
 {% block content %}
 <section class="narrow-page">
@@ -6,7 +7,7 @@
   <div class="claim-card">
     <span class="eyebrow">Private ownership verification</span><h1>{{ claim.post.display_title }}</h1>
     {% if viewer_is_claimant %}<p class="muted">These are the answers you submitted. Only you, the finder, and authorized staff can view them. They cannot be edited after submission.</p>{% else %}<p class="muted">Only the claimant, the finder, and authorized staff can view this form. Do not share answers with other claimants.</p>{% endif %}
-    <div class="claim-review-meta"><strong>Applicant</strong><span>{{ claim.claimant.first_name|default:claim.claimant.username }}</span><strong>Submitted</strong><span>{{ claim.submitted_at|date:"M j, Y · g:i a" }}</span><strong>Status</strong><span>{{ claim.get_status_display }}</span></div>
+    <div class="claim-review-meta"><strong>Applicant</strong><span>{{ claim.claimant.first_name|default:claim.claimant.username }} {{ claim.claimant|verified_mark }}{% if can_block_claimant %} · <a class="text-action danger-link" href="{% url 'report-block' claim.claimant_id %}?next={{ request.path|urlencode }}">⛔ Report &amp; block</a>{% endif %}</span><strong>Submitted</strong><span>{{ claim.submitted_at|date:"M j, Y · g:i a" }}</span><strong>Status</strong><span>{{ claim.get_status_display }}</span></div>
     {% if claim.description %}<article class="answer-card claimant-description"><span>Claimant's description</span><p>{{ claim.description|linebreaksbr }}</p></article>{% endif %}
     <div class="answer-list">
       {% for answer in answers %}<article class="answer-card"><span>Question {{ answer.question.order }}</span><h3>{{ answer.question.text }}</h3><p>{{ answer.answer_text|linebreaksbr }}</p></article>{% empty %}<p class="muted">This application has no saved answers.</p>{% endfor %}

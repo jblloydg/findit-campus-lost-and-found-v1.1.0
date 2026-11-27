@@ -39,3 +39,28 @@ class FriendlyErrorMiddleware:
             logger.exception("Database error on %s %s", request.method, request.path)
             return render(request, "503.html", status=503)
         return None
+
+
+class StudentIdRequiredMiddleware:
+    """v1.1.1: a student whose Student ID was cleared (another account verified it)
+    must set a new one before using the rest of the site, unless an ID review is open."""
+
+    ALLOWED_PREFIXES = (
+        "/profile/student-id/", "/id-review/", "/logout/", "/verify-email/", "/notifications/", "/test-inbox/",
+        "/static/", "/media/", "/captcha/", "/health/", "/profile/", "/ws/",
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, "user", None)
+        if (
+            user is not None and user.is_authenticated and request.method == "GET"
+            and not request.path.startswith(self.ALLOWED_PREFIXES)
+        ):
+            from .verification import needs_student_id
+            if needs_student_id(user):
+                from django.shortcuts import redirect
+                return redirect("change-student-id")
+        return self.get_response(request)

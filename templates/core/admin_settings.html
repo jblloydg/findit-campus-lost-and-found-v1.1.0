@@ -10,8 +10,13 @@
       <label>Guard-house grace period (days){{ form.guardhouse_grace_days }}<small class="form-help">After staff receive an item, its claims and chats stay open for this many days; then the listing closes and its chats become read-only. Blank means they stay open until the item is claimed or closed.</small></label>{% if form.guardhouse_grace_days.errors %}<div class="field-error">{{ form.guardhouse_grace_days.errors }}</div>{% endif %}
       <label>Archived post auto-delete (days){{ form.archive_purge_days }}<small class="form-help">After a post is archived, permanently remove its post, claims, photo, and chat together after this many days. Blank means keep history until an authorized person removes it.</small></label>{% if form.archive_purge_days.errors %}<div class="field-error">{{ form.archive_purge_days.errors }}</div>{% endif %}
       <label>New posts per account per hour{{ form.posts_per_hour }}<small class="form-help">Limits spam. Default 10.</small></label>{% if form.posts_per_hour.errors %}<div class="field-error">{{ form.posts_per_hour.errors }}</div>{% endif %}
+      <h2 class="sub-heading">Limits for unverified students</h2>
+      <p class="fine-print">Students who have not verified their email get these lower limits. Verified students, staff and administrators keep the normal limits.</p>
+      {% for field in form %}{% if field.name|slice:":11" == "unverified_" or field.name == "id_conflict_grace_days" %}
+      <label>{{ field.label|capfirst }}{{ field }}<small class="form-help">{{ field.help_text }}</small></label>{% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}
+      {% endif %}{% endfor %}
       <div class="form-callout warning-callout"><strong>Reports are protected</strong><span>A post connected to a pending safety report is not permanently deleted until the report is resolved.</span></div>
-      <button class="button button-primary" type="submit">Save timer settings</button>
+      <button class="button button-primary" type="submit">Save settings</button>
     </form>
     <p class="fine-print">Last updated {% if settings_row.updated_by %}by {{ settings_row.updated_by.first_name|default:settings_row.updated_by.username }}{% else %}not yet changed{% endif %}{% if settings_row.updated_at %} · {{ settings_row.updated_at|date:"M j, Y · g:i a" }}{% endif %}</p>
   </div>

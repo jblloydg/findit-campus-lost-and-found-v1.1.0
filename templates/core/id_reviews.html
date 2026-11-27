@@ -1,0 +1,24 @@
+{% extends "core/base.html" %}
+{% block title %}Student ID reviews · Find-IT{% endblock %}
+{% block content %}
+<section class="page-wrap">
+  <div class="page-heading"><div><span class="eyebrow">Verified moderators and administrators</span><h1>Student ID reviews</h1><p class="muted">Decide who owns a Student ID that is locked to a verified account. Open cases are grouped: one row per Student ID.</p></div></div>
+  <form method="get" class="filter-bar">
+    <select name="status">{% for value, label in status_choices %}<option value="{{ value }}"{% if value == status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+    <input type="search" name="q" value="{{ q }}" placeholder="Student ID or reference">
+    <button class="button button-soft" type="submit">Filter</button>
+  </form>
+  <div class="panel">
+    {% if status == "OPEN" %}
+      {% for g in groups %}
+      <div class="staff-row"><div><strong>{{ g.case.student_id }}{% if g.count > 1 %} · {{ g.count }} requests{% endif %}</strong><small>{{ g.case.reference }} · {{ g.case.get_kind_display }} · from {% firstof g.case.requester.get_full_name g.case.requester.email %} · {{ g.case.created_at|date:"M j, Y" }}</small></div><a class="button button-soft button-small" href="{% url 'id-review-detail' g.case.pk %}">Review</a></div>
+      {% empty %}<p class="muted">No open ID reviews.</p>{% endfor %}
+    {% else %}
+      {% for c in page_obj %}
+      <div class="staff-row"><div><strong>{{ c.reference }} · {{ c.student_id }}</strong><small>{{ c.get_status_display }} · {% firstof c.requester.get_full_name c.requester.email %} · decided {{ c.decided_at|date:"M j, Y" }}</small></div><a class="text-action" href="{% url 'id-review-detail' c.pk %}">Open</a></div>
+      {% empty %}<p class="muted">No cases.</p>{% endfor %}
+      {% include "core/includes/pagination.html" %}
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

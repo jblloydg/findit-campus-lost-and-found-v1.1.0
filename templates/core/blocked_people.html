@@ -1,0 +1,15 @@
+{% extends "core/base.html" %}
+{% block title %}Blocked people · Find-IT{% endblock %}
+{% block content %}
+<section class="narrow-page">
+  <a class="back-link" href="{% url 'my-profile' %}">← My profile</a>
+  <div class="panel">
+    <span class="eyebrow">Safety</span><h1>Blocked people</h1>
+    {% for b in blocks %}
+    <div class="staff-row"><div><strong>{% firstof b.blocked.get_full_name b.blocked.first_name "Student" %}</strong><small>Blocked {{ b.created_at|date:"M j, Y" }}{% if b.report %} · report {{ b.report.reference }}{% endif %}</small></div>
+      <form method="post">{% csrf_token %}<input type="hidden" name="user_id" value="{{ b.blocked_id }}"><button class="button button-outline button-small" type="submit">Unblock</button></form></div>
+    {% empty %}<p class="muted">You have not blocked anyone.</p>{% endfor %}
+    <p class="fine-print">Unblocking lets you interact again. Chats and claims that were closed stay closed.</p>
+  </div>
+</section>
+{% endblock %}

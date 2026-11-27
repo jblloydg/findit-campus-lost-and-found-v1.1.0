@@ -1,0 +1,23 @@
+{% extends "core/base.html" %}
+{% block title %}Report & block · Find-IT{% endblock %}
+{% block content %}
+<section class="narrow-page">
+  <div class="auth-card">
+    <span class="eyebrow">Safety</span><h1>Report &amp; block {{ target.first_name|default:"this person" }}</h1>
+    <p class="muted">This does three things at once:</p>
+    <ul class="plain-list fine-print">
+      <li>Your chats and open claims with this person are closed (read-only; history is kept).</li>
+      <li>Neither of you can claim, comment on, or message about the other's posts.</li>
+      <li>A report goes to verified moderators, who may read the chat to check what happened.</li>
+    </ul>
+    <p class="fine-print">A reason is optional. You can unblock later from <strong>My profile → Blocked people</strong>.</p>
+    <form method="post" class="stack-form" novalidate>
+      {% csrf_token %}<input type="hidden" name="next" value="{{ next }}">{% if conversation %}<input type="hidden" name="conversation" value="{{ conversation.pk }}">{% endif %}
+      <label>{{ form.reason.label }}{{ form.reason }}</label>
+      <label>{{ form.details.label }}{{ form.details }}</label>
+      <button class="button button-danger button-full" type="submit">Report &amp; block</button>
+    </form>
+    <p class="fine-print center"><a href="{{ next }}">Cancel</a></p>
+  </div>
+</section>
+{% endblock %}

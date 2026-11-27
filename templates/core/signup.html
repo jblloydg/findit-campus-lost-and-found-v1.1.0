@@ -4,7 +4,7 @@
 <section class="narrow-page">
   <div class="auth-card">
     <span class="eyebrow">Student demo account</span><h1>Create your account</h1>
-    <p class="muted">This local demo checks the Student ID format only. It does not verify enrollment. Use fictional details for testing.</p>
+    <p class="muted">You will sign in with your <strong>email address</strong>. After signing up you can verify your email (optional) to get ✔ Verified. Enrollment is not checked yet. Use fictional details for testing.</p>
     <form method="post" class="stack-form" novalidate>
       {% csrf_token %}
       {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
@@ -18,10 +18,11 @@
           {% if form.last_name.errors %}<div class="field-error">{{ form.last_name.errors }}</div>{% endif %}
         </div>
       </div>
-      {% for field in form %}{% if field.name != "first_name" and field.name != "last_name" %}
+      {% for field in form %}{% if field.name != "first_name" and field.name != "last_name" and field.name != "id_is_mine" %}
       <label>{{ field.label }}{{ field }}{% if field.help_text %}<small class="form-help">{{ field.help_text }}</small>{% endif %}</label>
       {% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}
       {% endif %}{% endfor %}
+      {% if form.id_locked %}<label class="checkbox-label">{{ form.id_is_mine }} {{ form.id_is_mine.label }}</label><small class="form-help">{{ form.id_is_mine.help_text }}</small>{% endif %}
       <p class="form-help">Every new account is a <strong>Student</strong> account. Staff accounts are created by an administrator.</p>
       <button class="button button-primary button-full" type="submit">Create account</button>
     </form>

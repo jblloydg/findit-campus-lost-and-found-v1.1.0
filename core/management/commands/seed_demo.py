@@ -10,7 +10,8 @@ import io
 
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
-from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 from PIL import Image, ImageDraw
@@ -33,6 +34,8 @@ ACCOUNTS = [
     ("2026-0002", "Jamie", "Claimant", "jamie.claimant@example.com", Profile.Role.STUDENT, "DemoFindIt!2026"),
     ("2026-0003", "Sam", "Second", "sam.second@example.com", Profile.Role.STUDENT, "DemoFindIt!2026"),
     ("2026-0004", "Riley", "Third", "riley.third@example.com", Profile.Role.STUDENT, "DemoFindIt!2026"),
+    # v1.1.1: a student who has NOT verified yet, to show the limits and the red warning.
+    ("2026-0005", "Casey", "Unverified", "casey.unverified@example.com", Profile.Role.STUDENT, "DemoFindIt!2026"),
     ("security.demo", "Campus", "Guard", "security.demo@example.com", Profile.Role.STAFF, "DemoStaff!2026"),
     ("moderator.demo", "Mika", "Moderator", "moderator.demo@example.com", Profile.Role.STAFF, "DemoStaff!2026"),
     ("findit-admin", "Find-IT", "Admin", "findit-admin@example.com", Profile.Role.ADMIN, "DemoAdmin!2026"),
@@ -54,6 +57,9 @@ class Command(BaseCommand):
     help = "Create fictional local demo accounts and example listings. Do not use these credentials online."
 
     def handle(self, *args, **options):
+        if not settings.DEBUG:
+            # The demo passwords are public. Never put them on an online (DEBUG off) site.
+            raise CommandError("seed_demo only runs on a local PC (DEBUG on). It must never run on an online site.")
         users = {}
         for username, first_name, last_name, email, role, password in ACCOUNTS:
             user, created = User.objects.get_or_create(
@@ -65,11 +71,14 @@ class Command(BaseCommand):
             profile, _ = Profile.objects.get_or_create(user=user)
             profile.role = role
             if role == Profile.Role.STUDENT:
+                from core.models import StudentIdRecord
                 profile.student_id = username
-            if role == Profile.Role.ADMIN:
-                user.is_staff = True
-                user.is_superuser = True
-                user.save(update_fields=["is_staff", "is_superuser"])
+                StudentIdRecord.objects.get_or_create(user=user, student_id=username, defaults={"source": "SIGNUP"})
+                if username != "2026-0005":
+                    # Demo students are verified so they can sign in with their Student ID too.
+                    profile.email_verified_at = profile.email_verified_at or timezone.now()
+                    profile.student_id_locked = True
+            # v1.1.1: the demo admin is NOT a Django superuser and cannot open /django-admin/.
             profile.save()
             users[username] = User.objects.select_related("profile").get(pk=user.pk)
             self.stdout.write(f"{'Created' if created else 'Ready'} demo account: {username} ({role})")

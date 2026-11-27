@@ -2,7 +2,7 @@ import re
 
 from django import forms
 from django.contrib.auth import authenticate, get_user_model
-from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm, SetPasswordForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm, PasswordResetForm, SetPasswordForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -47,19 +47,22 @@ def _check_password_strength(form, field, password, candidate):
 
 
 class FindItLoginForm(AuthenticationForm):
-    """Students sign in with their Student ID; staff and administrators use their assigned username."""
+    """v1.1.1: students sign in with their email (or their verified Student ID);
+    staff and administrators use their assigned username."""
 
     error_messages = {
         **AuthenticationForm.error_messages,
         "invalid_login": (
-            "Incorrect Student ID / username or password. Passwords are case-sensitive. "
+            "Incorrect email / username or password. Passwords are case-sensitive. "
+            "Students sign in with their email; a Student ID works only after it is verified. "
             "If your account was suspended, contact a Find-IT administrator."
         ),
     }
 
     username = forms.CharField(
-        label="Student ID or staff username",
-        widget=forms.TextInput(attrs={"autocomplete": "username", "placeholder": "2020-0001", "autofocus": True}),
+        label="Email (students) or staff username",
+        max_length=254,
+        widget=forms.TextInput(attrs={"autocomplete": "username", "placeholder": "you@example.com", "autofocus": True}),
     )
     password = forms.CharField(
         label="Password",
@@ -77,7 +80,7 @@ class SignupForm(forms.Form):
     first_name = forms.CharField(max_length=60, label="First name", widget=forms.TextInput(attrs={"autocomplete": "given-name", "placeholder": "Juan"}))
     last_name = forms.CharField(max_length=60, label="Last name", widget=forms.TextInput(attrs={"autocomplete": "family-name", "placeholder": "Cruz"}))
     student_id = forms.CharField(
-        max_length=9, label="Student ID", help_text="Format: YYYY-NNNN, such as 2020-0001. Only the format is checked.",
+        max_length=9, label="Student ID", help_text="Format: YYYY-NNNN, such as 2020-0001. Once you verify your email, this ID is locked to your account.",
         widget=forms.TextInput(attrs={"placeholder": "2020-0001", "autocomplete": "username"}),
     )
     email = forms.EmailField(max_length=254, label="Email address", widget=forms.EmailInput(attrs={"autocomplete": "email"}))
@@ -97,12 +100,18 @@ class SignupForm(forms.Form):
     def clean_last_name(self):
         return self.cleaned_data["last_name"].strip()
 
+    id_is_mine = forms.BooleanField(
+        required=False,
+        label="This is my Student ID. The verified account using it is not me (impostor), or I lost access to it.",
+        help_text="Your account is created without a Student ID and you are taken to the ID review form.",
+    )
+
     def clean_student_id(self):
         value = self.cleaned_data["student_id"].strip()
         if not STUDENT_ID_PATTERN.fullmatch(value):
             raise ValidationError("Use the Student ID format YYYY-NNNN, such as 2020-0001.")
-        if User.objects.filter(username__iexact=value).exists() or Profile.objects.filter(student_id=value).exists():
-            raise ValidationError("That Student ID already has an account.")
+        # v1.1.1: unverified accounts may share an ID; only a verified (locked) ID is blocked.
+        self.id_locked = Profile.objects.filter(student_id=value, student_id_locked=True).exists()
         return value
 
     def clean_email(self):
@@ -113,6 +122,11 @@ class SignupForm(forms.Form):
 
     def clean(self):
         cleaned = super().clean()
+        if getattr(self, "id_locked", False) and not cleaned.get("id_is_mine"):
+            self.add_error("student_id", (
+                "That Student ID is verified by another account. If it is really yours, tick the box below "
+                "to request an ID review."
+            ))
         password1, password2 = cleaned.get("password1"), cleaned.get("password2")
         if password1 and password2:
             if password1 != password2:
@@ -125,10 +139,21 @@ class SignupForm(forms.Form):
                 _check_password_strength(self, "password1", password1, candidate)
         return cleaned
 
+    @property
+    def wants_id_review(self):
+        return bool(getattr(self, "id_locked", False) and self.cleaned_data.get("id_is_mine"))
+
     @transaction.atomic
     def save(self):
+        import secrets
+        from .models import StudentIdRecord
+        # The sign-in name is the email; the username is an internal unique handle.
+        while True:
+            username = f"student-{secrets.token_hex(5)}"
+            if not User.objects.filter(username=username).exists():
+                break
         user = User.objects.create_user(
-            username=self.cleaned_data["student_id"],
+            username=username,
             email=self.cleaned_data["email"],
             first_name=self.cleaned_data["first_name"],
             last_name=self.cleaned_data["last_name"],
@@ -136,9 +161,88 @@ class SignupForm(forms.Form):
         )
         # Role is assigned here, never taken from the submitted form.
         user.profile.role = Profile.Role.STUDENT
-        user.profile.student_id = self.cleaned_data["student_id"]
+        if not self.wants_id_review:
+            user.profile.student_id = self.cleaned_data["student_id"]
+            StudentIdRecord.objects.create(
+                user=user, student_id=self.cleaned_data["student_id"], source=StudentIdRecord.Source.SIGNUP,
+            )
         user.profile.save(update_fields=["role", "student_id"])
         return user
+
+
+class VerifyCodeForm(forms.Form):
+    code = forms.CharField(
+        label="6-digit code", max_length=12,
+        widget=forms.TextInput(attrs={"inputmode": "numeric", "autocomplete": "one-time-code", "placeholder": "123456"}),
+    )
+
+
+class StudentIdChangeForm(forms.Form):
+    student_id = forms.CharField(
+        max_length=9, label="Student ID", help_text="Format: YYYY-NNNN, such as 2020-0001.",
+        widget=forms.TextInput(attrs={"placeholder": "2020-0001"}),
+    )
+    confirm = forms.BooleanField(label="I understand: an account that uses three different Student IDs is disabled.")
+
+    def __init__(self, *args, user, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean_student_id(self):
+        value = self.cleaned_data["student_id"].strip()
+        if not STUDENT_ID_PATTERN.fullmatch(value):
+            raise ValidationError("Use the Student ID format YYYY-NNNN, such as 2020-0001.")
+        if Profile.objects.filter(student_id=value, student_id_locked=True).exclude(user=self.user).exists():
+            raise ValidationError("That Student ID is verified by another account. If it is yours, request an ID review.")
+        return value
+
+
+class IdReviewForm(forms.Form):
+    student_id = forms.CharField(
+        max_length=9, label="Student ID you are asking about",
+        widget=forms.TextInput(attrs={"placeholder": "2020-0001"}),
+    )
+    message = forms.CharField(
+        label="Explain briefly (required)", max_length=1000,
+        help_text="For example: 'I never made that account', or 'I lost access to my old email'. "
+                  "Do not type passwords or other people's private details.",
+        widget=forms.Textarea(attrs={"rows": 4, "maxlength": 1000}),
+    )
+    captcha = CaptchaField(label="Captcha")
+
+    def clean_student_id(self):
+        value = self.cleaned_data["student_id"].strip()
+        if not STUDENT_ID_PATTERN.fullmatch(value):
+            raise ValidationError("Use the Student ID format YYYY-NNNN, such as 2020-0001.")
+        return value
+
+    def clean_message(self):
+        value = self.cleaned_data["message"].strip()
+        if not value:
+            raise ValidationError("Write a short explanation.")
+        return value
+
+
+class IdReviewDecisionForm(forms.Form):
+    decision = forms.ChoiceField(label="Decision", choices=[
+        ("keep", "Keep the ID with the verified account"),
+        ("transfer", "Move the ID to the person who asked"),
+    ])
+    note = forms.CharField(label="Note to the person who asked (optional)", max_length=500, required=False,
+                           widget=forms.Textarea(attrs={"rows": 2, "maxlength": 500}))
+
+
+class ReportBlockForm(forms.Form):
+    reason = forms.ChoiceField(
+        label="Reason (optional)", required=False,
+        choices=[("", "No reason (just block)")] + [
+            (value, label) for value, label in AbuseReport.Reason.choices if value != AbuseReport.Reason.BLOCK
+        ],
+    )
+    details = forms.CharField(
+        label="Details (optional)", max_length=1500, required=False,
+        widget=forms.Textarea(attrs={"rows": 3, "maxlength": 1500}),
+    )
 
 
 class StaffAccountForm(forms.Form):
@@ -290,10 +394,16 @@ class ProfileForm(forms.Form):
     @transaction.atomic
     def save(self):
         user, profile = self.user, self.user.profile
+        email_changed = (user.email or "").lower() != (self.cleaned_data["email"] or "").lower()
         user.first_name = self.cleaned_data["first_name"]
         user.last_name = self.cleaned_data["last_name"]
         user.email = self.cleaned_data["email"]
         user.save(update_fields=["first_name", "last_name", "email"])
+        if email_changed and profile.role == Profile.Role.STUDENT and profile.email_verified_at:
+            # A new email must be confirmed again. A locked Student ID stays locked to this account.
+            profile.email_verified_at = None
+            profile.save(update_fields=["email_verified_at"])
+            self.verification_removed = True
         profile.contact_number = self.cleaned_data["contact_number"]
         old_photo_name = profile.photo.name if profile.photo else ""
         new_photo = self.cleaned_data.get("photo")
@@ -306,6 +416,15 @@ class ProfileForm(forms.Form):
             storage = Profile._meta.get_field("photo").storage
             transaction.on_commit(lambda: storage.delete(old_photo_name))
         return user
+
+
+class FindItPasswordResetForm(PasswordResetForm):
+    """v1.1.1: the Developer password can only be reset with `create_developer --reset-password`
+    on the computer itself, never by email, so a stolen mailbox cannot take over the Developer."""
+
+    def get_users(self, email):
+        return (user for user in super().get_users(email)
+                if getattr(getattr(user, "profile", None), "role", "") != Profile.Role.DEVELOPER)
 
 
 class FindItSetPasswordForm(SetPasswordForm):
@@ -688,7 +807,9 @@ class AdminAccountForm(forms.Form):
     last_name = forms.CharField(max_length=60, label="Last name", required=False)
     email = forms.EmailField(max_length=254, label="Email address", required=False)
     contact_number = forms.CharField(max_length=20, label="Contact number", required=False)
-    role = forms.ChoiceField(label="Role", choices=Profile.Role.choices)
+    role = forms.ChoiceField(label="Role", choices=[
+        (value, label) for value, label in Profile.Role.choices if value != Profile.Role.DEVELOPER
+    ])
     is_active = forms.TypedChoiceField(
         label="Account status", coerce=lambda v: v == "1", choices=[("1", "Active"), ("0", "Inactive (suspended)")],
     )
@@ -703,10 +824,18 @@ class AdminAccountForm(forms.Form):
         })
         super().__init__(*args, **kwargs)
         self.locked_reason = ""
+        acting_is_developer = acting_admin.profile.role == Profile.Role.DEVELOPER
+        if not acting_is_developer:
+            # Only the Developer can create or remove administrators.
+            self.fields["role"].choices = [
+                (value, label) for value, label in self.fields["role"].choices if value != Profile.Role.ADMIN
+            ] if account.profile.role != Profile.Role.ADMIN else self.fields["role"].choices
         if account.pk == acting_admin.pk:
             self.locked_reason = "You cannot change your own role or status. Another administrator must do it."
-        elif account.is_superuser:
-            self.locked_reason = "This is a Django superuser. Change its role or status in Django administration."
+        elif account.profile.role == Profile.Role.DEVELOPER:
+            self.locked_reason = "The Developer account can only be changed with the create_developer command."
+        elif account.profile.role == Profile.Role.ADMIN and not acting_is_developer:
+            self.locked_reason = "Only the Developer can change an administrator's role or status."
         if self.locked_reason:
             for name in ("role", "is_active"):
                 self.fields[name].disabled = True
@@ -735,10 +864,14 @@ class AdminAccountForm(forms.Form):
         role, active = cleaned.get("role"), cleaned.get("is_active")
         if role == Profile.Role.STUDENT and not self.account.profile.student_id:
             self.add_error("role", "This account has no Student ID, so it cannot become a Student.")
+        acting_is_developer = self.acting_admin.profile.role == Profile.Role.DEVELOPER
+        if not self.locked_reason and role == Profile.Role.ADMIN and self.account.profile.role != Profile.Role.ADMIN \
+                and not acting_is_developer:
+            self.add_error("role", "Only the Developer can make someone an administrator.")
         currently_admin = self.account.profile.role == Profile.Role.ADMIN and self.account.is_active
         if currently_admin and (role != Profile.Role.ADMIN or active is False):
-            other_admins = User.objects.filter(is_active=True).filter(
-                Q(profile__role=Profile.Role.ADMIN) | Q(is_superuser=True)
+            other_admins = User.objects.filter(
+                is_active=True, profile__role__in=[Profile.Role.ADMIN, Profile.Role.DEVELOPER],
             ).exclude(pk=self.account.pk)
             if not other_admins.exists():
                 raise ValidationError("At least one active administrator must remain.")
@@ -777,12 +910,32 @@ class ModeratorDecisionForm(forms.Form):
 class SystemSettingsForm(forms.ModelForm):
     class Meta:
         model = SystemSettings
-        fields = ["guardhouse_grace_days", "archive_purge_days", "posts_per_hour"]
+        fields = [
+            "guardhouse_grace_days", "archive_purge_days", "posts_per_hour",
+            "unverified_max_open_claims", "unverified_claim_expiry_days", "unverified_posts_per_day",
+            "unverified_chat_messages", "unverified_chat_window_minutes", "unverified_chat_max_chars",
+            "id_conflict_grace_days",
+        ]
         widgets = {
             "posts_per_hour": forms.NumberInput(attrs={"min": 1, "max": 500}),
             "guardhouse_grace_days": forms.NumberInput(attrs={"min": 1, "placeholder": "Disabled"}),
             "archive_purge_days": forms.NumberInput(attrs={"min": 1, "placeholder": "Disabled"}),
         }
+
+    LIMIT_RANGES = {
+        "unverified_max_open_claims": (1, 50), "unverified_claim_expiry_days": (1, 7),
+        "unverified_posts_per_day": (1, 100), "unverified_chat_messages": (1, 500),
+        "unverified_chat_window_minutes": (1, 1440), "unverified_chat_max_chars": (20, 2000),
+        "id_conflict_grace_days": (1, 90),
+    }
+
+    def clean(self):
+        cleaned = super().clean()
+        for name, (low, high) in self.LIMIT_RANGES.items():
+            value = cleaned.get(name)
+            if value is None or value < low or value > high:
+                self.add_error(name, f"Choose a number from {low} to {high}.")
+        return cleaned
 
     def clean_guardhouse_grace_days(self):
         return self._clean_timer("guardhouse_grace_days")

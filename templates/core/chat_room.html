@@ -1,5 +1,5 @@
 {% extends "core/base.html" %}
-{% load static %}
+{% load static findit_tags %}
 {% block title %}Private chat · Find-IT{% endblock %}
 {% block content %}
 <section class="page-wrap chat-page">
@@ -7,7 +7,7 @@
   <div class="chat-shell">
     <header class="chat-header">
       <div class="avatar">{{ conversation.post.display_title|slice:":1"|upper }}</div>
-      <div><span class="eyebrow">Private Find-IT chat</span><h1>{{ conversation.post.display_title }}</h1><p class="muted">{% if staff_view %}Staff review view · Participants: {{ conversation.initiator.first_name|default:conversation.initiator.username }} and {{ conversation.recipient.first_name|default:conversation.recipient.username }}{% else %}{{ conversation.initiator.first_name|default:conversation.initiator.username }} ↔ {{ conversation.recipient.first_name|default:conversation.recipient.username }}{% endif %}</p></div>
+      <div><span class="eyebrow">Private Find-IT chat</span><h1>{{ conversation.post.display_title }}</h1><p class="muted">{% if staff_view %}Staff review view · Participants: {{ conversation.initiator.first_name|default:conversation.initiator.username }} and {{ conversation.recipient.first_name|default:conversation.recipient.username }}{% else %}{{ conversation.initiator.first_name|default:conversation.initiator.username }} {{ conversation.initiator|verified_mark }} ↔ {{ conversation.recipient.first_name|default:conversation.recipient.username }} {{ conversation.recipient|verified_mark }}{% endif %}</p></div>
       {% if conversation.is_paused %}<span class="status-pill status-closed">Paused for review</span>{% elif conversation.is_closed %}<span class="status-pill status-closed">Read-only</span>{% endif %}
     </header>
     {% if claim or is_asker and conversation.post.post_type == "LOST" %}
@@ -75,14 +75,16 @@
     </details>
     {% endif %}
     {% if can_send %}
-    <form class="chat-composer" id="chat-form"><label for="chat-input" class="sr-only">Message</label><textarea id="chat-input" rows="2" maxlength="2000" placeholder="Write a message…" required></textarea><button class="button button-primary" type="submit">Send</button></form>
+    <form class="chat-composer" id="chat-form"><label for="chat-input" class="sr-only">Message</label><textarea id="chat-input" rows="2" maxlength="{{ chat_char_limit }}" placeholder="Write a message…" required></textarea><button class="button button-primary" type="submit">Send</button></form>
+    <p class="chat-status" id="chat-status" role="status" aria-live="polite"></p>
+    {% if is_unverified_sender %}<p class="fine-print">Unverified accounts: up to {{ chat_char_limit }} characters per message and a limited number of messages every few minutes. <a href="{% url 'verify-email' %}">Verify your email</a> to remove these limits.</p>{% endif %}
     <p class="chat-privacy">Messages are private to the participants. Administrators and verified moderators can review chats for safety.</p>
     {% else %}<div class="chat-readonly">This conversation is read-only. Its history remains until the post is permanently removed.</div>{% endif %}
-    {% if can_report %}<p class="chat-report-link"><a class="text-action" href="{% url 'report-chat' conversation.pk %}">⚑ Report this conversation</a> <span class="muted">for harassment, threats, scams, or other unsafe behavior.</span></p>{% endif %}
+    {% if can_report %}<p class="chat-report-link"><a class="text-action" href="{% url 'report-chat' conversation.pk %}">⚑ Report this conversation</a> <span class="muted">for harassment, threats, scams, or other unsafe behavior.</span>{% if can_block_other %} · <a class="text-action danger-link" href="{% url 'report-block' other_person.pk %}?conversation={{ conversation.pk }}&amp;next={{ request.path|urlencode }}">⛔ Report &amp; block</a>{% endif %}</p>{% endif %}
     {% if is_reviewer %}
     <details class="moderation-tools"><summary>Reviewer tools</summary>
       {% if not conversation.is_paused %}<form method="post" action="{% url 'pause-chat' conversation.pk %}">{% csrf_token %}<label>Reason for pausing<input name="reason" maxlength="240" placeholder="Safety review"></label><button class="button button-outline button-small" type="submit">Pause chat</button></form>{% endif %}
-      {% if conversation.is_paused and not conversation.is_closed and current_role == "admin" %}<form method="post" action="{% url 'unpause-chat' conversation.pk %}">{% csrf_token %}<button class="button button-soft button-small" type="submit">Restore messaging</button></form>{% endif %}
+      {% if conversation.is_paused and not conversation.is_closed and current_is_admin %}<form method="post" action="{% url 'unpause-chat' conversation.pk %}">{% csrf_token %}<button class="button button-soft button-small" type="submit">Restore messaging</button></form>{% endif %}
       <a class="button button-outline button-small" href="{% url 'admin-reports' %}">Chat safety reports</a>
     </details>
     {% endif %}

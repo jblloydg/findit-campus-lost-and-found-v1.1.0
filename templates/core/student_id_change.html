@@ -1,0 +1,25 @@
+{% extends "core/base.html" %}
+{% block title %}Student ID · Find-IT{% endblock %}
+{% block content %}
+<section class="narrow-page">
+  <div class="auth-card">
+    <span class="eyebrow">Your Student ID</span><h1>{% if must_set %}Set your Student ID{% else %}Change your Student ID{% endif %}</h1>
+    {% if must_set %}<div class="form-callout warning-callout"><strong>Your account has no Student ID</strong><span>Another account verified the ID you used, or an ID review moved it. Enter your own Student ID to keep using Find-IT.</span></div>{% endif %}
+    {% if profile.student_id_locked %}
+      <p class="muted">Your Student ID <strong>{{ profile.student_id }}</strong> is verified and locked. To change it, <a href="{% url 'id-review-new' %}">request an ID review</a>.</p>
+    {% else %}
+      <p class="muted">Current: <strong>{{ profile.student_id|default:"none" }}</strong>. You have used <strong>{{ id_count }} of {{ max_ids }}</strong> Student IDs. An account that uses a <strong>third different Student ID is red-flagged and disabled</strong>.</p>
+      {% if warn_flag %}<div class="form-callout warning-callout"><strong>This would be your third Student ID</strong><span>Saving it will disable this account.</span></div>{% endif %}
+      <form method="post" class="stack-form" novalidate>
+        {% csrf_token %}
+        <label>{{ form.student_id.label }}{{ form.student_id }}<small class="form-help">{{ form.student_id.help_text }}</small></label>
+        {% if form.student_id.errors %}<div class="field-error">{{ form.student_id.errors }}</div>{% endif %}
+        <label class="checkbox-label">{{ form.confirm }} {{ form.confirm.label }}</label>
+        {% if form.confirm.errors %}<div class="field-error">{{ form.confirm.errors }}</div>{% endif %}
+        <button class="button button-primary button-full" type="submit">Save Student ID</button>
+      </form>
+      <p class="fine-print">Is the ID yours but locked to another verified account? <a href="{% url 'id-review-new' %}">Request an ID review</a> instead.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

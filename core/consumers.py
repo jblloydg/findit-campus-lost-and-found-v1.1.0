@@ -53,6 +53,10 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         if len(message) > 2000:
             await self.send(text_data=json.dumps({"type": "error", "message": "Messages must be 2,000 characters or fewer."}))
             return
+        limit = await self._limit_message(message)
+        if limit:
+            await self.send(text_data=json.dumps({"type": "error", "message": limit, "client_id": client_id}))
+            return
         stored = await self._save_message(self.scope["user"].pk, message, client_id)
         if not stored:
             await self.send(text_data=json.dumps({"type": "error", "message": "This conversation is no longer open."}))
@@ -103,6 +107,16 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         if not self.scope["user"].is_active or not conversation or user_id not in {conversation.initiator_id, conversation.recipient_id}:
             return False
         return not conversation.is_closed and not conversation.is_paused
+
+    @database_sync_to_async
+    def _limit_message(self, text):
+        """v1.1.1: unverified students have a per-message length and a messages-per-window limit."""
+        from django.contrib.auth import get_user_model
+        from .verification import chat_limit_message
+        user = get_user_model().objects.select_related("profile").filter(pk=self.scope["user"].pk).first()
+        if user is None:
+            return "Please sign in again."
+        return chat_limit_message(user, text)
 
     @database_sync_to_async
     def _save_message(self, user_id, text, client_id=""):
