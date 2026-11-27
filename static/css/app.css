@@ -543,13 +543,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal) !important
 .date-field input { width: 160px; }
 .filter-hint { font-size: .74rem; }
 .filter-clear { margin-left: auto; }
- .result-heading { display: flex; align-items: center; justify-content: space-between; margin: 32px 0 17px; }
- .result-heading h2 { font-size: 1.25rem; }
- .post-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 19px; }
-@@ -186,6 +194,22 @@ input:focus, select:focus, textarea:focus { border-color: var(--teal) !important
- .claim-notice form { margin-top: 8px; }
- .guardhouse-callout { border-color: #f0d8a9; background: #fffaf0; }
- .comments-section { margin-top: 30px; padding-top: 23px; border-top: 1px solid var(--line); }
 /* Task 3: possible LOST/FOUND matches */
 .matches-section { margin: 4px 0 24px; padding: 19px; border: 1px solid var(--line); border-radius: 15px; background: white; }
 .matches-intro { margin: -8px 0 14px; font-size: .84rem; }
