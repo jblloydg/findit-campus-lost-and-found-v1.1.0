@@ -1,0 +1,30 @@
+{% extends "core/base.html" %}
+{% load findit_tags %}
+{% block title %}{{ case.reference }} · Find-IT{% endblock %}
+{% block content %}
+<section class="narrow-page">
+  <a class="back-link" href="{% url 'id-reviews' %}">← Student ID reviews</a>
+  <div class="panel">
+    <span class="eyebrow">{{ case.get_kind_display }}</span><h1>{{ case.reference }} · Student ID {{ case.student_id }}</h1>
+    <dl class="profile-details">
+      <div><dt>Status</dt><dd>{{ case.get_status_display }}</dd></div>
+      <div><dt>Asked by</dt><dd>{% firstof case.requester.get_full_name "—" %} · {{ case.requester.email }} {{ case.requester|verified_mark }} · joined {{ case.requester.date_joined|date:"M j, Y" }}</dd></div>
+      <div><dt>Their Student IDs</dt><dd>{% for r in requester_ids %}{{ r.student_id }} ({{ r.get_source_display }}){% if not forloop.last %}, {% endif %}{% empty %}none{% endfor %}</dd></div>
+      <div><dt>Current verified holder</dt><dd>{% if holder_now %}{% firstof holder_now.get_full_name "—" %} · {{ holder_now.email }} · joined {{ holder_now.date_joined|date:"M j, Y" }}{% else %}Nobody holds it now{% endif %}</dd></div>
+      <div><dt>Holder's Student IDs</dt><dd>{% for r in holder_ids %}{{ r.student_id }} ({{ r.get_source_display }}){% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</dd></div>
+      <div><dt>Message</dt><dd>{{ case.message|linebreaksbr }}</dd></div>
+      {% if case.decided_at %}<div><dt>Decision</dt><dd>{{ case.decided_at|date:"M j, Y" }} by {% firstof case.reviewed_by.get_full_name case.reviewed_by.username %}{% if case.decision_note %} · {{ case.decision_note }}{% endif %}</dd></div>{% endif %}
+    </dl>
+    <p class="fine-print">This is a temporary check. Ask both people in person to show their school ID if you can. Barcode checks are planned for v3.0.0.</p>
+    {% if case.is_open %}
+    <form method="post" class="stack-form">
+      {% csrf_token %}
+      <label>{{ form.decision.label }}{{ form.decision }}</label>
+      <label>{{ form.note.label }}{{ form.note }}</label>
+      <button class="button button-primary" type="submit">Save decision</button>
+    </form>
+    {% endif %}
+    {% if related %}<h3>Other requests for this Student ID</h3>{% for r in related %}<div class="staff-row"><div><strong>{{ r.reference }}</strong><small>{{ r.get_status_display }} · {{ r.requester.email }} · {{ r.created_at|date:"M j, Y" }}</small></div></div>{% endfor %}{% endif %}
+  </div>
+</section>
+{% endblock %}

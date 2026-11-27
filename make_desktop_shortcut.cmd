@@ -6,7 +6,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$s.TargetPath = '%~dp0FindIT.cmd';" ^
   "$s.WorkingDirectory = '%~dp0';" ^
   "$s.IconLocation = 'shell32.dll,13';" ^
-  "$s.Description = 'Start Find-IT v1.1.0';" ^
+  "$s.Description = 'Start Find-IT v1.1.1';" ^
   "$s.Save()"
 if errorlevel 1 (
   echo Could not create the shortcut.

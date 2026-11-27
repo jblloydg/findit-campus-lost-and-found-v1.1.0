@@ -23,8 +23,9 @@
       <a href="{% url 'my-claims' %}">My claims</a>
       <a href="{% url 'messages' %}" class="nav-messages">Messages{% if priority_message_count %}<span class="priority-count" title="Needs your attention">{{ priority_message_count }}</span>{% endif %}</a>
       <a href="{% url 'notifications' %}" class="nav-notice">Updates{% if unread_notification_count %}<span class="notice-count">{{ unread_notification_count }}</span>{% endif %}</a>
-      {% if current_role == "staff" or current_role == "admin" %}<a href="{% url 'staff-dashboard' %}">Staff</a>{% endif %}
-      {% if current_role == "admin" %}<a href="{% url 'admin-dashboard' %}">Admin</a>{% endif %}
+      {% if current_is_staff %}<a href="{% url 'staff-dashboard' %}">Staff</a>{% endif %}
+      {% if current_is_admin %}<a href="{% url 'admin-dashboard' %}">Admin</a>{% endif %}
+      {% if test_inbox_enabled %}<a href="{% url 'test-inbox' %}" title="Emails Find-IT printed instead of sending (local test only)">Test inbox</a>{% endif %}
       <a href="{% url 'my-profile' %}">My profile</a>
     </nav>
     <div class="user-menu">
@@ -35,13 +36,14 @@
           <span class="profile-caret" aria-hidden="true">▾</span>
         </summary>
         <div class="profile-dropdown" role="menu">
-          <div class="profile-dropdown-head"><strong>{% firstof user.get_full_name user.username %}</strong><small>{{ current_role_label }} · {{ user.username }}</small></div>
+          <div class="profile-dropdown-head"><strong>{% firstof user.get_full_name user.username %}</strong><small>{{ current_role_label }} · {{ current_sign_in_name }}</small></div>
           <a role="menuitem" href="{% url 'my-profile' %}">My profile</a>
           <a role="menuitem" href="{% url 'edit-profile' %}">Edit profile</a>
           <a role="menuitem" href="{% url 'change-password' %}">Change password</a>
           <a role="menuitem" href="{% url 'my-reports' %}">My reports</a>
           <a role="menuitem" href="{% url 'general-report-create' %}">Report a problem</a>
-          {% if current_role == "admin" %}<a role="menuitem" href="{% url 'admin-dashboard' %}">Admin dashboard</a>{% endif %}
+          {% if current_unverified %}<a role="menuitem" href="{% url 'verify-email' %}">Verify my email</a>{% endif %}
+          {% if current_is_admin %}<a role="menuitem" href="{% url 'admin-dashboard' %}">Admin dashboard</a>{% endif %}
           <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link-button" role="menuitem" type="submit">Log out</button></form>
         </div>
       </details>
@@ -54,6 +56,9 @@
   <div class="flash-stack" role="status" aria-live="polite">
     {% for message in messages %}<div class="flash flash-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
   </div>
+  {% endif %}
+  {% if current_unverified %}
+  <div class="verify-strip">Your account is not verified yet, so some limits apply. <a href="{% url 'verify-email' %}">Verify your email</a> to get ✔ Verified.</div>
   {% endif %}
   <main id="main-content">
     {% block content %}{% endblock %}
@@ -73,7 +78,7 @@
       <form method="post" action="{% url 'login' %}" class="stack-form">
         {% csrf_token %}
         <input type="hidden" name="next" id="login-next" value="{{ request.get_full_path }}">
-        <label>Student ID or staff username<input name="username" autocomplete="username" placeholder="2020-0001" required></label>
+        <label>Email (students) or staff username<input name="username" autocomplete="username" placeholder="you@example.com" required></label>
         <label>Password<input name="password" type="password" autocomplete="current-password" data-password-toggle="true" required></label>
         <button class="button button-primary button-full" type="submit">Log in and return</button>
       </form>
@@ -81,6 +86,7 @@
     </section>
   </div>
   {% endif %}
+  {% block unverified_warning %}{% if unverified_warning %}{% include "core/includes/unverified_warning.html" %}{% endif %}{% endblock %}
   <script src="{% static 'js/app.js' %}" defer></script>
   {% block scripts %}{% endblock %}
 </body>

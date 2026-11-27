@@ -44,12 +44,17 @@ class FindItTestCase(TestCase):
         self.admin = self.make_user("admin.test", role=Profile.Role.ADMIN)
         self.category = Category.objects.get(name="Keys")
 
-    def make_user(self, username, role=Profile.Role.STUDENT):
+    def make_user(self, username, role=Profile.Role.STUDENT, verified=True):
         user = User.objects.create_user(username=username, password=PASSWORD, first_name=username)
         profile = Profile.objects.get(user=user)
         profile.role = role
         if role == Profile.Role.STUDENT:
             profile.student_id = username
+            if verified:
+                # v1.1.1: existing tests use verified students (normal limits).
+                from django.utils import timezone
+                profile.email_verified_at = timezone.now()
+                profile.student_id_locked = True
         profile.save()
         return User.objects.select_related("profile").get(pk=user.pk)
 

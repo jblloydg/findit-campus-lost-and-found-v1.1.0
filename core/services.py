@@ -105,13 +105,25 @@ def notify_user(user, post, text, claim=None, priority=False):
     notification = InAppNotification.objects.create(
         recipient=user, post=post, claim=claim, text=text, is_priority=priority,
     )
-    layer = get_channel_layer()
-    if layer:
-        async_to_sync(layer.group_send)(
-            f"notifications_{user.pk}",
-            {"type": "notification.created", "text": notification.text, "id": notification.pk},
-        )
+    push_notification(notification)
     return notification
+
+
+def push_notification(notification):
+    """Live 'new notification' push. BUG-004: sent only after the database has saved it,
+    so nobody sees (or opens) a notice that a failed save later removed."""
+    def send():
+        layer = get_channel_layer()
+        if layer:
+            try:
+                async_to_sync(layer.group_send)(
+                    f"notifications_{notification.recipient_id}",
+                    {"type": "notification.created", "text": notification.text, "id": notification.pk,
+                     "priority": notification.is_priority},
+                )
+            except Exception:  # the live push is a bonus; the notice is saved either way
+                pass
+    transaction.on_commit(send)
 
 
 def notify_claimants(post, text, include_open=True):
@@ -174,7 +186,7 @@ def close_claim(claim, actor=None, reason="Closed by participant"):
 
 def staff_users():
     return User.objects.filter(is_active=True).filter(
-        models.Q(profile__role__in=[Profile.Role.STAFF, Profile.Role.ADMIN]) | models.Q(is_superuser=True)
+        profile__role__in=[Profile.Role.STAFF, Profile.Role.ADMIN, Profile.Role.DEVELOPER]
     ).distinct()
 
 
@@ -424,26 +436,34 @@ def process_due_actions():
     prune_idempotency_keys()
     now = timezone.now()
     settings_row = SystemSettings.current()
-    expired_before = now - timedelta(days=7)
-    expired_claims = ClaimApplication.objects.filter(
+    # v1.1.1: claims by unverified students expire sooner (System settings, default 3 days).
+    from .verification import claim_expiry_days, clear_expired_id_conflicts
+    shortest = min(7, settings_row.unverified_claim_expiry_days or 3)
+    candidates = ClaimApplication.objects.filter(
         status__in=ClaimApplication.ACTIVE_STATUSES,
-        last_activity_at__lt=expired_before,
-    ).select_related("post", "claimant")
-    for claim in expired_claims:
+        last_activity_at__lt=now - timedelta(days=shortest),
+    ).select_related("post", "claimant", "claimant__profile")
+    for claim in candidates:
+        days = claim_expiry_days(claim.claimant)
+        if claim.last_activity_at >= now - timedelta(days=days):
+            continue
+        idle_text = "seven days" if days == 7 else f"{days} day{'s' if days != 1 else ''}"
         was_selected_return = claim.post.returned_application_id == claim.pk
         claim.status = ClaimApplication.Status.EXPIRED
         claim.closed_at = now
-        claim.close_reason = "No activity for seven days."
+        claim.close_reason = f"No activity for {idle_text}."
         claim.save(update_fields=["status", "closed_at", "close_reason"])
         if was_selected_return:
             claim.post.returned_application = None
             claim.post.save(update_fields=["returned_application", "updated_at"])
             record_status(claim.post, ItemPost.Status.OPEN, None, "The selected claim expired; the item is available again.")
         if hasattr(claim, "conversation"):
-            close_conversation(claim.conversation, "No activity for seven days.")
-        notify_user(claim.claimant, claim.post, "Your claim closed after seven days without activity.", claim)
-        notify_user(claim.finder_user, claim.post, "A claim on your post closed after seven days without activity.", claim)
+            close_conversation(claim.conversation, f"No activity for {idle_text}.")
+        notify_user(claim.claimant, claim.post, f"Your claim closed after {idle_text} without activity.", claim)
+        notify_user(claim.finder_user, claim.post, f"A claim on your post closed after {idle_text} without activity.", claim)
         reopen_if_no_active_claims(claim.post, None)
+
+    clear_expired_id_conflicts()
 
     if settings_row.guardhouse_grace_days:
         cutoff = now - timedelta(days=settings_row.guardhouse_grace_days)
@@ -599,9 +619,11 @@ def chat_roles(conversation):
 
 
 def broadcast_conversation(conversation, payload):
-    layer = get_channel_layer()
-    if layer:
-        async_to_sync(layer.group_send)(f"conversation_{conversation.pk.hex}", {"type": "chat.event", "payload": payload})
+    def send():
+        layer = get_channel_layer()
+        if layer:
+            async_to_sync(layer.group_send)(f"conversation_{conversation.pk.hex}", {"type": "chat.event", "payload": payload})
+    transaction.on_commit(send)  # BUG-004: only after the change is saved
 
 
 def question_payload(question):

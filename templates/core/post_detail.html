@@ -1,5 +1,5 @@
 {% extends "core/base.html" %}
-{% load static %}
+{% load static findit_tags %}
 {% block title %}{{ post.display_title }} · Find-IT{% endblock %}
 {% block content %}
 <section class="page-wrap detail-page">
@@ -30,9 +30,11 @@
         <div class="card-meta"><span class="type-pill type-{{ post.post_type|lower }}">{{ post.get_post_type_display }}</span>{% if post.category %}<span class="subtle-chip">{{ post.category.name }}</span>{% endif %}<span class="status-pill status-{{ post.status|lower }}">{{ post.get_status_display }}</span></div>
         <h1>{{ post.display_title }}</h1>
         {% if claim_counts.claiming or claim_counts.approved %}<p class="claim-counts"><strong>{{ claim_counts.claiming }}</strong> {% if post.post_type == "LOST" %}verifying{% else %}claiming{% endif %} · <strong>{{ claim_counts.approved }}</strong> approved</p>{% endif %}
-        <p class="detail-author">Posted by <strong>{{ post.author.first_name|default:post.author.username }}</strong>{% if post.approximate_date %} · Approx. {{ post.approximate_date|date:"M j, Y" }}{% endif %}</p>
+        <p class="detail-author">Posted by <strong>{{ post.author.first_name|default:post.author.username }}</strong> {{ post.author|verified_mark }}{% if post.approximate_date %} · Approx. {{ post.approximate_date|date:"M j, Y" }}{% endif %}</p>
         <p class="item-tags"><a class="category-tag" href="{% url 'home' %}?category={{ post.category }}">{{ post.get_category_display }}</a>{% if post.location %}<span class="location-tag">📍 {{ post.location }}</span>{% endif %}</p>
         {% if user.is_authenticated and user.pk != post.author_id %}<a class="text-action report-listing-link" href="{% url 'general-report-create' %}?post={{ post.pk }}">⚑ Report this listing</a>{% endif %}
+        {% if can_block_author %}<a class="text-action report-listing-link danger-link" href="{% url 'report-block' post.author_id %}?next={{ request.path|urlencode }}">⛔ Report &amp; block the poster</a>{% endif %}
+        {% if is_blocked %}<p class="form-callout warning-callout"><strong>Blocked</strong><span>One of you blocked the other, so claims, comments and messages between you are turned off.</span></p>{% endif %}
       </div>
       <dl class="item-facts">
         <div><dt>Current status</dt><dd>{{ post.get_status_display }}</dd></div>
@@ -223,7 +225,7 @@
         <p class="fine-print">{{ claim_counts.claiming }} active · {{ claim_counts.approved }} approved. The finder picks which approved claimant receives the item.</p>
         {% for application in applications %}
         <div class="application-row">
-          <div><strong>{% if application.rank %}<span class="rank-badge">#{{ application.rank }}</span> {% endif %}{% if application.is_lost_report %}{{ application.finder.first_name|default:application.finder.username }} → owner{% else %}{{ application.claimant.first_name|default:application.claimant.username }}{% endif %}</strong>
+          <div><strong>{% if application.rank %}<span class="rank-badge">#{{ application.rank }}</span> {% endif %}{% if application.is_lost_report %}{{ application.finder.first_name|default:application.finder.username }} → owner{% else %}{{ application.claimant.first_name|default:application.claimant.username }} {{ application.claimant|verified_mark }}{% endif %}</strong>
             <small>{{ application.get_status_display }} · {{ application.submitted_at|date:"M j" }}{% if application.reapply_of_id %} · re-application{% endif %}</small>
             {% if application.decline_reason %}<small>Reason: {{ application.decline_reason }}</small>{% endif %}</div>
           <div class="application-links">
@@ -269,7 +271,8 @@
       {% empty %}<div class="chat-empty"><p>No messages yet. Questions and answers appear in the full chat.</p></div>{% endfor %}
     </div>
     {% if panel_can_send %}
-    <form class="chat-composer" id="chat-form"><label for="chat-input" class="sr-only">Message</label><textarea id="chat-input" rows="2" maxlength="2000" placeholder="Write a message…" required></textarea><button class="button button-primary button-small" type="submit">Send</button></form>
+    <form class="chat-composer" id="chat-form"><label for="chat-input" class="sr-only">Message</label><textarea id="chat-input" rows="2" maxlength="{{ chat_char_limit }}" placeholder="Write a message…" required></textarea><button class="button button-primary button-small" type="submit">Send</button></form>
+    <p class="chat-status" id="chat-status" role="status" aria-live="polite"></p>
     {% else %}<div class="chat-readonly">This chat is read-only. Its history stays visible.</div>{% endif %}
   </aside>
   {% endif %}

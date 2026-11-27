@@ -4,20 +4,36 @@ from .models import ModeratorVerification, Profile
 def role_of(user):
     if not getattr(user, "is_authenticated", False):
         return None
-    if user.is_superuser:
-        return Profile.Role.ADMIN
+    # v1.1.1: being a Django superuser no longer makes someone an administrator.
+    # Roles come only from the profile; the Developer role is set by create_developer.
     try:
         return user.profile.role
     except Profile.DoesNotExist:
         return Profile.Role.STUDENT
 
 
+ADMIN_ROLES = {Profile.Role.ADMIN, Profile.Role.DEVELOPER}
+STAFF_ROLES = {Profile.Role.STAFF, Profile.Role.ADMIN, Profile.Role.DEVELOPER}
+
+
 def is_staff_or_admin(user):
-    return role_of(user) in {Profile.Role.STAFF, Profile.Role.ADMIN}
+    return role_of(user) in STAFF_ROLES
 
 
 def is_admin(user):
-    return role_of(user) == Profile.Role.ADMIN
+    """Administrators and the Developer (who can do everything an administrator can)."""
+    return role_of(user) in ADMIN_ROLES
+
+
+def is_developer(user):
+    return bool(getattr(user, "is_active", False)) and role_of(user) == Profile.Role.DEVELOPER
+
+
+def is_unverified_student(user):
+    """Signed-in students who have not confirmed their email. They get lower limits."""
+    if role_of(user) != Profile.Role.STUDENT:
+        return False
+    return user.profile.email_verified_at is None
 
 
 def can_manage_any_post(user):

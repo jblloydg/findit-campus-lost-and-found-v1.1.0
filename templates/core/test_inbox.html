@@ -1,0 +1,12 @@
+{% extends "core/base.html" %}
+{% block title %}Test inbox · Find-IT{% endblock %}
+{% block content %}
+<section class="page-wrap">
+  <div class="page-heading"><div><span class="eyebrow">Local testing only</span><h1>Test inbox</h1><p class="muted">Find-IT is not connected to a real email service yet (planned for v3.0.0). Emails it would send to you are shown here and printed in the Find-IT window. This page does not exist on an online site.</p></div></div>
+  <div class="notification-list">
+    {% for e in emails %}
+    <details class="panel test-email"{% if forloop.first %} open{% endif %}><summary><strong>{{ e.subject }}</strong> <small class="muted">to {{ e.to }} · {{ e.created_at|date:"M j, Y · g:i a" }}</small></summary><pre class="email-body">{{ e.body }}</pre></details>
+    {% empty %}<div class="empty-state"><div class="empty-icon">✉</div><h3>No emails yet</h3><p>Emails such as your welcome message and verification code will appear here.</p></div>{% endfor %}
+  </div>
+</section>
+{% endblock %}

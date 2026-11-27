@@ -1,0 +1,25 @@
+{% extends "core/base.html" %}
+{% block title %}Request an ID review · Find-IT{% endblock %}
+{% block content %}
+<section class="narrow-page">
+  <div class="auth-card">
+    <span class="eyebrow">Manual review</span><h1>Request a Student ID review</h1>
+    <p class="muted">Use this when a <strong>verified</strong> account holds your Student ID: someone else is using it (impostor), you lost access to your old account, or you want to appeal because the account that verified your ID is a false claim. A verified moderator or administrator decides.</p>
+    <p class="fine-print">One open review per account and at most 3 every 30 days. A captcha is required.</p>
+    {% if blocked_reason %}
+      <div class="form-callout warning-callout"><strong>You cannot send a review right now</strong><span>{{ blocked_reason }}</span></div>
+      <a class="button button-outline button-full" href="{% url 'my-profile' %}">Back to my profile</a>
+    {% else %}
+    <form method="post" class="stack-form" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+      {% for field in form %}
+      <label>{{ field.label }}{{ field }}{% if field.help_text %}<small class="form-help">{{ field.help_text }}</small>{% endif %}</label>
+      {% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}
+      {% endfor %}
+      <button class="button button-primary button-full" type="submit">Send ID review</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

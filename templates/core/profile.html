@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load findit_tags %}
 {% block title %}My profile · Find-IT{% endblock %}
 {% block content %}
 <section class="narrow-page profile-page">
@@ -9,20 +10,41 @@
     <div class="profile-head">
       {% include "core/includes/avatar.html" with person=profile_user size="lg" %}
       <div class="profile-head-text">
-        <h2>{% firstof profile_user.get_full_name profile_user.username %}</h2>
+        <h2>{% firstof profile_user.get_full_name profile_user.username %} {{ profile_user|verified_mark }}</h2>
         <div class="card-meta"><span class="subtle-chip role-{{ profile.role }}">{{ profile.get_role_display }}</span><span class="subtle-chip {% if profile_user.is_active %}account-active{% else %}account-suspended{% endif %}">{% if profile_user.is_active %}Active{% else %}Suspended{% endif %}</span></div>
       </div>
     </div>
     <dl class="profile-details">
       <div><dt>Full name</dt><dd>{{ profile_user.get_full_name|default:"Not set" }}</dd></div>
-      <div><dt>{% if profile.student_id %}Student ID{% else %}Username{% endif %}</dt><dd>{{ profile.student_id|default:profile_user.username }}</dd></div>
+      {% if profile.role == "student" %}
+      <div><dt>Student ID</dt><dd>{{ profile.student_id|default:"Not set" }}{% if profile.student_id_locked %} <span class="subtle-chip">Locked to you</span>{% endif %}</dd></div>
+      <div><dt>Sign in with</dt><dd>{{ profile_user.email|default:"(add an email)" }}{% if profile.student_id_locked and profile.email_verified_at %} or {{ profile.student_id }}{% endif %}</dd></div>
+      <div><dt>Verification</dt><dd>{% if profile.email_verified_at %}Email verified {{ profile.email_verified_at|date:"M j, Y" }}{% else %}Not verified · <a href="{% url 'verify-email' %}">Verify my email</a>{% endif %}</dd></div>
+      {% else %}
+      <div><dt>Username</dt><dd>{{ profile_user.username }}</dd></div>
+      {% endif %}
       <div><dt>Email address</dt><dd>{{ profile_user.email|default:"Not set" }}</dd></div>
       <div><dt>Contact number</dt><dd>{{ profile.contact_number|default:"Not set" }}</dd></div>
       <div><dt>Role</dt><dd>{{ profile.get_role_display }}</dd></div>
       <div><dt>Registered</dt><dd>{{ profile_user.date_joined|date:"F j, Y" }}</dd></div>
       <div><dt>Account status</dt><dd>{% if profile_user.is_active %}Active{% else %}Suspended{% endif %}</dd></div>
     </dl>
-    <p class="form-help">Your Student ID or username, role, and account status cannot be changed here. Contact an administrator if one of them is wrong.</p>
+    {% if profile.role == "student" %}
+      {% if profile.id_conflict_deadline %}
+      <div class="form-callout warning-callout"><strong>Another account verified your Student ID</strong><span>Change your Student ID or appeal before {{ profile.id_conflict_deadline|date:"M j, Y" }}. After that, it is cleared from your account. While an appeal is waiting, the deadline is paused.</span>
+        <span><a class="button button-outline button-small" href="{% url 'change-student-id' %}">Change Student ID</a> <a class="button button-soft button-small" href="{% url 'id-review-new' %}">Appeal</a></span></div>
+      {% elif locked_by_other %}
+      <div class="form-callout warning-callout"><strong>Your Student ID is locked to another verified account</strong><span><a href="{% url 'change-student-id' %}">Change it</a> or <a href="{% url 'id-review-new' %}">request an ID review</a>.</span></div>
+      {% endif %}
+      <p class="form-help">
+        {% if profile.student_id_locked %}Your Student ID is verified and locked. If it is wrong, <a href="{% url 'id-review-new' %}">request an ID review</a>.
+        {% else %}<a href="{% url 'change-student-id' %}">Change my Student ID</a> ({{ id_count }} of 3 used — a third different ID disables the account).
+        {% endif %}
+        Someone else verified your Student ID, or you lost access to your old account? <a href="{% url 'id-review-new' %}">Request an ID review</a>.
+      </p>
+      {% if id_cases %}<div class="staff-list"><h3>My ID reviews</h3>{% for c in id_cases %}<div class="staff-row"><div><strong>{{ c.reference }} · {{ c.student_id }}</strong><small>{{ c.get_status_display }} · {{ c.created_at|date:"M j, Y" }}{% if c.decision_note %} · {{ c.decision_note }}{% endif %}</small></div></div>{% endfor %}</div>{% endif %}
+    {% endif %}
+    <p class="form-help"><a href="{% url 'blocked-people' %}">Blocked people ({{ blocked_count }})</a> · Your role and account status cannot be changed here.</p>
     <div class="form-actions">
       <a class="button button-outline" href="{% url 'change-password' %}">Change password</a>
       <a class="button button-primary" href="{% url 'edit-profile' %}">Edit profile</a>

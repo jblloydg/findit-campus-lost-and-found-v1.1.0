@@ -10,8 +10,9 @@ User = get_user_model()
 @receiver(post_save, sender=User)
 def ensure_profile(sender, instance, created, **kwargs):
     if created:
-        default_role = Profile.Role.ADMIN if instance.is_superuser else Profile.Role.STUDENT
-        Profile.objects.get_or_create(user=instance, defaults={"role": default_role})
+        # v1.1.1: every new account starts as Student, superuser or not. Only a Developer
+        # can make administrators, and the Developer role comes from create_developer.
+        Profile.objects.get_or_create(user=instance, defaults={"role": Profile.Role.STUDENT})
 
 
 @receiver(post_save, sender=ItemPost)

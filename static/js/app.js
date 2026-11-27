@@ -58,22 +58,35 @@ document.addEventListener("DOMContentLoaded", function () {
     if (event.key === "Escape") closeLogin();
   });
 
-  if (document.body.getAttribute("data-user-authenticated") === "true") {
-    var noticeSocket = new WebSocket(
-      (window.location.protocol === "https:" ? "wss:" : "ws:") + "//" + window.location.host + "/ws/notifications/"
-    );
-    noticeSocket.addEventListener("message", function (event) {
-      var data;
-      try { data = JSON.parse(event.data); } catch (error) { return; }
-      if (data.type !== "notification") return;
-      var badge = document.querySelector(".notice-count");
-      var nav = document.querySelector(".nav-notice");
-      if (!badge && nav) {
+  // Live notifications (v1.1.1, CHG-004). The saved notifications on the server are the queue:
+  // on every (re)connect the server sends the true unread counts, the browser asks for any
+  // notices it missed, and each notice id is shown only once (no double counting).
+  if (document.body.getAttribute("data-user-authenticated") === "true" && window.WebSocket) {
+    var noticeUrl = (window.location.protocol === "https:" ? "wss:" : "ws:") + "//" + window.location.host + "/ws/notifications/";
+    var seenKey = "findit-seen-notices-" + document.body.getAttribute("data-user-id");
+    var seen = {};
+    try { (JSON.parse(window.sessionStorage.getItem(seenKey) || "[]")).forEach(function (id) { seen[id] = true; }); } catch (e) {}
+    var lastId = null;
+    var noticeDelay = 1000;
+    var remember = function (id) {
+      seen[id] = true;
+      try { window.sessionStorage.setItem(seenKey, JSON.stringify(Object.keys(seen).slice(-200))); } catch (e) {}
+    };
+    var setBadge = function (selector, navSelector, count) {
+      var badge = document.querySelector(selector);
+      var nav = document.querySelector(navSelector);
+      if (!badge && nav && count > 0) {
         badge = document.createElement("span");
-        badge.className = "notice-count";
+        badge.className = selector.slice(1);
         nav.appendChild(badge);
       }
-      if (badge) badge.textContent = String((parseInt(badge.textContent || "0", 10) || 0) + 1);
+      if (badge) { badge.textContent = String(count); badge.hidden = count <= 0; }
+    };
+    var currentCount = function (selector) {
+      var badge = document.querySelector(selector);
+      return badge && !badge.hidden ? (parseInt(badge.textContent || "0", 10) || 0) : 0;
+    };
+    var flashNotice = function (text) {
       var stack = document.querySelector(".flash-stack");
       if (!stack) {
         stack = document.createElement("div");
@@ -84,10 +97,51 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       var flash = document.createElement("div");
       flash.className = "flash flash-info";
-      flash.textContent = data.text;
+      flash.textContent = text;
       stack.appendChild(flash);
       window.setTimeout(function () { flash.remove(); }, 6500);
-    });
+    };
+    var noticeSocket = null;
+    var connectNotices = function () {
+      var socket;
+      try { socket = new WebSocket(noticeUrl); } catch (e) { return; }
+      noticeSocket = socket;
+      socket.addEventListener("open", function () { noticeDelay = 1000; });
+      socket.addEventListener("message", function (event) {
+        var data;
+        try { data = JSON.parse(event.data); } catch (error) { return; }
+        if (data.type === "sync") {
+          setBadge(".notice-count", ".nav-notice", data.unread || 0);
+          setBadge(".priority-count", ".nav-messages", data.priority || 0);
+          if (lastId !== null && data.latest_id > lastId) socket.send(JSON.stringify({ type: "since", after_id: lastId }));
+          lastId = data.latest_id || 0;
+          return;
+        }
+        if (data.type !== "notification" || !data.id) return;
+        if (lastId === null || data.id > lastId) lastId = data.id;
+        if (seen[data.id]) return;  // already shown: never count twice
+        remember(data.id);
+        if (!data.catch_up) {
+          setBadge(".notice-count", ".nav-notice", currentCount(".notice-count") + 1);
+          if (data.priority) setBadge(".priority-count", ".nav-messages", currentCount(".priority-count") + 1);
+        }
+        flashNotice(data.text);
+      });
+      socket.addEventListener("close", function (event) {
+        if (event.code === 4403) return;
+        window.setTimeout(function () { if (noticeSocket === socket) connectNotices(); }, noticeDelay);
+        noticeDelay = Math.min(noticeDelay * 2, 10000);
+      });
+    };
+    var noticesNow = function () {
+      if (noticeSocket && noticeSocket.readyState === WebSocket.CLOSED) { noticeDelay = 1000; connectNotices(); }
+    };
+    window.setInterval(function () {
+      if (noticeSocket && noticeSocket.readyState === WebSocket.OPEN) noticeSocket.send(JSON.stringify({ type: "sync" }));
+    }, 60000);
+    window.addEventListener("online", noticesNow);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) noticesNow(); });
+    connectNotices();
   }
 
   var typeSelect = document.querySelector("[data-post-type]");

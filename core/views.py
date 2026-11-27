@@ -25,20 +25,29 @@ from django.views.decorators.http import require_POST
 
 from .forms import (
     AdminAccountForm, CaptchaOnlyForm, CategoryForm, ClaimAnswerForm, CloseReasonForm, CommentForm,
-    FindItLoginForm, FindItPasswordChangeForm, GeneralReportForm, ItemPostForm, ModeratorDecisionForm, ProfileForm,
-    QuestionTemplateForm, ReportForm, ReportReviewForm, SignupForm, StaffAccountForm, StatusChangeRequestForm,
-    SystemSettingsForm,
+    FindItLoginForm, FindItPasswordChangeForm, GeneralReportForm, IdReviewDecisionForm, IdReviewForm, ItemPostForm,
+    ModeratorDecisionForm, ProfileForm, QuestionTemplateForm, ReportBlockForm, ReportForm, ReportReviewForm,
+    SignupForm, StaffAccountForm, StatusChangeRequestForm, StudentIdChangeForm, SystemSettingsForm, VerifyCodeForm,
 )
 from .models import (
     OPEN_REPORT_STATUSES, AbuseReport, Category, ChatMessage, ChatQuestion, ClaimAnswer, ClaimApplication, Comment,
     Conversation, GeneralReport, GuardhouseIntake, InAppNotification, ItemPost, ModeratorVerification,
     ModeratorVerificationEvent, PostShare, PostStatusEvent, Profile, QuestionTemplate, ReportStatus, StaffAuditLog,
     StatusChangeRequest, SystemSettings, TurnInTicket, VerificationQuestion,
+    IdReviewCase, StudentIdRecord, TestEmail, UserBlock,
+)
+from .mail import test_inbox_enabled
+from .verification import (
+    ReviewLimitError, block_user, blocked_between, check_code, change_student_id, claim_limit_message,
+    code_send_wait, decide_id_review, distinct_student_ids, has_relationship, id_review_block_reason,
+    locked_holder, open_id_review, posting_limit_message, send_verification_code, unblock_user,
+    welcome_new_account, would_be_flagged,
 )
 from .matching import find_possible_matches
 from .security import clear_login_failures, client_ip, login_is_locked, record_login_failure
 from .permissions import (
-    can_review_private_chats, can_review_reports, is_admin, is_staff_or_admin, role_of,
+    can_review_private_chats, can_review_reports, is_admin, is_developer, is_staff_or_admin, is_unverified_student,
+    role_of,
 )
 from .services import (
     archive_post, audit, close_claim, close_post, confirm_claimed,
@@ -111,9 +120,19 @@ def signup_view(request):
     form = SignupForm(request.POST if request.method == "POST" else None)
     if request.method == "POST":
         if form.is_valid():
+            wants_review = form.wants_id_review
             user = form.save()
-            login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-            messages.success(request, "Your student account was created and you are now signed in.")
+            login(request, user, backend="core.auth.FindItBackend")
+            welcome_new_account(user)
+            if wants_review:
+                request.session["id_review_student_id"] = form.cleaned_data["student_id"]
+                messages.success(request, "Your account was created without a Student ID. Send the ID review below.")
+                return redirect("id-review-new")
+            messages.success(
+                request,
+                "Your student account was created and you are now signed in. Sign in next time with your email. "
+                "Check Updates to verify your email (optional).",
+            )
             return redirect(_safe_next(request))
         messages.error(request, "Your account was not created. Fix the highlighted fields and try again.")
     return render(request, "core/signup.html", {"form": form})
@@ -123,7 +142,15 @@ def signup_view(request):
 @login_required
 def my_profile(request):
     user = User.objects.select_related("profile").get(pk=request.user.pk)
-    return render(request, "core/profile.html", {"profile_user": user, "profile": user.profile})
+    profile = user.profile
+    return render(request, "core/profile.html", {
+        "profile_user": user, "profile": profile,
+        "id_cases": IdReviewCase.objects.filter(requester=user).order_by("-created_at")[:5],
+        "id_count": distinct_student_ids(user),
+        "blocked_count": UserBlock.objects.filter(blocker=user).count(),
+        "locked_by_other": bool(profile.student_id and not profile.student_id_locked
+                                and locked_holder(profile.student_id, exclude_user=user)),
+    })
 
 
 @login_required
@@ -139,6 +166,8 @@ def edit_profile(request):
         if form.is_valid():
             form.save()
             messages.success(request, "Your profile was updated.")
+            if getattr(form, "verification_removed", False):
+                messages.info(request, "Your email changed, so verify the new email to get ✔ Verified back.")
             return redirect("my-profile")
         messages.error(request, "Your profile was not saved. Fix the highlighted fields and try again.")
     return render(request, "core/profile_edit.html", {"form": form, "profile": user.profile})
@@ -269,6 +298,10 @@ def post_detail(request, post_id):
         return redirect(f"{reverse('login')}?next={quote(request.get_full_path())}")
 
     resume = request.GET.get("resume", "")
+    is_blocked = request.user.is_authenticated and blocked_between(request.user, post.author)
+    if request.user.is_authenticated and resume == "message" and request.user.pk != post.author_id and is_blocked:
+        messages.error(request, "You cannot message this person because one of you blocked the other.")
+        resume = ""
     if request.user.is_authenticated and resume == "message" and request.user.pk != post.author_id:
         conversation = _conversation_for_post(post, request.user)
         if conversation:
@@ -284,7 +317,7 @@ def post_detail(request, post_id):
         mine = post.claims.filter(claimant=request.user).order_by("-submitted_at")
         user_claim = mine.filter(status__in=ClaimApplication.ACTIVE_STATUSES).first()
         latest_claim = user_claim or mine.first()
-        if post.can_accept_claims and request.user.pk != post.author_id and not user_claim:
+        if post.can_accept_claims and request.user.pk != post.author_id and not user_claim and not is_blocked:
             can_apply, reapply_from = reapply_status(post, request.user)
             if can_apply:
                 saved = request.session.get("claim_form_data") or {}
@@ -332,7 +365,20 @@ def post_detail(request, post_id):
             panel_conversation = post.conversations.filter(initiator=request.user).first()
     if can_moderate and post.status == ItemPost.Status.TURNED_OVER:
         account_list = User.objects.filter(profile__role=Profile.Role.STUDENT, is_active=True).order_by("first_name")
+    for application in applications:
+        application.claimant_unverified = is_unverified_student(application.claimant)
+    viewer_is_student_other = request.user.is_authenticated and request.user.pk != post.author_id
     context = {
+        "chat_char_limit": (
+            SystemSettings.current().unverified_chat_max_chars
+            if request.user.is_authenticated and is_unverified_student(request.user) else 2000
+        ),
+        "is_blocked": is_blocked,
+        "unverified_warning": viewer_is_student_other and is_unverified_student(post.author),
+        "author_verified": post.author.profile.is_verified,
+        "can_block_author": bool(
+            viewer_is_student_other and not is_blocked and role_of(post.author) == Profile.Role.STUDENT
+        ),
         "post": post,
         "comments": comments,
         "comment_form": CommentForm() if request.user.is_authenticated else None,
@@ -397,6 +443,10 @@ def _posting_rate_limited(user):
 def create_post(request):
     form = ItemPostForm(request.POST or None, request.FILES or None)
     if request.method == "POST":
+        daily_limit = posting_limit_message(request.user)
+        if daily_limit:
+            messages.error(request, daily_limit)
+            return redirect("my-posts")
         if _posting_rate_limited(request.user):
             messages.error(request, f"You can create up to {_posts_per_hour()} posts per hour. Please try again later.")
             return redirect("my-posts")
@@ -467,6 +517,13 @@ def submit_claim(request, post_id):
     if post.claims.filter(claimant=request.user, status__in=ClaimApplication.ACTIVE_STATUSES).exists():
         messages.info(request, "You already have a claim for this item.")
         return redirect("my-claims")
+    if blocked_between(request.user, post.author):
+        messages.error(request, "You cannot claim this item because one of you blocked the other.")
+        return redirect("post-detail", post_id=post.pk)
+    limit = claim_limit_message(request.user)
+    if limit:
+        messages.error(request, limit)
+        return redirect("my-claims")
     can_apply, reapply_from = reapply_status(post, request.user)
     if not can_apply:
         messages.error(request, "You have already used your one re-application for this item.")
@@ -512,6 +569,9 @@ def add_comment(request, post_id):
         ItemPost.Status.TURNED_OVER, ItemPost.Status.CLAIMED, ItemPost.Status.CLOSED
     }:
         messages.error(request, "Comments are closed for this listing.")
+        return redirect("post-detail", post_id=post.pk)
+    if blocked_between(request.user, post.author):
+        messages.error(request, "You cannot comment here because one of you blocked the other.")
         return redirect("post-detail", post_id=post.pk)
     form = CommentForm(request.POST)
     if form.is_valid():
@@ -575,6 +635,8 @@ def claim_review(request, claim_id):
     answers = claim.answers.select_related("question").order_by("question__order")
     return render(request, "core/claim_review.html", {
         "claim": claim, "answers": answers, "viewer_is_claimant": is_claimant,
+        "unverified_warning": (not is_claimant) and is_unverified_student(claim.claimant),
+        "can_block_claimant": is_finder and not blocked_between(request.user, claim.claimant),
     })
 
 
@@ -782,7 +844,10 @@ def review_status_request_view(request, request_id):
 @require_POST
 def returned_view(request, post_id):
     post = get_object_or_404(ItemPost, pk=post_id)
-    claim = get_object_or_404(ClaimApplication.objects.select_related("post", "finder"), pk=request.POST.get("claim_id"), post=post)
+    claim_id = request.POST.get("claim_id", "")
+    if not _is_uuid(claim_id):
+        raise Http404  # BUG-002: a damaged form value used to crash the page
+    claim = get_object_or_404(ClaimApplication.objects.select_related("post", "finder"), pk=claim_id, post=post)
     if request.user.pk != claim.finder_user.pk:
         return HttpResponseForbidden("Only the finder can record a return.")
     try:
@@ -806,11 +871,17 @@ def claimed_view(request, post_id):
             return HttpResponseForbidden("Only staff can record an in-person guard-house pickup.")
         witnessed = True
         if request.POST.get("claim_id"):
+            if not _is_uuid(request.POST.get("claim_id")):
+                raise Http404
             claim = get_object_or_404(ClaimApplication, pk=request.POST.get("claim_id"), post=post, status=ClaimApplication.Status.APPROVED)
         else:
             claim = None
+            recipient_id = request.POST.get("recipient_id", "")
+            if not recipient_id.isdigit():
+                messages.error(request, "Choose the student who collected the item.")
+                return redirect("post-detail", post_id=post.pk)
             recipient = get_object_or_404(
-                User, pk=request.POST.get("recipient_id"), profile__role=Profile.Role.STUDENT
+                User, pk=int(recipient_id), profile__role=Profile.Role.STUDENT
             )
     elif not claim:
         messages.error(request, "The finder has not recorded a return for this item.")
@@ -888,7 +959,18 @@ def chat_room(request, conversation_id):
     lost_ticket = None
     if is_asker and conversation.post.post_type == ItemPost.Type.LOST:
         lost_ticket = conversation.post.turn_in_tickets.filter(finder=request.user).first()
+    other = None
+    if conversation.includes(request.user):
+        other = conversation.recipient if conversation.initiator_id == request.user.pk else conversation.initiator
     return render(request, "core/chat_room.html", {
+        "other_person": other,
+        "unverified_warning": bool(other and is_unverified_student(other)),
+        "other_verified": bool(other and other.profile.is_verified),
+        "can_block_other": bool(
+            other and role_of(other) == Profile.Role.STUDENT and not blocked_between(request.user, other)
+        ),
+        "is_unverified_sender": is_unverified_student(request.user),
+        "chat_char_limit": SystemSettings.current().unverified_chat_max_chars if is_unverified_student(request.user) else 2000,
         "lost_ticket": lost_ticket,
         "lost_ticket_qr": _qr_svg(request, lost_ticket) if lost_ticket else "",
         "conversation": conversation,
@@ -986,6 +1068,19 @@ def report_chat(request, conversation_id):
 @login_required
 def notifications(request):
     rows = InAppNotification.objects.filter(recipient=request.user).select_related("post", "claim")
+    open_id = request.GET.get("open", "")
+    if open_id.isdigit():
+        # Tapping a notice marks it read and opens its page (only safe local paths are stored).
+        notice = rows.filter(pk=int(open_id)).first()
+        if notice:
+            if notice.read_at is None:
+                notice.read_at = timezone.now()
+                notice.save(update_fields=["read_at"])
+            if notice.link and notice.link.startswith("/") and not notice.link.startswith("//"):
+                return redirect(notice.link)
+            if notice.post_id:
+                return redirect("post-detail", post_id=notice.post_id)
+        return redirect("notifications")
     unread_ids = list(rows.filter(read_at__isnull=True).values_list("pk", flat=True)[:200])
     if unread_ids:
         InAppNotification.objects.filter(pk__in=unread_ids).update(read_at=timezone.now())
@@ -1058,12 +1153,15 @@ def staff_accounts(request):
         .select_related("profile", "moderator_verification").order_by("first_name", "username")
     )
     accounts = User.objects.select_related("profile").order_by("profile__role", "first_name", "username")
+    if not is_developer(request.user):
+        accounts = accounts.exclude(profile__role=Profile.Role.DEVELOPER)
     q = request.GET.get("q", "").strip()[:80]
     role_filter = request.GET.get("role", "").strip()
     status_filter = request.GET.get("status", "").strip()
     if q:
         accounts = accounts.filter(
             Q(username__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q) | Q(email__icontains=q)
+            | Q(profile__student_id__icontains=q)
         )
     if role_filter in dict(Profile.Role.choices):
         accounts = accounts.filter(profile__role=role_filter)
@@ -1081,23 +1179,25 @@ def staff_accounts(request):
         "q": q,
         "role_filter": role_filter,
         "status_filter": status_filter,
-        "role_choices": Profile.Role.choices,
+        "role_choices": [c for c in Profile.Role.choices if c[0] != Profile.Role.DEVELOPER or is_developer(request.user)],
     })
 
 
 def _account_lock_reason(account, admin_user):
     if account.pk == admin_user.pk:
         return "You cannot change your own role or status."
-    if account.is_superuser:
-        return "Django superusers are managed in Django administration."
+    if role_of(account) == Profile.Role.DEVELOPER:
+        return "The Developer account can only be changed with the create_developer command."
+    if role_of(account) == Profile.Role.ADMIN and not is_developer(admin_user):
+        return "Only the Developer can change an administrator account."
     return ""
 
 
 def _is_last_active_admin(account):
-    if not (account.is_active and role_of(account) == Profile.Role.ADMIN):
+    if not (account.is_active and role_of(account) in {Profile.Role.ADMIN, Profile.Role.DEVELOPER}):
         return False
-    return not User.objects.filter(is_active=True).filter(
-        Q(profile__role=Profile.Role.ADMIN) | Q(is_superuser=True)
+    return not User.objects.filter(
+        is_active=True, profile__role__in=[Profile.Role.ADMIN, Profile.Role.DEVELOPER],
     ).exclude(pk=account.pk).exists()
 
 
@@ -1133,6 +1233,8 @@ def edit_account(request, user_id):
     if not is_admin(request.user):
         return HttpResponseForbidden("Administrator access is required.")
     account = get_object_or_404(User.objects.select_related("profile"), pk=user_id)
+    if role_of(account) == Profile.Role.DEVELOPER and not is_developer(request.user):
+        raise Http404
     form = AdminAccountForm(
         request.POST if request.method == "POST" else None, account=account, acting_admin=request.user,
     )
@@ -1157,11 +1259,13 @@ def admin_dashboard(request):
     if not is_admin(request.user):
         return HttpResponseForbidden("Administrator access is required.")
     users = User.objects.all()
-    admin_q = Q(profile__role=Profile.Role.ADMIN) | Q(is_superuser=True)
+    admin_q = Q(profile__role__in=[Profile.Role.ADMIN, Profile.Role.DEVELOPER])
     account_counts = users.aggregate(
         total=Count("pk"),
-        students=Count("pk", filter=Q(profile__role=Profile.Role.STUDENT, is_superuser=False)),
-        staff=Count("pk", filter=Q(profile__role=Profile.Role.STAFF, is_superuser=False)),
+        students=Count("pk", filter=Q(profile__role=Profile.Role.STUDENT)),
+        verified_students=Count("pk", filter=Q(profile__role=Profile.Role.STUDENT, profile__email_verified_at__isnull=False)),
+        flagged=Count("pk", filter=Q(profile__flagged_at__isnull=False)),
+        staff=Count("pk", filter=Q(profile__role=Profile.Role.STAFF)),
         admins=Count("pk", filter=admin_q),
         active=Count("pk", filter=Q(is_active=True)),
         inactive=Count("pk", filter=Q(is_active=False)),
@@ -1190,6 +1294,7 @@ def admin_dashboard(request):
         "open_chat_reports": AbuseReport.objects.filter(status__in=OPEN_REPORT_STATUSES).select_related("reporter", "target_user")[:5],
         "open_general_reports": GeneralReport.objects.filter(status__in=OPEN_REPORT_STATUSES).select_related("reporter", "post")[:5],
         "report_status_choices": ReportStatus.choices,
+        "open_id_reviews": IdReviewCase.objects.filter(status=IdReviewCase.Status.OPEN).count(),
     })
 
 
@@ -1300,7 +1405,7 @@ def _filtered_reports(request, queryset, category_field, category_choices, searc
     else:
         filters["status"] = ""
     for key, lookup in (("date_from", "created_at__date__gte"), ("date_to", "created_at__date__lte")):
-        parsed = parse_date(filters[key]) if filters[key] else None
+        parsed = _parse_filter_date(filters[key])  # BUG-003: "2026-99-99" used to crash the page
         if parsed:
             queryset = queryset.filter(**{lookup: parsed})
         else:
@@ -1683,3 +1788,199 @@ def health(request):
         database = "error"
     healthy = database == "ok"
     return JsonResponse({"status": "ok" if healthy else "error", "database": database}, status=200 if healthy else 503)
+
+
+# ---------------------------------------------------------------------------
+# v1.1.1 — email verification, Student ID, ID reviews, report & block, test inbox
+# ---------------------------------------------------------------------------
+
+@never_cache
+@login_required
+def verify_email(request):
+    profile = request.user.profile
+    form = VerifyCodeForm(request.POST if request.method == "POST" and "code" in request.POST else None)
+    if request.method == "POST":
+        if request.POST.get("action") == "send":
+            ok, text = send_verification_code(request.user)
+            (messages.success if ok else messages.error)(request, text)
+            return redirect("verify-email")
+        if form.is_valid():
+            ok, text = check_code(request.user, form.cleaned_data["code"])
+            if ok:
+                messages.success(request, text)
+                return redirect("my-profile")
+            messages.error(request, text)
+            return redirect("verify-email")
+        messages.error(request, "Type the 6-digit code from the email.")
+    wait = code_send_wait(request.user)
+    return render(request, "core/verify_email.html", {
+        "form": form, "profile": profile, "send_wait": wait, "test_inbox": test_inbox_enabled(),
+        "is_student": profile.role == Profile.Role.STUDENT,
+    })
+
+
+@never_cache
+@login_required
+def change_student_id_view(request):
+    profile = request.user.profile
+    if profile.role != Profile.Role.STUDENT:
+        return HttpResponseForbidden("Only student accounts have a Student ID.")
+    form = StudentIdChangeForm(request.POST if request.method == "POST" else None, user=request.user)
+    if request.method == "POST" and not profile.student_id_locked and form.is_valid():
+        ok, text, disabled = change_student_id(request.user, form.cleaned_data["student_id"])
+        if disabled:
+            logout(request)
+            messages.error(request, text + " Contact a Find-IT administrator.")
+            return redirect("login")
+        (messages.success if ok else messages.error)(request, text)
+        if ok:
+            return redirect("my-profile")
+    preview = form.data.get("student_id", "").strip() if form.is_bound else ""
+    return render(request, "core/student_id_change.html", {
+        "form": form, "profile": profile, "id_count": distinct_student_ids(request.user),
+        "max_ids": 3, "warn_flag": bool(preview and would_be_flagged(request.user, preview)),
+        "must_set": not profile.student_id,
+    })
+
+
+@never_cache
+@login_required
+def id_review_new(request):
+    if role_of(request.user) != Profile.Role.STUDENT:
+        return HttpResponseForbidden("ID reviews are for student accounts.")
+    ip = client_ip(request)
+    initial = {"student_id": request.session.get("id_review_student_id") or request.user.profile.student_id or ""}
+    form = IdReviewForm(request.POST if request.method == "POST" else None, initial=initial)
+    blocked_reason = id_review_block_reason(request.user, ip)
+    if request.method == "POST" and not blocked_reason and form.is_valid():
+        try:
+            case = open_id_review(request.user, form.cleaned_data["student_id"], form.cleaned_data["message"], ip)
+        except ReviewLimitError as exc:
+            messages.error(request, str(exc))
+        else:
+            request.session.pop("id_review_student_id", None)
+            messages.success(request, f"ID review {case.reference} was sent. You will get an update when it is decided.")
+            return redirect("my-profile")
+    elif request.method == "POST" and blocked_reason:
+        messages.error(request, blocked_reason)
+    return render(request, "core/id_review_form.html", {"form": form, "blocked_reason": blocked_reason})
+
+
+@never_cache
+@login_required
+def id_reviews(request):
+    if not can_review_reports(request.user):
+        return HttpResponseForbidden("Only administrators and verified moderators review Student ID cases.")
+    status = request.GET.get("status", "OPEN")
+    if status not in IdReviewCase.Status.values:
+        status = "OPEN"
+    cases = IdReviewCase.objects.filter(status=status).select_related("requester", "holder")
+    q = request.GET.get("q", "").strip()[:20]
+    if q:
+        cases = cases.filter(Q(student_id__icontains=q) | Q(reference__icontains=q))
+    # One row per Student ID for open cases, so many repeated requests cannot flood the queue.
+    groups = []
+    if status == "OPEN":
+        seen = {}
+        for case in cases.order_by("created_at"):
+            if case.student_id in seen:
+                seen[case.student_id]["count"] += 1
+                continue
+            seen[case.student_id] = {"case": case, "count": 1}
+            groups.append(seen[case.student_id])
+    return render(request, "core/id_reviews.html", {
+        "groups": groups, "page_obj": _paginate(request, cases.order_by("-created_at"), 25) if status != "OPEN" else None,
+        "status": status, "status_choices": IdReviewCase.Status.choices, "q": q,
+    })
+
+
+@never_cache
+@login_required
+def id_review_detail(request, case_id):
+    if not can_review_reports(request.user):
+        return HttpResponseForbidden("Only administrators and verified moderators review Student ID cases.")
+    case = get_object_or_404(IdReviewCase.objects.select_related("requester__profile", "holder__profile"), pk=case_id)
+    form = IdReviewDecisionForm(request.POST if request.method == "POST" else None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            decide_id_review(case, request.user, form.cleaned_data["decision"] == "transfer", form.cleaned_data["note"])
+        except ValueError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f"ID review {case.reference} was decided.")
+            return redirect("id-reviews")
+    related = IdReviewCase.objects.filter(student_id=case.student_id).exclude(pk=case.pk).select_related("requester")[:20]
+    holder_now = locked_holder(case.student_id)
+    return render(request, "core/id_review_detail.html", {
+        "case": case, "form": form, "related": related, "holder_now": holder_now.user if holder_now else None,
+        "requester_ids": StudentIdRecord.objects.filter(user=case.requester),
+        "holder_ids": StudentIdRecord.objects.filter(user=holder_now.user) if holder_now else [],
+    })
+
+
+@never_cache
+@login_required
+def report_block(request, user_id):
+    """One button: report (reason optional) + block. Keeps the two people apart."""
+    target = get_object_or_404(User.objects.select_related("profile"), pk=user_id)
+    back = _safe_next(request, fallback="home")
+    if target.pk == request.user.pk or role_of(target) != Profile.Role.STUDENT:
+        messages.error(request, "This account cannot be blocked. Use Report a problem instead.")
+        return redirect(back)
+    if not has_relationship(request.user, target):
+        return HttpResponseForbidden("You can only block someone you met through a post, claim or chat.")
+    conversation = None
+    conversation_id = request.GET.get("conversation") or request.POST.get("conversation")
+    if conversation_id:
+        conversation = Conversation.objects.filter(pk=conversation_id).first() if _is_uuid(conversation_id) else None
+        if conversation and not (conversation.includes(request.user) and conversation.includes(target)):
+            conversation = None
+    form = ReportBlockForm(request.POST if request.method == "POST" else None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            report = block_user(request.user, target, form.cleaned_data["reason"], form.cleaned_data["details"], conversation)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect(back)
+        messages.success(request, (
+            f"{target.first_name or 'This person'} is blocked and report {report.reference} was sent to moderators. "
+            "Your chats and claims with them are now closed. You can unblock them from My profile."
+        ))
+        return redirect(back)
+    return render(request, "core/report_block.html", {
+        "form": form, "target": target, "conversation": conversation, "next": back,
+    })
+
+
+def _is_uuid(value):
+    import uuid
+    try:
+        uuid.UUID(str(value))
+    except ValueError:
+        return False
+    return True
+
+
+@never_cache
+@login_required
+def blocked_people(request):
+    if request.method == "POST":
+        user_id = request.POST.get("user_id", "")
+        if user_id.isdigit() and unblock_user(request.user, int(user_id)):
+            messages.success(request, "Unblocked. Closed chats and claims stay closed.")
+        return redirect("blocked-people")
+    return render(request, "core/blocked_people.html", {
+        "blocks": UserBlock.objects.filter(blocker=request.user).select_related("blocked"),
+    })
+
+
+@never_cache
+@login_required
+def test_inbox(request):
+    """Local-only page: copies of the emails Find-IT printed instead of sending."""
+    if not test_inbox_enabled():
+        raise Http404
+    rows = TestEmail.objects.all() if is_developer(request.user) else TestEmail.objects.filter(
+        Q(recipient=request.user) | Q(to__iexact=request.user.email or "-")
+    )
+    return render(request, "core/test_inbox.html", {"emails": rows[:50]})

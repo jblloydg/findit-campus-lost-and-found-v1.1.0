@@ -711,3 +711,21 @@ a.stat-card:hover, a.stat-card.is-active { border-color: var(--teal); box-shadow
 .error-page { margin-top: 40px; }
 .error-page h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); margin: 6px 0 10px; }
 .center-row { justify-content: center; margin-top: 16px; }
+
+/* v1.1.1 verification, warnings, report & block */
+.verified-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 999px; background: #e3f6ef; color: #12795d; font-size: .7rem; font-weight: 800; white-space: nowrap; }
+.unverified-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: #fdecec; color: #b3261e; font-size: .7rem; font-weight: 800; white-space: nowrap; }
+.verify-strip { padding: 8px 16px; background: #fff6e0; color: #6b4e00; font-size: .82rem; text-align: center; border-bottom: 1px solid #f1dca4; }
+.verify-strip a { font-weight: 800; }
+.unverified-warning { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; padding: 10px 16px; background: #fff; border-top: 2px solid #c62828; color: #c62828; font-size: .85rem; font-weight: 600; text-align: center; box-shadow: 0 -4px 14px rgba(0,0,0,.08); }
+body:has(.unverified-warning) .site-footer { padding-bottom: 70px; }
+.danger-link { color: #b3261e !important; }
+.chat-status { min-height: 1.2em; margin: 4px 0 0; color: #b3261e; font-size: .8rem; }
+.plain-list { margin: 8px 0 14px; padding-left: 18px; }
+.plain-list li { margin: 4px 0; }
+.checkbox-label { display: flex; gap: 8px; align-items: flex-start; font-weight: 600; }
+.email-body { white-space: pre-wrap; word-break: break-word; font-family: inherit; font-size: .88rem; margin: 10px 0 0; }
+.test-email summary { cursor: pointer; }
+.notification-row.is-priority p { font-weight: 800; }
+.chat-message.is-pending .message-bubble { opacity: .65; border-style: dashed; }
+.chat-message.is-pending time { font-style: italic; }

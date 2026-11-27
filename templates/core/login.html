@@ -4,7 +4,7 @@
 <section class="narrow-page auth-page">
   <div class="auth-card">
     <span class="eyebrow">Welcome back</span><h1>Log in to Find-IT</h1>
-    <p class="muted">Students sign in with their Student ID. Staff and administrators use their assigned username.</p>
+    <p class="muted">Students sign in with their <strong>email address</strong> (or their Student ID once it is ✔ Verified). Staff and administrators use their assigned username.</p>
     <form method="post" class="stack-form" novalidate>
       {% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
       {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}

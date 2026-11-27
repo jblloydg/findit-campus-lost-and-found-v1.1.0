@@ -31,6 +31,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "core.idempotency.IdempotencyMiddleware",
+    "core.middleware.StudentIdRequiredMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "core.middleware.FriendlyErrorMiddleware",
 ]
@@ -149,6 +150,9 @@ LOGGING = {
     },
 }
 
+# v1.1.1: students sign in with email (or a verified Student ID); staff with a username.
+AUTHENTICATION_BACKENDS = ["core.auth.FindItBackend"]
+
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "landing"
@@ -165,7 +169,13 @@ if EMAIL_HOST:
     EMAIL_USE_TLS = os.getenv("DJANGO_EMAIL_USE_TLS", "1").lower() in {"1", "true", "yes"}
     EMAIL_TIMEOUT = 15
 else:
-    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    # Local PC: emails are printed in the Find-IT window and copied to the Test inbox page.
+    EMAIL_BACKEND = "core.mail.ConsoleAndTestInboxBackend"
+# Test inbox (each person sees only their own emails). Only on a local, non-hosted site
+# without a real mail server; it can never be on while DEBUG is off.
+FINDIT_TEST_INBOX = (
+    DEBUG and not EMAIL_HOST and os.getenv("FINDIT_TEST_INBOX", "1").lower() in {"1", "true", "yes"}
+)
 DEFAULT_FROM_EMAIL = os.getenv("DJANGO_DEFAULT_FROM_EMAIL", "Find-IT <no-reply@localhost>")
 PASSWORD_RESET_TIMEOUT = 60 * 60  # reset links expire after 1 hour
 

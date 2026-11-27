@@ -15,18 +15,106 @@ class Profile(models.Model):
         STUDENT = "student", "Student"
         STAFF = "staff", "Staff"
         ADMIN = "admin", "Administrator"
+        # v1.1.1: above Admin. Only created with `manage.py create_developer` on the
+        # computer itself; never through a web page. Only a Developer can make Admins.
+        DEVELOPER = "developer", "Developer"
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
     role = models.CharField(max_length=16, choices=Role.choices, default=Role.STUDENT)
-    student_id = models.CharField(max_length=9, unique=True, null=True, blank=True)
+    # v1.1.1: a Student ID may be shared by several UNVERIFIED accounts until one of
+    # them verifies; then it is locked to that account (unique_locked_student_id).
+    student_id = models.CharField(max_length=9, null=True, blank=True, db_index=True)
+    student_id_locked = models.BooleanField(
+        default=False, help_text="Locked to this account after email verification or an ID review.",
+    )
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+    id_conflict_deadline = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Another account verified this Student ID. After this time the ID is cleared from this account.",
+    )
+    flagged_at = models.DateTimeField(null=True, blank=True)
+    flag_reason = models.CharField(max_length=240, blank=True)
     contact_number = models.CharField(max_length=20, blank=True)
     photo = models.ImageField(
         upload_to="profile-photos/%Y/%m/", validators=[validate_profile_photo], blank=True, null=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student_id"], condition=models.Q(student_id_locked=True),
+                name="unique_locked_student_id",
+            ),
+        ]
+
     def __str__(self):
         return self.user.get_full_name() or self.user.username
+
+    @property
+    def is_email_verified(self):
+        return self.email_verified_at is not None
+
+    @property
+    def is_verified(self):
+        """Students need email verification; staff, admins and developers are created by an admin."""
+        if self.role != self.Role.STUDENT:
+            return True
+        return self.email_verified_at is not None
+
+    @property
+    def sign_in_name(self):
+        """What the person types to sign in (shown on their profile)."""
+        if self.role == self.Role.STUDENT:
+            return self.user.email or "(no email)"
+        return self.user.username
+
+
+class StudentIdRecord(models.Model):
+    """Every distinct Student ID an account has used. Three different IDs = red flag + disabled."""
+
+    class Source(models.TextChoices):
+        SIGNUP = "SIGNUP", "Sign-up"
+        CHANGE = "CHANGE", "Changed by the student"
+        REVIEW = "REVIEW", "Given by an ID review"
+        LEGACY = "LEGACY", "Existing account (v1.1.0)"
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="student_id_records")
+    student_id = models.CharField(max_length=9)
+    source = models.CharField(max_length=8, choices=Source.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        constraints = [models.UniqueConstraint(fields=["user", "student_id"], name="unique_user_student_id_record")]
+
+
+class EmailVerificationCode(models.Model):
+    """A 6-digit code sent to the account's email. Only a hash of the code is stored."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="email_codes")
+    email = models.EmailField(max_length=254)
+    code_hash = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class TestEmail(models.Model):
+    """Local test inbox: copies of emails while Find-IT prints emails instead of sending them."""
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name="test_emails",
+    )
+    to = models.CharField(max_length=500)
+    subject = models.CharField(max_length=255)
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
 
 
 class Category(models.Model):
@@ -440,7 +528,8 @@ class PostStatusEvent(models.Model):
 
 class InAppNotification(models.Model):
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="findit_notifications")
-    post = models.ForeignKey(ItemPost, on_delete=models.CASCADE, related_name="notifications")
+    post = models.ForeignKey(ItemPost, on_delete=models.CASCADE, null=True, blank=True, related_name="notifications")
+    link = models.CharField(max_length=200, blank=True, help_text="Page to open for notices that are not about a post.")
     claim = models.ForeignKey(ClaimApplication, on_delete=models.SET_NULL, null=True, blank=True)
     text = models.CharField(max_length=240)
     is_priority = models.BooleanField(default=False, help_text="Shown as a red badge on Messages until read.")
@@ -494,6 +583,7 @@ class AbuseReport(models.Model):
         INAPPROPRIATE = "INAPPROPRIATE", "Inappropriate messages"
         SPAM = "SPAM", "Spam"
         OTHER = "OTHER", "Other"
+        BLOCK = "BLOCK", "Block (no reason given)"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     reference = models.CharField(max_length=24, unique=True, editable=False)
@@ -667,6 +757,26 @@ class SystemSettings(models.Model):
         default=10, help_text="Most new posts one account can create in an hour.",
     )
     archive_purge_days = models.PositiveSmallIntegerField(null=True, blank=True)
+    # v1.1.1 limits for students who have not verified their email yet.
+    unverified_max_open_claims = models.PositiveSmallIntegerField(
+        default=3, help_text="Most open claims an unverified student can have at once.",
+    )
+    unverified_claim_expiry_days = models.PositiveSmallIntegerField(
+        default=3, help_text="Days without activity before an unverified student's claim expires (verified: 7).",
+    )
+    unverified_posts_per_day = models.PositiveSmallIntegerField(
+        default=1, help_text="Most new posts an unverified student can create in 24 hours.",
+    )
+    unverified_chat_messages = models.PositiveSmallIntegerField(
+        default=10, help_text="Most chat messages an unverified student can send per time window.",
+    )
+    unverified_chat_window_minutes = models.PositiveSmallIntegerField(default=10, help_text="Length of that time window.")
+    unverified_chat_max_chars = models.PositiveSmallIntegerField(
+        default=100, help_text="Longest chat message an unverified student can send.",
+    )
+    id_conflict_grace_days = models.PositiveSmallIntegerField(
+        default=14, help_text="Days other accounts keep a Student ID after someone verifies it.",
+    )
     updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -777,3 +887,61 @@ class StatusChangeRequest(models.Model):
 
     class Meta:
         ordering = ["decision", "-created_at"]
+
+
+class IdReviewCase(models.Model):
+    """Manual review of who really owns a Student ID that is locked to a verified account."""
+
+    class Kind(models.TextChoices):
+        IMPOSTOR = "IMPOSTOR", "The verified account is not me (impostor or lost access)"
+        APPEAL = "APPEAL", "Appeal: the account that verified my ID is a false claim"
+
+    class Status(models.TextChoices):
+        OPEN = "OPEN", "Waiting for review"
+        TRANSFERRED = "TRANSFERRED", "ID moved to the person who asked"
+        KEPT = "KEPT", "ID kept with the verified account"
+        WITHDRAWN = "WITHDRAWN", "Withdrawn"
+
+    reference = models.CharField(max_length=24, unique=True, editable=False)
+    kind = models.CharField(max_length=8, choices=Kind.choices)
+    requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="id_review_cases")
+    student_id = models.CharField(max_length=9, db_index=True)
+    holder = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="id_cases_against",
+        help_text="The verified account holding the ID when the case was opened.",
+    )
+    message = models.TextField(max_length=1000)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.OPEN, db_index=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="id_cases_reviewed",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_note = models.CharField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return self.reference
+
+    def save(self, *args, **kwargs):
+        if not self.reference:
+            self.reference = generate_reference(IdReviewCase, "IDR")
+        super().save(*args, **kwargs)
+
+    @property
+    def is_open(self):
+        return self.status == self.Status.OPEN
+
+
+class UserBlock(models.Model):
+    """'Report & block': the two people are kept apart. Only the blocker can undo it."""
+    blocker = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="blocks_made")
+    blocked = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="blocks_received")
+    report = models.ForeignKey(AbuseReport, on_delete=models.SET_NULL, null=True, blank=True, related_name="blocks")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [models.UniqueConstraint(fields=["blocker", "blocked"], name="unique_user_block")]

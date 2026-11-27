@@ -2,9 +2,10 @@ import json
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.db import IntegrityError
 from django.utils import timezone
 
-from .models import ChatMessage, ClaimApplication, Conversation, Profile
+from .models import ChatMessage, ClaimApplication, Conversation
 from .permissions import can_review_private_chats
 
 
@@ -46,12 +47,20 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         except json.JSONDecodeError:
             await self.send(text_data=json.dumps({"type": "error", "message": "Invalid message."}))
             return
+        if not isinstance(payload, dict):
+            # BUG-005: valid JSON that is not an object (e.g. [1] or "hi") used to crash the connection.
+            await self.send(text_data=json.dumps({"type": "error", "message": "Invalid message."}))
+            return
         message = str(payload.get("message", "")).strip()
         client_id = str(payload.get("client_id", ""))[:64]
         if not message:
             return
         if len(message) > 2000:
             await self.send(text_data=json.dumps({"type": "error", "message": "Messages must be 2,000 characters or fewer."}))
+            return
+        limit = await self._limit_message(message, client_id)
+        if limit:
+            await self.send(text_data=json.dumps({"type": "error", "message": limit, "client_id": client_id}))
             return
         stored = await self._save_message(self.scope["user"].pk, message, client_id)
         if not stored:
@@ -105,6 +114,19 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         return not conversation.is_closed and not conversation.is_paused
 
     @database_sync_to_async
+    def _limit_message(self, text, client_id=""):
+        """v1.1.1: unverified students have a per-message length and a messages-per-window limit.
+        A resend of a message that is already saved (same client_id) is never counted again."""
+        from django.contrib.auth import get_user_model
+        from .verification import chat_limit_message
+        if client_id and ChatMessage.objects.filter(conversation_id=self.conversation_id, client_id=client_id).exists():
+            return None
+        user = get_user_model().objects.select_related("profile").filter(pk=self.scope["user"].pk).first()
+        if user is None:
+            return "Please sign in again."
+        return chat_limit_message(user, text)
+
+    @database_sync_to_async
     def _save_message(self, user_id, text, client_id=""):
         conversation = Conversation.objects.select_related("post", "claim").filter(pk=self.conversation_id).first()
         if not self.scope["user"].is_active or not conversation or conversation.is_closed or conversation.is_paused:
@@ -113,11 +135,17 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             return None
         if client_id:
             # A resend after a dropped connection carries the same id: save once.
-            message, created = ChatMessage.objects.get_or_create(
-                conversation=conversation, client_id=client_id,
-                defaults={"sender_id": user_id, "text": text},
-            )
+            try:
+                message, created = ChatMessage.objects.get_or_create(
+                    conversation=conversation, client_id=client_id,
+                    defaults={"sender_id": user_id, "text": text},
+                )
+            except IntegrityError:
+                # Two copies arrived at the same moment: the other one was saved; use it.
+                message, created = ChatMessage.objects.get(conversation=conversation, client_id=client_id), False
             if not created:
+                if message.sender_id != user_id:
+                    return None  # an id belongs to the person who sent it
                 return self._serialize(message, user_id)
         else:
             message = ChatMessage.objects.create(conversation=conversation, sender_id=user_id, text=text)
@@ -148,6 +176,47 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         self.group_name = f"notifications_{user.pk}"
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
+        # The saved notifications are the queue: on every (re)connect the browser gets the
+        # true unread counts, so nothing is missed while the connection was down.
+        await self.send(text_data=json.dumps({"type": "sync", **(await self._counts())}))
+
+    async def receive(self, text_data=None, bytes_data=None):
+        """{"type": "since", "after_id": N}: the newest unread notices the browser has not shown yet."""
+        try:
+            payload = json.loads(text_data or "")
+        except json.JSONDecodeError:
+            return
+        if isinstance(payload, dict) and payload.get("type") == "sync":
+            # BUG-006: notices made by the timer runner (another program) cannot be pushed
+            # live, so open pages ask about once a minute.
+            await self.send(text_data=json.dumps({"type": "sync", **(await self._counts())}))
+            return
+        if not isinstance(payload, dict) or payload.get("type") != "since":
+            return
+        try:
+            after_id = int(payload.get("after_id") or 0)
+        except (TypeError, ValueError):
+            return
+        for row in await self._missed(after_id):
+            await self.send(text_data=json.dumps({"type": "notification", **row}))
+
+    @database_sync_to_async
+    def _counts(self):
+        from .models import InAppNotification
+        unread = InAppNotification.objects.filter(recipient_id=self.scope["user"].pk, read_at__isnull=True)
+        latest = InAppNotification.objects.filter(recipient_id=self.scope["user"].pk).order_by("-pk").first()
+        return {
+            "unread": unread.count(), "priority": unread.filter(is_priority=True).count(),
+            "latest_id": latest.pk if latest else 0,
+        }
+
+    @database_sync_to_async
+    def _missed(self, after_id):
+        from .models import InAppNotification
+        rows = InAppNotification.objects.filter(
+            recipient_id=self.scope["user"].pk, read_at__isnull=True, pk__gt=after_id,
+        ).order_by("-pk")[:5]
+        return [{"id": n.pk, "text": n.text, "priority": n.is_priority, "catch_up": True} for n in reversed(list(rows))]
 
     async def disconnect(self, close_code):
         if hasattr(self, "group_name"):
@@ -158,4 +227,5 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             "type": "notification",
             "id": event["id"],
             "text": event["text"],
+            "priority": bool(event.get("priority")),
         }))
