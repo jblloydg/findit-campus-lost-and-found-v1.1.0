@@ -926,6 +926,42 @@ def remove_post_view(request, post_id):
     return redirect("my-posts" if request.user.pk == post.author_id else "staff-dashboard")
 
 
+
+
+CHAT_PAGE_SIZE = 100
+
+
+def _message_json(message):
+    return {
+        "id": message.pk, "sender": message.sender.first_name or message.sender.username,
+        "sender_id": message.sender_id, "text": message.text, "sent_at": message.sent_at.isoformat(),
+        "client_id": message.client_id,
+    }
+
+
+@never_cache
+@login_required
+def chat_messages_json(request, conversation_id):
+    """PERF-001: small JSON pages of messages — newer than ?after=ID (catch up after a
+    reconnect) or older than ?before=ID ("Show older messages"). At most 100 per call."""
+    conversation = get_object_or_404(Conversation, pk=conversation_id)
+    if not (conversation.includes(request.user) or can_review_private_chats(request.user)):
+        return HttpResponseForbidden("This conversation is private to its participants and authorized reviewers.")
+    rows = conversation.messages.select_related("sender")
+    after, before = request.GET.get("after", ""), request.GET.get("before", "")
+    if after.isdigit():
+        page = list(rows.filter(pk__gt=int(after)).order_by("pk")[:CHAT_PAGE_SIZE + 1])
+        more = len(page) > CHAT_PAGE_SIZE
+        page = page[:CHAT_PAGE_SIZE]
+    elif before.isdigit():
+        page = list(rows.filter(pk__lt=int(before)).order_by("-pk")[:CHAT_PAGE_SIZE + 1])
+        more = len(page) > CHAT_PAGE_SIZE
+        page = page[:CHAT_PAGE_SIZE][::-1]
+    else:
+        return JsonResponse({"messages": [], "more": False})
+    return JsonResponse({"messages": [_message_json(m) for m in page], "more": more})
+
+
 @never_cache
 @login_required
 def chat_room(request, conversation_id):
@@ -939,7 +975,10 @@ def chat_room(request, conversation_id):
         return HttpResponseForbidden("This conversation is private to its participants and authorized reviewers.")
     if staff_view:
         audit(request.user, "reviewed_chat", conversation, "Authorized reviewer opened private chat history.")
-    messages_qs = conversation.messages.select_related("sender").all()
+    # PERF-001: only the newest messages are put in the page; older ones load on request.
+    latest = list(conversation.messages.select_related("sender").order_by("-sent_at", "-pk")[:CHAT_PAGE_SIZE + 1])
+    has_older = len(latest) > CHAT_PAGE_SIZE
+    messages_qs = latest[:CHAT_PAGE_SIZE][::-1]
     asker, answerer = chat_roles(conversation)
     claim = conversation.claim
     questions = list(conversation.questions.all())
@@ -975,6 +1014,7 @@ def chat_room(request, conversation_id):
         "lost_ticket_qr": _qr_svg(request, lost_ticket) if lost_ticket else "",
         "conversation": conversation,
         "chat_messages": messages_qs,
+        "has_older_messages": has_older,
         "staff_view": staff_view,
         "can_send": can_send,
         "is_reviewer": reviewer,

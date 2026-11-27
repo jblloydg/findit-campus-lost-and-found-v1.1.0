@@ -729,3 +729,6 @@ body:has(.unverified-warning) .site-footer { padding-bottom: 70px; }
 .notification-row.is-priority p { font-weight: 800; }
 .chat-message.is-pending .message-bubble { opacity: .65; border-style: dashed; }
 .chat-message.is-pending time { font-style: italic; }
+/* PERF-001: the browser skips drawing messages that are scrolled out of view */
+.chat-message { content-visibility: auto; contain-intrinsic-size: auto 64px; }
+.chat-older { display: block; margin: 4px auto 10px; font-size: .8rem; }

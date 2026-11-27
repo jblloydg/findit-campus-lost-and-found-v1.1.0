@@ -66,6 +66,7 @@ urlpatterns = [
     path("conversations/<uuid:conversation_id>/questions/", views.ask_questions_view, name="ask-questions"),
     path("chat-questions/<int:question_id>/answer/", views.answer_question_view, name="answer-question"),
     path("conversations/<uuid:conversation_id>/", views.chat_room, name="chat-room"),
+    path("conversations/<uuid:conversation_id>/messages/", views.chat_messages_json, name="chat-messages-json"),
     path("conversations/<uuid:conversation_id>/pause/", views.pause_chat, name="pause-chat"),
     path("conversations/<uuid:conversation_id>/unpause/", views.unpause_chat, name="unpause-chat"),
     path("conversations/<uuid:conversation_id>/report/", views.report_chat, name="report-chat"),

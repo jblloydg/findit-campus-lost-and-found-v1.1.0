@@ -6,6 +6,8 @@
 //   (kept in this browser, so they survive a page reload) and are sent automatically,
 //   in order, as soon as the connection is back. They show as "Waiting to send".
 // * The chat reconnects by itself and fetches any messages it missed meanwhile.
+// * PERF-001: new messages are drawn in one batch per screen frame, at most 300 stay on
+//   screen (older ones load with "Show older messages"), so bursts do not make it lag.
 document.addEventListener("DOMContentLoaded", function () {
   var panel = document.getElementById("chat-messages");
   var form = document.getElementById("chat-form");
@@ -17,7 +19,15 @@ document.addEventListener("DOMContentLoaded", function () {
   var userId = document.body.getAttribute("data-user-id") || "anon";
   var protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   var socketUrl = protocol + "//" + window.location.host + "/ws/conversations/" + conversationId + "/";
-  var historyUrl = "/conversations/" + conversationId + "/";
+  var messagesUrl = "/conversations/" + conversationId + "/messages/";
+  var MAX_ON_SCREEN = 300;
+  var known = {};      // message ids already on screen (no slow page searches)
+  var newestId = 0;
+  panel.querySelectorAll("[data-message-id]").forEach(function (node) {
+    var id = parseInt(node.getAttribute("data-message-id"), 10);
+    known[id] = true;
+    if (id > newestId) newestId = id;
+  });
   var statusLine = document.getElementById("chat-status");
   var outboxKey = "findit-outbox-" + userId + "-" + conversationId;
   var MAX_QUEUE = 20;
@@ -74,18 +84,81 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function dropEmpty() { var empty = panel.querySelector(".chat-empty"); if (empty) empty.remove(); }
 
+  function messageNode(message) {
+    var article = bubble(message.sender, formatTime(message.sent_at), message.text, String(message.sender_id) === userId);
+    article.setAttribute("data-message-id", message.id);
+    return article;
+  }
+
+  var incoming = [];
+  var drawScheduled = false;
   function addMessage(message) {
     if (message.client_id) {
       var pending = panel.querySelector('[data-client-id="' + message.client_id + '"]');
       if (pending) pending.remove();
     }
-    if (panel.querySelector('[data-message-id="' + message.id + '"]')) return;
-    dropEmpty();
-    var article = bubble(message.sender, formatTime(message.sent_at), message.text, String(message.sender_id) === userId);
-    article.setAttribute("data-message-id", message.id);
-    panel.appendChild(article);
-    panel.scrollTop = panel.scrollHeight;
+    if (known[message.id]) return;
+    known[message.id] = true;
+    if (message.id > newestId) newestId = message.id;
+    incoming.push(message);
+    if (!drawScheduled) {
+      drawScheduled = true;
+      window.requestAnimationFrame(drawIncoming);
+    }
   }
+
+  function drawIncoming() {
+    drawScheduled = false;
+    if (!incoming.length) return;
+    var nearBottom = panel.scrollHeight - panel.scrollTop - panel.clientHeight < 120;
+    var batch = document.createDocumentFragment();
+    incoming.sort(function (a, b) { return a.id - b.id; }).forEach(function (m) { batch.appendChild(messageNode(m)); });
+    incoming = [];
+    dropEmpty();
+    var firstPending = panel.querySelector(".is-pending");
+    panel.insertBefore(batch, firstPending);
+    // Keep the page light: drop the oldest messages beyond the limit (they load again on request).
+    var shown = panel.querySelectorAll("[data-message-id]");
+    for (var i = 0; i < shown.length - MAX_ON_SCREEN; i++) {
+      delete known[parseInt(shown[i].getAttribute("data-message-id"), 10)];
+      shown[i].remove();
+      ensureOlderButton();
+    }
+    if (nearBottom) panel.scrollTop = panel.scrollHeight;
+  }
+
+  function ensureOlderButton() {
+    if (panel.querySelector("[data-chat-older]")) return;
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "link-button chat-older";
+    button.setAttribute("data-chat-older", "");
+    button.textContent = "Show older messages";
+    panel.insertBefore(button, panel.firstChild);
+  }
+
+  panel.addEventListener("click", function (event) {
+    var button = event.target.closest && event.target.closest("[data-chat-older]");
+    if (!button || !window.fetch) return;
+    var oldest = panel.querySelector("[data-message-id]");
+    if (!oldest) return;
+    button.disabled = true;
+    fetch(messagesUrl + "?before=" + oldest.getAttribute("data-message-id"), { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var keepFromBottom = panel.scrollHeight - panel.scrollTop;
+        var batch = document.createDocumentFragment();
+        (data.messages || []).forEach(function (m) {
+          if (known[m.id]) return;
+          known[m.id] = true;
+          batch.appendChild(messageNode(m));
+        });
+        panel.insertBefore(batch, button.nextSibling);
+        if (!data.more) button.remove(); else button.disabled = false;
+        panel.scrollTop = panel.scrollHeight - keepFromBottom;  // stay where the reader was
+      })
+      .catch(function () { button.disabled = false; });
+  });
 
   function showPending(item) {
     if (panel.querySelector('[data-client-id="' + item.id + '"]')) return;
@@ -96,6 +169,7 @@ document.addEventListener("DOMContentLoaded", function () {
     panel.appendChild(article);
     panel.scrollTop = panel.scrollHeight;
   }
+  panel.scrollTop = panel.scrollHeight;
 
   function flushQueue() {
     if (!socket || socket.readyState !== WebSocket.OPEN || !canSend) return;
@@ -104,23 +178,16 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // After a reconnect: add messages that arrived while we were offline.
+  // After a reconnect: fetch only the messages that arrived while we were offline (small JSON).
   function catchUp() {
     if (!window.fetch) return;
-    fetch(historyUrl, { credentials: "same-origin" }).then(function (r) { return r.ok ? r.text() : ""; }).then(function (html) {
-      if (!html) return;
-      var doc = new DOMParser().parseFromString(html, "text/html");
-      doc.querySelectorAll("#chat-messages [data-message-id]").forEach(function (fresh) {
-        var id = fresh.getAttribute("data-message-id");
-        if (!panel.querySelector('[data-message-id="' + id + '"]')) {
-          dropEmpty();
-          panel.appendChild(document.importNode(fresh, true));
-        }
-      });
-      // Keep queued bubbles at the end.
-      panel.querySelectorAll(".is-pending").forEach(function (node) { panel.appendChild(node); });
-      panel.scrollTop = panel.scrollHeight;
-    }).catch(function () {});
+    fetch(messagesUrl + "?after=" + newestId, { credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.json() : { messages: [] }; })
+      .then(function (data) {
+        (data.messages || []).forEach(addMessage);
+        if (data.more) catchUp();
+      })
+      .catch(function () {});
   }
 
   function connect() {

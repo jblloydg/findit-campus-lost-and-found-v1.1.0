@@ -41,6 +41,7 @@
     {% endif %}
     {% if conversation.is_paused %}<div class="form-callout warning-callout"><strong>Chat paused</strong><span>{{ conversation.pause_reason|default:"A staff member paused this chat for review." }}</span></div>{% endif %}
     <div class="chat-messages" id="chat-messages" data-conversation="{{ conversation.pk }}" data-can-send="{{ can_send|yesno:'true,false' }}">
+      {% if has_older_messages %}<button type="button" class="link-button chat-older" data-chat-older>Show older messages</button>{% endif %}
       {% for message in chat_messages %}
       <article class="chat-message {% if message.sender_id == user.pk %}mine{% endif %}" data-message-id="{{ message.pk }}">
         <div class="message-bubble"><div class="message-meta"><strong>{{ message.sender.first_name|default:message.sender.username }}</strong><time>{{ message.sent_at|date:"M j · g:i a" }}</time></div><p>{{ message.text|linebreaksbr }}</p></div>
