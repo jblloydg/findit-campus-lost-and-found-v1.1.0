@@ -2,7 +2,7 @@ import json
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
-from django.db import IntegrityError
+from django.db import IntegrityError, models
 from django.utils import timezone
 
 from .models import ChatMessage, ClaimApplication, Conversation
@@ -17,6 +17,10 @@ def _staff_user(user):
 
 
 class ConversationConsumer(AsyncWebsocketConsumer):
+    # PERF-002: chat database work runs in its own worker threads (not behind page loads).
+    # Tests that keep all their data in one unsaved transaction switch this to True.
+    DB_THREAD_SENSITIVE = False
+
     async def connect(self):
         self.conversation_id = self.scope["url_route"]["kwargs"]["conversation_id"]
         self.group_name = f"conversation_{self.conversation_id.hex}"
@@ -26,6 +30,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             await self.close(code=4403)
             return
         self.can_send = await self._can_send(user.pk)
+        await database_sync_to_async(self._load_sender, thread_sensitive=self.DB_THREAD_SENSITIVE)()
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
         await self.send(text_data=json.dumps({
@@ -58,13 +63,11 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         if len(message) > 2000:
             await self.send(text_data=json.dumps({"type": "error", "message": "Messages must be 2,000 characters or fewer."}))
             return
-        limit = await self._limit_message(message, client_id)
-        if limit:
-            await self.send(text_data=json.dumps({"type": "error", "message": limit, "client_id": client_id}))
-            return
-        stored = await self._save_message(self.scope["user"].pk, message, client_id)
-        if not stored:
-            await self.send(text_data=json.dumps({"type": "error", "message": "This conversation is no longer open."}))
+        # PERF-002: one trip to the database per message, in its own worker thread so
+        # chat never waits behind page loads.
+        stored, problem = await database_sync_to_async(self._handle_message, thread_sensitive=self.DB_THREAD_SENSITIVE)(message, client_id)
+        if problem:
+            await self.send(text_data=json.dumps({"type": "error", "message": problem, "client_id": client_id}))
             return
         await self.channel_layer.group_send(
             self.group_name,
@@ -113,53 +116,79 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             return False
         return not conversation.is_closed and not conversation.is_paused
 
-    @database_sync_to_async
-    def _limit_message(self, text, client_id=""):
-        """v1.1.1: unverified students have a per-message length and a messages-per-window limit.
-        A resend of a message that is already saved (same client_id) is never counted again."""
+    SENDER_REFRESH_SECONDS = 60
+
+    def _load_sender(self):
+        """Facts about the sender, kept for a minute instead of re-read for every message."""
         from django.contrib.auth import get_user_model
-        from .verification import chat_limit_message
-        if client_id and ChatMessage.objects.filter(conversation_id=self.conversation_id, client_id=client_id).exists():
-            return None
+        from .models import SystemSettings
+        from .permissions import is_unverified_student
         user = get_user_model().objects.select_related("profile").filter(pk=self.scope["user"].pk).first()
-        if user is None:
-            return "Please sign in again."
-        return chat_limit_message(user, text)
+        conversation = Conversation.objects.filter(pk=self.conversation_id).only("claim_id").first()
+        self.sender_active = bool(user and user.is_active)
+        self.sender_name = (user.get_full_name() or user.username) if user else ""
+        self.sender_unverified = bool(user and is_unverified_student(user))
+        self.limits = SystemSettings.current() if self.sender_unverified else None
+        self.claim_id = conversation.claim_id if conversation else None
+        self.sender_loaded_at = timezone.now()
 
-    @database_sync_to_async
-    def _save_message(self, user_id, text, client_id=""):
-        conversation = Conversation.objects.select_related("post", "claim").filter(pk=self.conversation_id).first()
-        if not self.scope["user"].is_active or not conversation or conversation.is_closed or conversation.is_paused:
-            return None
-        if user_id not in {conversation.initiator_id, conversation.recipient_id}:
-            return None
-        if client_id:
-            # A resend after a dropped connection carries the same id: save once.
-            try:
-                message, created = ChatMessage.objects.get_or_create(
-                    conversation=conversation, client_id=client_id,
-                    defaults={"sender_id": user_id, "text": text},
-                )
-            except IntegrityError:
-                # Two copies arrived at the same moment: the other one was saved; use it.
-                message, created = ChatMessage.objects.get(conversation=conversation, client_id=client_id), False
-            if not created:
-                if message.sender_id != user_id:
-                    return None  # an id belongs to the person who sent it
-                return self._serialize(message, user_id)
-        else:
-            message = ChatMessage.objects.create(conversation=conversation, sender_id=user_id, text=text)
-        conversation.updated_at = timezone.now()
-        conversation.save(update_fields=["updated_at"])
-        if conversation.claim_id:
-            ClaimApplication.objects.filter(pk=conversation.claim_id).update(last_activity_at=timezone.now())
-        return self._serialize(message, user_id)
+    def _handle_message(self, text, client_id=""):
+        """Save one chat message. Returns (message, None) or (None, reason)."""
+        from datetime import timedelta
+        from django.db import close_old_connections, transaction
+        close_old_connections()
+        try:
+            if (timezone.now() - self.sender_loaded_at).total_seconds() > self.SENDER_REFRESH_SECONDS:
+                self._load_sender()
+            if not self.sender_active:
+                return None, "This conversation is no longer open."
+            user_id = self.scope["user"].pk
+            with transaction.atomic():
+                if client_id:
+                    # A resend after a dropped connection carries the same id: save once,
+                    # and never count it again against the limits.
+                    existing = ChatMessage.objects.filter(conversation_id=self.conversation_id, client_id=client_id).first()
+                    if existing:
+                        if existing.sender_id != user_id:
+                            return None, "This conversation is no longer open."  # ids belong to their sender
+                        return self._serialize(existing, user_id), None
+                if self.sender_unverified:
+                    row = self.limits
+                    if len(text) > (row.unverified_chat_max_chars or 100):
+                        return None, (f"Unverified accounts can send up to {row.unverified_chat_max_chars} characters "
+                                      "per message. Verify your email to send longer messages.")
+                    window = row.unverified_chat_window_minutes or 10
+                    limit = row.unverified_chat_messages or 10
+                    since = timezone.now() - timedelta(minutes=window)
+                    if ChatMessage.objects.filter(sender_id=user_id, sent_at__gte=since).count() >= limit:
+                        return None, (f"Unverified accounts can send {limit} messages every {window} minutes. "
+                                      "Please wait, or verify your email.")
+                now = timezone.now()
+                still_open = Conversation.objects.filter(
+                    pk=self.conversation_id, is_closed=False, is_paused=False,
+                ).filter(models.Q(initiator_id=user_id) | models.Q(recipient_id=user_id)).update(updated_at=now)
+                if not still_open:
+                    return None, "This conversation is no longer open."
+                try:
+                    with transaction.atomic():
+                        message = ChatMessage.objects.create(
+                            conversation_id=self.conversation_id, sender_id=user_id, text=text, client_id=client_id,
+                        )
+                except IntegrityError:
+                    # Two copies arrived at the same moment: the other one was saved; use it.
+                    message = ChatMessage.objects.get(conversation_id=self.conversation_id, client_id=client_id)
+                    if message.sender_id != user_id:
+                        return None, "This conversation is no longer open."
+                if self.claim_id:
+                    ClaimApplication.objects.filter(pk=self.claim_id).update(last_activity_at=now)
+            return self._serialize(message, user_id), None
+        finally:
+            close_old_connections()
 
-    @staticmethod
-    def _serialize(message, user_id):
+    def _serialize(self, message, user_id):
         return {
             "id": message.pk,
-            "sender": message.sender.get_full_name() or message.sender.username,
+            "sender": self.sender_name,
             "sender_id": user_id,
             "text": message.text,
             "sent_at": message.sent_at.isoformat(),

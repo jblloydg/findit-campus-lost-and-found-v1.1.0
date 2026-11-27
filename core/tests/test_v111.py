@@ -436,6 +436,12 @@ class BugFixTests(FindItTestCase):
 
 
 class SocketHelpers:
+    def setUp(self):
+        super().setUp()
+        from core.consumers import ConversationConsumer
+        ConversationConsumer.DB_THREAD_SENSITIVE = True  # TestCase data lives in one unsaved transaction
+        self.addCleanup(setattr, ConversationConsumer, "DB_THREAD_SENSITIVE", False)
+
     def _communicator(self, user, conversation):
         from channels.routing import URLRouter
         from channels.testing import WebsocketCommunicator
@@ -600,3 +606,35 @@ class NotificationQueueTests(SocketHelpers, FindItTestCase):
 
         replies = self._run(scenario)
         self.assertEqual([r["type"] for r in replies], ["error"] * 4 + ["message"])
+
+
+from django.test import TransactionTestCase
+
+
+class ChatWorkerThreadTests(SocketHelpers, TransactionTestCase):
+    """PERF-002: the real path, with chat saves in their own worker thread and saved data."""
+    serialized_rollback = True
+
+    def setUp(self):
+        TransactionTestCase.setUp(self)  # keep the real worker threads (no SocketHelpers switch)
+        from core.models import Category
+        self.finder = FindItTestCase.make_user(self, "2026-0001")
+        self.alice = FindItTestCase.make_user(self, "2026-0002")
+        post = ItemPost.objects.create(author=self.finder, post_type="LOST", category=Category.objects.first())
+        self.conversation = Conversation.objects.create(post=post, initiator=self.alice, recipient=self.finder)
+
+    def test_message_saved_once_through_worker_thread(self):
+        async def scenario():
+            ws = self._communicator(self.alice, self.conversation)
+            await ws.connect()
+            await ws.receive_json_from()
+            replies = []
+            for _ in range(3):
+                await ws.send_json_to({"message": "hello", "client_id": "thread-1"})
+                replies.append(await ws.receive_json_from())
+            await ws.disconnect()
+            return replies
+
+        replies = self._run(scenario)
+        self.assertEqual({r["type"] for r in replies}, {"message"})
+        self.assertEqual(ChatMessage.objects.filter(client_id="thread-1").count(), 1)

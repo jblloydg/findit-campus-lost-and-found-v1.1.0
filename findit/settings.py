@@ -73,7 +73,13 @@ else:
             "NAME": BASE_DIR / "db.sqlite3",
             # Wait up to 20 s for a lock instead of failing when the website and the
             # timer runner write at the same moment.
-            "OPTIONS": {"timeout": 20},
+            "OPTIONS": {
+                "timeout": 20,
+                # PERF-002: WAL lets pages be read while chat messages are written, and
+                # IMMEDIATE transactions avoid "database is locked" when two programs write.
+                "init_command": "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;",
+                "transaction_mode": "IMMEDIATE",
+            },
         }
     }
 
