@@ -417,3 +417,14 @@ class SqlInjectionTests(FindItTestCase):
             self.assertEqual(response.status_code, 200)
         self.assertTrue(ItemPost.objects.filter(pk=post.pk).exists())
         self.assertFalse(User.objects.filter(email="x@example.com").exists())
+
+
+class BugFixTests(FindItTestCase):
+    def test_bug_002_damaged_claim_id_does_not_crash(self):
+        post = self.create_post(self.finder)
+        client = self.client_for(self.finder)
+        self.assertEqual(client.post(f"/posts/{post.pk}/returned/", {"claim_id": "not-a-uuid"}).status_code, 404)
+        ItemPost.objects.filter(pk=post.pk).update(status=ItemPost.Status.TURNED_OVER)
+        staff = self.client_for(self.staff)
+        self.assertEqual(staff.post(f"/posts/{post.pk}/claimed/", {"claim_id": "bad"}).status_code, 404)
+        self.assertEqual(staff.post(f"/posts/{post.pk}/claimed/", {"recipient_id": "abc"}).status_code, 302)

@@ -840,7 +840,10 @@ def review_status_request_view(request, request_id):
 @require_POST
 def returned_view(request, post_id):
     post = get_object_or_404(ItemPost, pk=post_id)
-    claim = get_object_or_404(ClaimApplication.objects.select_related("post", "finder"), pk=request.POST.get("claim_id"), post=post)
+    claim_id = request.POST.get("claim_id", "")
+    if not _is_uuid(claim_id):
+        raise Http404  # BUG-002: a damaged form value used to crash the page
+    claim = get_object_or_404(ClaimApplication.objects.select_related("post", "finder"), pk=claim_id, post=post)
     if request.user.pk != claim.finder_user.pk:
         return HttpResponseForbidden("Only the finder can record a return.")
     try:
@@ -864,11 +867,17 @@ def claimed_view(request, post_id):
             return HttpResponseForbidden("Only staff can record an in-person guard-house pickup.")
         witnessed = True
         if request.POST.get("claim_id"):
+            if not _is_uuid(request.POST.get("claim_id")):
+                raise Http404
             claim = get_object_or_404(ClaimApplication, pk=request.POST.get("claim_id"), post=post, status=ClaimApplication.Status.APPROVED)
         else:
             claim = None
+            recipient_id = request.POST.get("recipient_id", "")
+            if not recipient_id.isdigit():
+                messages.error(request, "Choose the student who collected the item.")
+                return redirect("post-detail", post_id=post.pk)
             recipient = get_object_or_404(
-                User, pk=request.POST.get("recipient_id"), profile__role=Profile.Role.STUDENT
+                User, pk=int(recipient_id), profile__role=Profile.Role.STUDENT
             )
     elif not claim:
         messages.error(request, "The finder has not recorded a return for this item.")
