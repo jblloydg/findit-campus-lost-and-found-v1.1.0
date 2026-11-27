@@ -1,5 +1,7 @@
 # Find-IT v1.1.0 — integration handoff
 
+> **Continuing the work?** Read `CLAUDE.md` (rules and decisions), `docs/ROADMAP.md` (V2 status and what's next) and `docs/BUG_REPORTS.md` (how to report). Next version work happens on branch `release/1.1.1`; tag `v1.1.0` is the rollback point. A paste-ready prompt for a new Claude session is in `docs/TRANSFER_PROMPT.md`.
+
 Version **1.1.0** combines the work of four separate development sessions on top of the original Find-IT starter. Each session's own handoff is kept unchanged in `docs/handoffs/session-1.md` … `session-4.md`.
 
 All accounts, names and photos in the demo are fictional. The repository contains **no** database file, real student data, real passwords, secret keys, backups, uploads or report attachments.
