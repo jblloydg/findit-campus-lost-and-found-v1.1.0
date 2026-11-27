@@ -60,6 +60,11 @@ class ItemPost(models.Model):
     title = models.CharField(max_length=120, blank=True)
     description = models.TextField(max_length=1600, blank=True)
     approximate_date = models.DateField(null=True, blank=True)
+    # Session 2: optional like approximate_date, so older posts stay valid.
+    approximate_time = models.TimeField(
+        "approximate time lost/found", null=True, blank=True,
+        help_text="Enter the estimated time when the item was lost or found.",
+    )
     status = models.CharField(max_length=24, choices=Status.choices, default=Status.OPEN)
     returned_application = models.ForeignKey(
         "ClaimApplication", on_delete=models.SET_NULL, null=True, blank=True,
@@ -102,6 +107,10 @@ class ItemPost(models.Model):
         if self.category_id:
             return f"{self.get_post_type_display()} {self.category.name.lower()}"
         return f"{self.get_post_type_display()} item"
+
+    @property
+    def has_approximate_when(self):
+        return bool(self.approximate_date or self.approximate_time)
 
     @property
     def cover_photo(self):

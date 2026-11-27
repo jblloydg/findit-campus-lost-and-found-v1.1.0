@@ -272,6 +272,33 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  // Session 2 idea, adapted to 1-20 photos: preview the chosen images and
+  // warn early about type and size. The server still checks every upload.
+  var multiPhotoInput = document.querySelector("input[type='file'][name='photos']");
+  var previewGrid = document.getElementById("photo-preview-grid");
+  var photoWarn = document.getElementById("photo-warning");
+  var previewUrls = [];
+  if (multiPhotoInput && previewGrid) {
+    multiPhotoInput.addEventListener("change", function () {
+      previewUrls.forEach(function (u) { URL.revokeObjectURL(u); });
+      previewUrls = [];
+      previewGrid.innerHTML = "";
+      var problems = [];
+      Array.prototype.forEach.call(multiPhotoInput.files || [], function (file) {
+        if (file.type && ["image/jpeg", "image/png", "image/webp"].indexOf(file.type) === -1) { problems.push(file.name + " is not JPG, PNG or WebP"); return; }
+        if (file.size > 5 * 1024 * 1024) { problems.push(file.name + " is larger than 5 MB"); return; }
+        var url = URL.createObjectURL(file);
+        previewUrls.push(url);
+        var img = document.createElement("img");
+        img.src = url;
+        img.alt = "Preview of " + file.name;
+        previewGrid.appendChild(img);
+      });
+      previewGrid.hidden = previewUrls.length === 0;
+      if (photoWarn) { photoWarn.textContent = problems.join(" · "); photoWarn.hidden = problems.length === 0; }
+    });
+  }
+
   var params = new URLSearchParams(window.location.search);
   if (params.get("resume") === "claim") {
     var claim = document.getElementById("claim-form");

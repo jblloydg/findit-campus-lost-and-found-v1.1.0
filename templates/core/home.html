@@ -28,7 +28,7 @@
           <div class="card-meta"><span class="type-pill type-{{ post.post_type|lower }}">{{ post.get_post_type_display }}</span>{% if post.category %}<span class="subtle-chip">{{ post.category.name }}</span>{% endif %}<span class="status-dot">{{ post.get_status_display }}</span></div>
           <h3>{{ post.display_title }}</h3>
           <p class="clamp-3">{{ post.description }}</p>
-          <div class="post-card-foot"><span>{{ post.author.first_name|default:post.author.username }}</span>{% if post.approximate_date %}<span>{{ post.approximate_date|date:"M j, Y" }}</span>{% endif %}</div>
+          <div class="post-card-foot"><span>{{ post.author.first_name|default:post.author.username }}</span>{% if post.has_approximate_when %}<span>{% if post.approximate_date %}{{ post.approximate_date|date:"M j, Y" }}{% endif %}{% if post.approximate_date and post.approximate_time %} · {% endif %}{% if post.approximate_time %}{{ post.approximate_time|time:"g:i A" }}{% endif %}</span>{% endif %}</div>
         </div>
       </a>
     </article>

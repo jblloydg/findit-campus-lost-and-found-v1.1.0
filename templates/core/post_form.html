@@ -23,6 +23,8 @@
       </div>
       {% endif %}
       {{ form.photos }}
+      <div class="photo-preview-grid" id="photo-preview-grid" hidden aria-label="Preview of the chosen photos"></div>
+      <p class="field-error" id="photo-warning" hidden></p>
       <small class="form-help">{{ form.photos.help_text }} Photograph the outside only. Hide names, ID numbers and faces.</small>
       <p class="photo-count muted" id="photo-count" aria-live="polite"></p>
       {% if form.photos.errors %}<div class="field-error">{{ form.photos.errors }}</div>{% endif %}
@@ -33,7 +35,11 @@
     </fieldset>
     <label>{{ form.title.label }}{{ form.title }}</label>{% if form.title.errors %}<div class="field-error">{{ form.title.errors }}</div>{% endif %}
     <label>{{ form.description.label }}{{ form.description }}<small class="form-help">Avoid exact serial numbers, hidden markings, or personal details.</small></label>{% if form.description.errors %}<div class="field-error">{{ form.description.errors }}</div>{% endif %}
-    <label>Approximate date{{ form.approximate_date }}</label>{% if form.approximate_date.errors %}<div class="field-error">{{ form.approximate_date.errors }}</div>{% endif %}
+    <div class="when-row">
+      <label>{{ form.approximate_date.label }}{{ form.approximate_date }}</label>
+      <label>{{ form.approximate_time.label }}{{ form.approximate_time }}<small class="form-help">{{ form.approximate_time.help_text }}</small></label>
+    </div>
+    {% if form.approximate_date.errors %}<div class="field-error">{{ form.approximate_date.errors }}</div>{% endif %}{% if form.approximate_time.errors %}<div class="field-error">{{ form.approximate_time.errors }}</div>{% endif %}
     <div id="verification-questions" class="question-editor">
       <div><span class="eyebrow">Private ownership check · found items</span><h2>Pick ownership questions</h2>
         <p class="muted">Claimants answer these privately. Pick up to 5. If you pick fewer than 3 (or none), default questions are added automatically. Claimants also write their own description.</p></div>

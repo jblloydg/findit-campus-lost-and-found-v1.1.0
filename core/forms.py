@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from captcha.fields import CaptchaField
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 from .models import (
     AbuseReport, AnswerType, Category, ItemPost, PostPhoto, Profile, QuestionTemplate, StatusChangeRequest,
@@ -163,15 +164,22 @@ class ItemPostForm(forms.ModelForm):
 
     class Meta:
         model = ItemPost
-        fields = ["post_type", "category", "title", "description", "approximate_date"]
+        fields = ["post_type", "category", "title", "description", "approximate_date", "approximate_time"]
         widgets = {
             "post_type": forms.Select(attrs={"data-post-type": "true"}),
             "category": forms.Select(attrs={"data-category": "true"}),
             "title": forms.TextInput(attrs={"placeholder": "Optional: a broad name, such as blue water bottle"}),
             "description": forms.Textarea(attrs={"rows": 4, "placeholder": "Optional: describe visible details without revealing private identifiers."}),
             "approximate_date": forms.DateInput(attrs={"type": "date"}),
+            # format="%H:%M" so the browser time picker shows the saved value when editing.
+            "approximate_time": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),
         }
-        labels = {"title": "Title (optional)", "description": "Description (optional)"}
+        labels = {
+            "title": "Title (optional)", "description": "Description (optional)",
+            "approximate_date": "Approximate date lost/found",
+            "approximate_time": "Approximate time lost/found",
+        }
+        help_texts = {"approximate_time": "Enter the estimated time when the item was lost or found."}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -209,10 +217,26 @@ class ItemPostForm(forms.ModelForm):
             self.add_error("photos", "Add at least one photo of the item.")
         elif total > MAX_POST_PHOTOS:
             self.add_error("photos", f"A post can have at most {MAX_POST_PHOTOS} photos. You selected {total}.")
+        self._clean_approximate_when(cleaned)
         picked = cleaned.get("questions") or []
         if len(picked) > MAX_POST_QUESTIONS:
             self.add_error("questions", f"Pick at most {MAX_POST_QUESTIONS} questions.")
         return cleaned
+
+    def _clean_approximate_when(self, cleaned):
+        """Session 2 rules: a time needs a date; neither may be in the future."""
+        date = cleaned.get("approximate_date")
+        time = cleaned.get("approximate_time")
+        if time and not date and not self.has_error("approximate_date"):
+            self.add_error("approximate_date", "Add the approximate date as well, so the time has a day to go with it.")
+            return
+        if not date:
+            return
+        now = timezone.localtime()
+        if date > now.date():
+            self.add_error("approximate_date", "The approximate date cannot be in the future.")
+        elif time and date == now.date() and time.replace(second=0, microsecond=0) > now.time().replace(second=0, microsecond=0):
+            self.add_error("approximate_time", "The approximate time cannot be later than now.")
 
     def picked_questions(self):
         return list(self.cleaned_data.get("questions") or [])
