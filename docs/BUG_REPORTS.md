@@ -27,5 +27,10 @@ For a change request (CHG), replace Expected/Actual with **What to change** and 
 | ID | Summary | Priority | Reported by | Status | Fix commit | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | CHG-001 | Example Student ID changed to 2020-0001, example name Juan / Cruz (sign-in, sign-up, help text, Figma sign-in card) | High (privacy) | Owner | Fixed, also copied to main | 95ff430 (main: bd1bf55) | Old example was the owner's real account |
+| V2-I | School account verification (optional email code, ✔ Verified, Student ID rules + ID reviews, unverified limits + warning, Report & block, Developer role) | High (last V2 goal) | Owner | Fixed (on release/1.1.1) | af4244d, ad56a17 | See HANDOFF.md → Changes in 1.1.1 |
+| BUG-001 | Chat never showed server error messages (e.g. "read-only", limits) and cleared the typed text even when the message was refused | Medium | Claude (code review) | Fixed (on release/1.1.1) | b16efea | `connectionText` in chat.js was never set |
+| CHG-002 | Running v1.1.0 was confusing: FindIT.cmd is now a numbered menu that installs Python if missing; new START-HERE.txt | High (usability) | Owner | Fixed (on release/1.1.1) | 0518e34 | Reviewed, not run, on Windows yet — please test menu 1–6 |
+| BUG-002 | A damaged `claim_id` or student value crashed "Mark returned" and guard-house pickup (error 500) | Low (needs a tampered form) | Claude (form fuzzing) | Fixed (on release/1.1.1) | 115cd90 | Now 404 / clear message |
+| BUG-003 | An impossible date such as 2026-99-99 in report filters crashed /staff/reports/ and /staff/general-reports/ (error 500) | Low | Claude (address fuzzing) | Fixed (on release/1.1.1) | e221ac3 | Invalid dates are ignored, like Browse |
 
 Status values: Open → Confirmed → Fixed (on release/1.1.1) → Verified by tester → Released in v1.1.1.

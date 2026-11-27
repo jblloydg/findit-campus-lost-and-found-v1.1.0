@@ -1,12 +1,126 @@
-# Find-IT v1.1.0 — integration handoff
+# Find-IT handoff — v1.1.1 (and the v1.1.0 integration below)
 
-> **Continuing the work?** Read `CLAUDE.md` (rules and decisions), `docs/ROADMAP.md` (V2 status and what's next) and `docs/BUG_REPORTS.md` (how to report). Next version work happens on branch `release/1.1.1`; tag `v1.1.0` is the rollback point. A paste-ready prompt for a new Claude session is in `docs/TRANSFER_PROMPT.md`.
+> **Continuing the work?** Read `CLAUDE.md` (rules and decisions), `docs/ROADMAP.md` (V2 status and what's next) and `docs/BUG_REPORTS.md` (how to report). Version 1.1.1 is on branch `release/1.1.1`; branch **`stable/v1.1.0`** is the frozen v1.1.0 rollback point (`main` stays on v1.1.0 until the owner approves 1.1.1). A paste-ready prompt for a new Claude session is in `docs/TRANSFER_PROMPT.md`.
 
 Version **1.1.0** combines the work of four separate development sessions on top of the original Find-IT starter. Each session's own handoff is kept unchanged in `docs/handoffs/session-1.md` … `session-4.md`.
 
 All accounts, names and photos in the demo are fictional. The repository contains **no** database file, real student data, real passwords, secret keys, backups, uploads or report attachments.
 
 ---
+
+## Changes in 1.1.1
+
+**Goal:** the last V2 item, **V2-I school account verification**, plus bug fixes and an easier way to run the app. Everything runs on one PC without hosting: emails are printed in the Find-IT window and copied to a **Test inbox** page instead of being sent.
+
+### Starting point and branches
+
+| | |
+| --- | --- |
+| Started from | `release/1.1.1` at `4f0d819` (= v1.1.0 `bd1bf55` + roadmap edits) |
+| Rollback point | branch `stable/v1.1.0` → `bd1bf55` (GitHub refused tag pushes from this session, so a branch is used; tag `v1.1.0` can be added later from GitHub's Releases page) |
+| `main` | unchanged (v1.1.0) until the owner approves; then merge `release/1.1.1` and tag `v1.1.1` |
+
+Commits (each can be reverted on its own): `V2-I …` (feature), `BUG-001`, `V2-I: … form submissions too`, `CHG-002`, `BUG-002`, `BUG-003`, then the docs commit.
+
+### A. Email verification (optional) — V2-I
+
+- After signing up and signing in, a student can verify their email: **Verify my email** (profile menu, the yellow strip at the top, or the "Verify your email" notice) → a 6-digit code is emailed → type it → **✔ Verified** on their profile, posts, claims and chats.
+- Codes work for **15 minutes**, at most **5 codes a day** and one per minute, and a code stops working after **5 wrong tries**. Only a hash of the code is stored.
+- Changing the email in Edit profile removes the badge until the new email is verified.
+- Staff, administrators and the Developer count as verified (an administrator created them).
+- **Welcome messages:** every new account gets 3 notifications, each also sent as an email: *Welcome to Find-IT*, *Verify your email* (tapping it opens the Verify page; the email contains a code), *Start posting and browsing* (opens Browse). Tapping any notification now opens its page.
+- **Test inbox** (`/test-inbox/`, link in the top menu): each person sees only their own test emails. It exists only on a local PC (DEBUG on, no mail server); it can never appear on an online site.
+
+### B. Signing in
+
+- **Students sign in with their email.** A student whose Student ID is verified (locked to them) can also type the Student ID. The password must always match.
+- Staff, administrators and the Developer sign in with their username.
+- New student accounts get an internal username (`student-…`) that is never used to sign in.
+
+### C. Student ID rules
+
+- While nobody has verified a Student ID, **several accounts may use it**.
+- When one account verifies its email, the ID is **locked** to that account. The other accounts get a notice and **14 days** (System settings) to change their ID or appeal. After that, their ID is cleared and they must set a new one before using the site.
+- Sign-up with a locked ID is refused, unless the person ticks *"This is my Student ID…"*: the account is created **without** an ID and they go straight to the ID review form.
+- An account that has used **3 different Student IDs** (sign-up counts) is **red-flagged and disabled**. The Change Student ID page warns before the third.
+- **ID reviews** (`/id-review/new/`): impostor, lost access, or appeal. A required short explanation and a captcha. **Anti-flood:** 1 open review per account, at most 3 every 30 days, at most 5 per network address per day, and the moderator queue (`/staff/id-reviews/`) shows one row per Student ID. **Verified moderators and administrators** decide: keep the ID with the verified account, or move it to the person who asked (the old holder must then set a new ID). While an appeal is open, the 14-day deadline is paused.
+- Existing accounts from v1.1.0 (whose IDs were already unique) are marked verified with a locked ID by the migration, so nobody is locked out.
+
+### D. Limits for unverified students (admin can change them in System settings)
+
+| | Unverified student | Verified student |
+| --- | --- | --- |
+| Open claims at once | 3 | no limit |
+| Claim expires after no activity | 3 days | 7 days |
+| New posts | 1 per day | 10 per hour (existing setting) |
+| Chat | 10 messages per 10 minutes, 100 characters each | 2,000 characters |
+| Others see | a red warning at the bottom: "Warning: this user is not yet verified. Please be careful…" (they can still continue) | ✔ Verified |
+
+### E. Report & block (one button)
+
+- **⛔ Report & block** on the post page (the poster), the private claim form (the claimant) and in chats (the other person).
+- The reason is optional. With no reason, the report is filed under the new chat-report category **"Block (no reason given)"** for verified moderators; otherwise under the chosen category. Moderators can read the chat it came from.
+- Effect: their chats become read-only, open claims between them are **Closed**, and neither can claim, comment on or message about the other's posts. **My profile → Blocked people** lists them, with **Unblock** (closed chats and claims stay closed). Staff accounts cannot be blocked.
+
+### F. Developer account and admin protection
+
+- New role **Developer**, above Administrator. Only the Developer can **make or remove administrators**, change an administrator's role or status, and open **`/django-admin/`**. Admins can still create and manage staff and students.
+- The Developer is created only on the computer itself: **`python manage.py create_developer`** (or FindIT.cmd menu 6). It asks for the password privately (hidden typing, at least 12 characters). **No password or account is in the code or repository**; only a hash is stored in the database. Forgot it: `python manage.py create_developer --reset-password`. Its password can **never** be reset by email.
+- The Developer account is hidden from administrators' account lists and cannot be edited through any web page.
+- `createsuperuser` no longer makes administrators. Being a Django superuser gives no Find-IT role by itself.
+- `seed_demo` refuses to run when DEBUG is off, so the public demo passwords can never reach an online site. The demo `findit-admin` is no longer a Django superuser.
+- **For hosting later (v3.0.0):** run `create_developer` once on the server, or restore a backup (`backup_now` / `restore_backup`) that already contains the account. Two-step sign-in (authenticator app) is planned for v3.0.0.
+
+### G. SQL injection
+
+All database access uses Django's ORM, which sends what people type as **separate values (parameterized queries)**, never as part of the SQL text. The only hand-written SQL is the fixed `SELECT 1` health check, which takes no input. New tests try classic attacks (`' OR '1'='1`, `'; DROP TABLE …`) on sign-in, sign-up and search and confirm they do nothing.
+
+### H. Easier to run
+
+`FindIT.cmd` is a numbered menu (1 Start — also automatic after 20 seconds, 2 demo sign-ins, 3 reset demo data with a backup first, 4 automatic checks, 5 backup, 6 Developer account). It offers to install Python 3.13 when missing and explains common problems. `START-HERE.txt` has the steps in plain words.
+
+### I. Bugs found and fixed (details in `docs/BUG_REPORTS.md`)
+
+- **BUG-001** chat never showed the server's error messages, and the typed text was lost when a message was refused.
+- **BUG-002** a damaged `claim_id`/student value crashed *Mark returned* and the guard-house pickup (500 error).
+- **BUG-003** an impossible date (e.g. 2026-99-99) in the report filters crashed the report lists.
+
+How they were found: every page opened as every demo role (about 490 pages, 0 crashes after the fixes), every form action sent empty and hostile data as every role (77 routes), a live run of the real server (sign-up → Test inbox code → limited chat over WebSocket → verify → sign in with Student ID), the timer runner, and a backup/restore round trip.
+
+### Database changes — migration `0012_v111_school_verification`
+
+- **Profile:** `student_id` is no longer unique by itself; new `student_id_locked`, `email_verified_at`, `id_conflict_deadline`, `flagged_at`, `flag_reason`; database rule *a locked Student ID is unique*; role **developer** added.
+- New tables: **StudentIdRecord** (every ID an account used), **EmailVerificationCode** (hashed codes), **TestEmail** (local test inbox), **IdReviewCase**, **UserBlock**.
+- **InAppNotification:** `post` optional, new `link`. **AbuseReport:** new reason **BLOCK**. **SystemSettings:** the seven limits above.
+- Data step: existing students become verified with a locked ID.
+
+Run `python manage.py migrate` (FindIT.cmd does it for you). Never run `makemigrations` on a server.
+
+### Files
+
+New: `core/verification.py`, `core/auth.py`, `core/mail.py`, `core/templatetags/findit_tags.py`, `core/management/commands/create_developer.py`, `core/migrations/0012_v111_school_verification.py`, `core/tests/test_v111.py`, templates `verify_email.html`, `student_id_change.html`, `id_review_form.html`, `id_reviews.html`, `id_review_detail.html`, `report_block.html`, `blocked_people.html`, `test_inbox.html`, `includes/unverified_warning.html`, `START-HERE.txt`.
+Changed: `core/models.py`, `forms.py`, `views.py`, `urls.py`, `permissions.py`, `services.py`, `signals.py`, `consumers.py`, `middleware.py`, `context_processors.py`, `management/commands/seed_demo.py`, `findit/settings.py`, `findit/urls.py`, `static/js/chat.js`, `static/css/app.css`, several templates, `FindIT.cmd`, `README.md`, tests `base.py` and `test_session1.py` (updated for sign-in by email and the Developer rule).
+
+### See it working (after menu 3 "Reset the demo data", then menu 1)
+
+1. **Sign up** a new student with Student ID `2020-0001`, name Cruz, Juan D. (Dela). Open **Updates**: 3 notices. Open **Test inbox**: 3 emails, one with a code.
+2. As that new student, open a post by Alex: no warning. Sign in as `alex.finder@example.com` in a private window and open the new student's claim or chat: the **red warning** shows at the bottom, and the new student shows **Not verified**.
+3. As the new student, try a chat message over 100 characters, or 11 messages quickly: the reason shows under the chat box.
+4. Tap **Verify my email**, type the code from the Test inbox: ✔ Verified. Sign out and sign in with `2020-0001`.
+5. Sign up again with `2020-0001` and a different email: refused. Tick *"This is my Student ID…"* → ID review form → send. Sign in as `moderator.demo` → **Staff → Student ID reviews** → decide.
+6. Sign in as `casey.unverified@example.com` (unverified demo student): see the yellow strip and the limits.
+7. **Report & block:** as Alex, open a claim form or chat → ⛔ Report & block → the chat becomes read-only; `moderator.demo` sees it in **Chat reports** under "Block (no reason given)".
+8. **Developer:** run menu 6 → create your account. Sign in with it → Staff → Accounts → edit a staff account → role Administrator. `findit-admin` cannot do that, and `/django-admin/` sends `findit-admin` to its sign-in page.
+
+### Still open
+
+- Real email sending, the school-ID barcode check and two-step sign-in wait for online hosting (v3.0.0, see the roadmap). Until then, email verification shows only that the person can read that mailbox (on a local PC: the Test inbox).
+- No human testers yet: phone layouts, camera scanning and two-person live chat still need people to try them (`docs/BUG_REPORTS.md`).
+- `FindIT.cmd` was written for Windows but could only be reviewed, not run, in this environment. Please try menu options 1–6 once and report anything odd.
+
+---
+
+# v1.1.0 integration (unchanged below)
 
 ## 1. Starting point and sources
 

@@ -9,7 +9,7 @@ I'm continuing work on Find-IT, a Django campus lost-and-found app (my capstone)
 
 Repository to work in: https://github.com/jblloydg/findit-campus-lost-and-found-v1.1.0
 - Clone it, then read CLAUDE.md first (project rules and decisions), then HANDOFF.md and docs/ROADMAP.md.
-- Work only on the branch release/1.1.1. main is the stable v1.1.0 (tag v1.1.0 = rollback point).
+- Work only on the branch release/1.1.1. main is the stable v1.1.0 (branch stable/v1.1.0 = frozen rollback point).
 - Do NOT change the read-only repos: jblloydg/findit-campus-lost-and-found and jblloydg/1, /2, /3, /4.
 
 What I want in this session: <describe it, e.g. "fix the bugs below" or "plan interface changes">
