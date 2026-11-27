@@ -10,6 +10,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
+from django.db.models.functions import Coalesce, TruncDate   # after: from django.db.models import Q
+from django.utils.dateparse import parse_date                # after: from django.utils import timezone
+from .matching import find_possible_matches                  # before: from .permissions import ...
 
 from .forms import (
     AdminReviewForm, ClaimAnswerForm, CloseReasonForm, CommentForm,
@@ -72,24 +75,56 @@ def logout_view(request):
     return redirect("landing")
 
 
+def _parse_filter_date(value):
+    """Return a date from a YYYY-MM-DD query value, or None if blank or invalid."""
+    value = (value or "").strip()
+    if not value:
+        return None
+    try:
+        return parse_date(value)
+    except ValueError:
+        return None
+
+
 @login_required
 def home(request):
     posts = ItemPost.objects.filter(is_archived=False).select_related("author", "author__profile")
     q = request.GET.get("q", "").strip()
     post_type = request.GET.get("type", "").strip()
     status = request.GET.get("status", "").strip()
+    category = request.GET.get("category", "").strip()
+    date_from = _parse_filter_date(request.GET.get("date_from"))
+    date_to = _parse_filter_date(request.GET.get("date_to"))
+    if date_from and date_to and date_from > date_to:
+        date_from, date_to = date_to, date_from
     if q:
         posts = posts.filter(Q(title__icontains=q) | Q(description__icontains=q))
     if post_type in {ItemPost.Type.LOST, ItemPost.Type.FOUND}:
         posts = posts.filter(post_type=post_type)
     if status in dict(ItemPost.Status.choices):
         posts = posts.filter(status=status)
+    if category in dict(ItemPost.Category.choices):
+        posts = posts.filter(category=category)
+    else:
+        category = ""
+    if date_from or date_to:
+        # The item date is the poster's approximate date; posts without one use the day they were posted.
+        posts = posts.annotate(item_date=Coalesce("approximate_date", TruncDate("created_at")))
+        if date_from:
+            posts = posts.filter(item_date__gte=date_from)
+        if date_to:
+            posts = posts.filter(item_date__lte=date_to)
     return render(request, "core/home.html", {
         "posts": posts[:100],
         "q": q,
         "selected_type": post_type,
         "selected_status": status,
         "status_choices": ItemPost.Status.choices,
+        "selected_category": category,
+        "category_choices": ItemPost.Category.choices,
+        "date_from": date_from.isoformat() if date_from else "",
+        "date_to": date_to.isoformat() if date_to else "",
+        "filters_active": bool(q or post_type or status or category or date_from or date_to),
     })
 
 
@@ -155,6 +190,13 @@ def post_detail(request, post_id):
         applications = list(post.claims.select_related("claimant").order_by("-submitted_at"))
     if can_moderate and post.status == ItemPost.Status.TURNED_OVER:
         account_list = User.objects.filter(profile__role=Profile.Role.STUDENT, is_active=True).order_by("first_name")
+    show_matches = (
+        can_manage
+        and post.post_type == ItemPost.Type.LOST
+        and not post.is_archived
+        and post.status not in {ItemPost.Status.CLAIMED, ItemPost.Status.CLOSED, ItemPost.Status.RETURNED}
+    )
+    possible_matches = find_possible_matches(post) if show_matches else []
     context = {
         "post": post,
         "comments": comments,
@@ -168,6 +210,8 @@ def post_detail(request, post_id):
         "account_list": account_list,
         "resume": resume,
         "direct_link": request.build_absolute_uri(),
+        "show_matches": show_matches,
+        "possible_matches": possible_matches,
     }
     return render(request, "core/post_detail.html", context)
 
@@ -190,6 +234,13 @@ def create_post(request):
             note="Listing created.",
         )
         messages.success(request, "Your post is live.")
+        if post.post_type == ItemPost.Type.LOST:
+            match_count = len(find_possible_matches(post))
+            if match_count:
+                messages.info(
+                    request,
+                    f"We found {match_count} possible match{'es' if match_count != 1 else ''} among found items. See Possible Matches below.",
+                )
         return redirect("post-detail", post_id=post.pk)
     return render(request, "core/post_form.html", {"form": form})
 

@@ -107,10 +107,11 @@ class ItemPostForm(forms.ModelForm):
 
     class Meta:
         model = ItemPost
-        fields = ["post_type", "title", "description", "approximate_date", "photo"]
+        fields = ["post_type", "title", "category", "description", "approximate_date", "photo"]
         widgets = {
             "post_type": forms.Select(attrs={"data-post-type": "true"}),
             "title": forms.TextInput(attrs={"placeholder": "A broad name, such as blue water bottle"}),
+            "category": forms.Select(),
             "description": forms.Textarea(attrs={"rows": 4, "placeholder": "Describe visible details without revealing private identifiers."}),
             "approximate_date": forms.DateInput(attrs={"type": "date"}),
             "photo": forms.ClearableFileInput(attrs={"accept": "image/jpeg,image/png,image/webp"}),

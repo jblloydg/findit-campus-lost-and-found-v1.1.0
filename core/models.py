@@ -35,10 +35,20 @@ class ItemPost(models.Model):
         CLAIMED = "CLAIMED", "Claimed"
         CLOSED = "CLOSED", "Closed"
 
+    class Category(models.TextChoices):
+        BAGS = "BAGS", "Bags"
+        ELECTRONICS = "ELECTRONICS", "Electronics"
+        CLOTHING = "CLOTHING", "Clothing"
+        IDS_CARDS = "IDS_CARDS", "IDs/Cards"
+        ACCESSORIES = "ACCESSORIES", "Accessories"
+        SCHOOL_SUPPLIES = "SCHOOL_SUPPLIES", "School Supplies"
+        OTHER = "OTHER", "Other"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="item_posts")
     post_type = models.CharField(max_length=5, choices=Type.choices)
     title = models.CharField(max_length=120)
+    category = models.CharField(max_length=20, choices=Category.choices, default=Category.OTHER, db_index=True)
     description = models.TextField(max_length=1600)
     approximate_date = models.DateField(null=True, blank=True)
     photo = models.ImageField(upload_to="item-photos/%Y/%m/", validators=[validate_photo], blank=True, null=True)

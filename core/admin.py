@@ -35,8 +35,8 @@ class VerificationQuestionInline(admin.TabularInline):
 
 @admin.register(ItemPost)
 class ItemPostAdmin(admin.ModelAdmin):
-    list_display = ("title", "post_type", "status", "author", "is_archived", "created_at")
-    list_filter = ("post_type", "status", "is_archived")
+    list_display = ("title", "post_type", "category", "status", "author", "is_archived", "created_at")
+    list_filter = ("post_type", "category", "status", "is_archived")
     search_fields = ("title", "description", "author__username")
     readonly_fields = (
         "status", "returned_application", "claimed_by_user", "turned_over_at",
