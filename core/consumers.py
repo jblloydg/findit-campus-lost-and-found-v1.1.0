@@ -47,6 +47,10 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         except json.JSONDecodeError:
             await self.send(text_data=json.dumps({"type": "error", "message": "Invalid message."}))
             return
+        if not isinstance(payload, dict):
+            # BUG-005: valid JSON that is not an object (e.g. [1] or "hi") used to crash the connection.
+            await self.send(text_data=json.dumps({"type": "error", "message": "Invalid message."}))
+            return
         message = str(payload.get("message", "")).strip()
         client_id = str(payload.get("client_id", ""))[:64]
         if not message:
