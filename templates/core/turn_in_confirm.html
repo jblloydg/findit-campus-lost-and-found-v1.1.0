@@ -14,7 +14,7 @@
   <div class="panel turn-in-panel">
     <span class="eyebrow">Turn-in code {{ ticket.code }}</span>
     <div class="turn-in-item">
-      {% with cover=post.cover_photo %}{% if cover %}<img src="{{ cover.image.url }}" alt="">{% endif %}{% endwith %}
+      {% with cover=post.cover_photo %}{% if cover %}<img src="{{ cover.preview_url }}" alt="" decoding="async">{% endif %}{% endwith %}
       <div>
         <div class="card-meta"><span class="type-pill type-{{ post.post_type|lower }}">{{ post.get_post_type_display }}</span>{% if post.category %}<span class="subtle-chip">{{ post.category.name }}</span>{% endif %}<span class="status-pill status-{{ post.status|lower }}">{{ post.get_status_display }}</span></div>
         <h1>{{ post.display_title }}</h1>

@@ -1,5 +1,5 @@
 <article class="listing-row">
-  <div class="listing-thumb">{% with cover=claim.post.cover_photo %}{% if cover %}<img src="{{ cover.image.url }}" alt="">{% else %}<span>◈</span>{% endif %}{% endwith %}</div>
+  <div class="listing-thumb">{% with cover=claim.post.cover_photo %}{% if cover %}<img src="{{ cover.preview_url }}" alt="" loading="lazy" decoding="async">{% else %}<span>◈</span>{% endif %}{% endwith %}</div>
   <div class="listing-info">
     <div class="card-meta">
       <span class="type-pill type-{{ claim.post.post_type|lower }}">{% if claim.is_lost_report %}Your lost item{% else %}Found item{% endif %}</span>

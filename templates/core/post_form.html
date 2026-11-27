@@ -18,7 +18,7 @@
       {% if editing and post.photos.all %}
       <div class="photo-manage-grid">
         {% for photo in post.photos.all %}
-        <label class="photo-manage-item"><img src="{{ photo.image.url }}" alt="Photo {{ forloop.counter }}"><span><input type="checkbox" name="remove_photos" value="{{ photo.pk }}"> Remove</span></label>
+        <label class="photo-manage-item"><img src="{{ photo.preview_url }}" alt="Photo {{ forloop.counter }}" loading="lazy" decoding="async"><span><input type="checkbox" name="remove_photos" value="{{ photo.pk }}"> Remove</span></label>
         {% endfor %}
       </div>
       {% endif %}

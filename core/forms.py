@@ -571,8 +571,7 @@ class ItemPostForm(forms.ModelForm):
     def save_photos(self, post):
         """Apply photo removals and additions after the post itself is saved."""
         for photo in self.cleaned_data.get("remove_photos") or []:
-            photo.image.delete(save=False)
-            photo.delete()
+            photo.delete()  # its files are removed by the post_delete signal
         next_order = (post.photos.aggregate(models.Max("order"))["order__max"] or 0) + 1
         for offset, upload in enumerate(self.cleaned_data.get("photos") or []):
             PostPhoto.objects.create(post=post, image=upload, order=next_order + offset)

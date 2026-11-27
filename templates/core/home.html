@@ -30,7 +30,7 @@
     {% for post in posts %}
     <article class="post-card">
       <a class="post-card-link" href="{% url 'post-detail' post.pk %}">
-        {% with cover=post.cover_photo %}{% if cover %}<img class="post-photo" src="{{ cover.image.url }}" alt="Photo of {{ post.display_title }}" loading="lazy">{% else %}<div class="post-photo photo-placeholder"><span aria-hidden="true">◈</span><small>No photo added</small></div>{% endif %}{% endwith %}
+        {% with cover=post.cover_photo %}{% if cover %}<img class="post-photo" src="{{ cover.preview_url }}" alt="Photo of {{ post.display_title }}" loading="lazy" decoding="async">{% else %}<div class="post-photo photo-placeholder"><span aria-hidden="true">◈</span><small>No photo added</small></div>{% endif %}{% endwith %}
         {% if post.photos.all|length > 1 %}<span class="photo-count-badge">{{ post.photos.all|length }} photos</span>{% endif %}
         <div class="post-card-body">
 <<<<<<< HEAD

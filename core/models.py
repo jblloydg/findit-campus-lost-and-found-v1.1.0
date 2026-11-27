@@ -40,6 +40,11 @@ class Profile(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def save(self, *args, **kwargs):
+        from .images import AVATAR, replace_with_compressed
+        replace_with_compressed(self.photo, AVATAR)  # PERF-003: small compressed picture only
+        super().save(*args, **kwargs)
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -251,7 +256,10 @@ class PostShare(models.Model):
 class PostPhoto(models.Model):
     """One of 1-20 photos attached to a post. Photos are required; video is not allowed."""
     post = models.ForeignKey(ItemPost, on_delete=models.CASCADE, related_name="photos")
+    # v1.1.1 (PERF-003): the original upload is never kept. `image` is the compressed photo
+    # (max 1600 px, ~300 KB) and `preview` the small version (max 480 px, ~40 KB) for lists.
     image = models.ImageField(upload_to="item-photos/%Y/%m/", validators=[validate_photo])
+    preview = models.ImageField(upload_to="item-photos/previews/%Y/%m/", blank=True, null=True)
     order = models.PositiveSmallIntegerField(default=0)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
@@ -260,6 +268,15 @@ class PostPhoto(models.Model):
 
     def __str__(self):
         return f"Photo {self.order} for {self.post}"
+
+    def save(self, *args, **kwargs):
+        from .images import FULL, replace_with_compressed
+        replace_with_compressed(self.image, FULL, preview_field=self.preview)
+        super().save(*args, **kwargs)
+
+    @property
+    def preview_url(self):
+        return self.preview.url if self.preview else self.image.url
 
 
 class AnswerType(models.TextChoices):
@@ -887,6 +904,11 @@ class StatusChangeRequest(models.Model):
 
     class Meta:
         ordering = ["decision", "-created_at"]
+
+    def save(self, *args, **kwargs):
+        from .images import FULL, replace_with_compressed
+        replace_with_compressed(self.photo, FULL)  # PERF-003: compressed, original not kept
+        super().save(*args, **kwargs)
 
 
 class IdReviewCase(models.Model):
