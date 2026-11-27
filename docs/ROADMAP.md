@@ -26,22 +26,45 @@ The V2 list was written before v1.1.0. The four sessions already built most of i
 | **v1.1.0** | Sessions 1–4 integrated. Covers most V1 and V2 goals. | Released (`main`) |
 | **v1.1.1** | V2-I school account verification + bug fixes + easier start. | Built on `release/1.1.1`, waiting for owner approval (rollback: `stable/v1.1.0`) |
 | **v2.0.0** | Interface overhaul. Lead: *(to be named)* | Planned |
-| **v2.1.0** | Fix bugs found in 2.0.0. | Planned |
+| **v2.1.0** | Fix bugs found in 2.0.0 **+ adaptive layout**: every page adapts from PC to phone using relative sizes (percentages / fluid units) instead of fixed pixel sizes. | Planned |
 | **v3.0.0** | Online hosting: put the app on the internet, move SQLite → PostgreSQL, all of V2-J (2.5-second and uptime evidence). | Planned |
 
 ### What v1.1.1 contains
 - **V2-I school account verification**: optional email code (printed locally + Test inbox), sign-in with email, Student ID rules (shared until verified, 14-day grace, 3 IDs = disabled), ID reviews, unverified limits and warning, Report & block.
 - **Developer role** (only it makes admins; `create_developer` command).
 - **Easier start** (`FindIT.cmd` menu, `START-HERE.txt`).
-- **Bug fixes** BUG-001…003 (`docs/BUG_REPORTS.md`).
+- **Chat:** message and notification queues (never lost or doubled), Messenger-style history (byte-sized pages, scroll to load, search), photos and videos in chats (re-encoded, private, limited).
+- **Speed:** smooth chat on slow phones, no overload with many users, photos compressed on upload.
+- **Bug fixes** BUG-001…007 (`docs/BUG_REPORTS.md`). Full list: `docs/CHANGES_v1.1.1.md`; tests: `docs/TEST_REPORT_v1.1.1.md`.
 
 ### Moved to v3.0.0 (hosting)
 - **Confirm the 2.5-second target and reliable uptime** (all of V2-J): needs measurement on the hosted app; the local app alone cannot show them.
 - **Daily backups and restore in the online app:** the local command-line engine exists (`backup_now`, `restore_backup`, daily via the timer runner), but the hosted app needs its own scheduler, off-site backup storage and a tested restore procedure (no in-app restore yet).
 - **Real email connection** for verification codes, welcome emails and password resets (SMTP / email service); the Test inbox turns off automatically.
+- **Load test at campus scale** on the hosted system (about 1,600 people at once = 10% of ~16k DOrSU students) with PostgreSQL, Redis and several server processes. v1.1.1 is tuned for one PC.
 - **How to verify an account properly:** read the **barcode on the back of the school ID** (find out what it contains; it can be copied, so combine it with other checks), and decide later security changes.
 - **Two-step sign-in** (authenticator app such as Google/Microsoft Authenticator) for the Developer and administrators, set up once on the online site.
 Also: PostgreSQL testing and switch, hosting provider, HTTPS, real email (SMTP) for password resets and verification, Redis for live chat across processes, uptime monitor (rest of V2-J), scheduled backups on the server.
+
+### v2.0.0 / v2.1.0 — interface
+- **v2.0.0:** interface overhaul (lead to be named).
+- **v2.1.0:** bug fixes for 2.0.0 and an **adaptive layout**: pages scale from PC to phone with
+  relative sizes (%, `rem`, `vw`, `clamp()`), not fixed `px`; chat bubbles, photos and videos
+  size themselves to the screen; touch-friendly buttons. (v1.1.1 only made the phone fast, not
+  re-designed.)
+
+### Messages — ideas for later versions (not built yet)
+- Photo viewer inside the chat (swipe, zoom) instead of opening a new tab.
+- Several photos in one message (album), and a "retry" button on failed uploads.
+- Resumable uploads for big videos on weak Wi-Fi (upload in pieces).
+- Read receipts ("Seen") and "typing…" indicator.
+- Delete / unsend a message for both people (with a moderator copy kept for reports).
+- Voice messages (compressed like videos).
+- Smaller files with WebP/AVIF photos and newer video formats when phones support them well.
+- Storage rules: how long chat media is kept after a post is closed, and a per-student storage quota.
+- Push notifications on phones (installable web app / PWA) and an offline cache of recent chats.
+- Faster search for big databases (PostgreSQL full-text search) — with hosting.
+- Video processing on a separate worker service (Celery/Redis) when hosted — with hosting.
 
 ### Not scheduled yet
 The dormant campus-map location (DOrSU map in segments).

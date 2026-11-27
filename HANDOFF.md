@@ -102,6 +102,14 @@ All database access uses Django's ORM, which sends what people type as **separat
 
 What changed: the chat opens with the newest 100 messages ("Show older messages" loads 100 more); incoming messages are drawn in one batch per screen frame; after a reconnect only the missed messages are fetched; chat saves take one database trip in their own worker thread; SQLite runs in WAL mode with IMMEDIATE transactions. These numbers come from this test machine with the local development server; v3.0.0 hosting will repeat the measurements on the real server (V2-J).
 
+### H4. Chat history, search, photos and videos (CHG-005, PERF-003, CHG-006)
+
+- **History like Messenger:** pages sized by bytes (~8 KB, max 50 messages); scrolling up loads older messages by themselves after a short pause; "Jump to latest". **Search** box in every chat.
+- **Photos everywhere are compressed on upload** (original never stored or sent): post photos 1600 px/~300 KB + 480 px preview; profile pictures 256 px. GPS data removed.
+- **📎 Photos and videos in chats:** re-encoded (JPEG / 720p MP4), fake or unsafe files refused, private (only the two people + reviewers). Upload queue on the device with progress, "Processing…", auto-retry after a lost connection or reload. Limits: verified photo 5 MB, video 20 MB/60 s, any number (heavy floods quietly slowed down); unverified photo 2 MB, video 8 MB/20 s, 3 per chat.
+- New package: `imageio-ffmpeg` (installed automatically). Migrations `0013`, `0014`.
+- Full numbers: `docs/TEST_REPORT_v1.1.1.md`. Short list of all changes: `docs/CHANGES_v1.1.1.md`.
+
 ### I. Bugs found and fixed (details in `docs/BUG_REPORTS.md`)
 
 - **BUG-001** chat never showed the server's error messages, and the typed text was lost when a message was refused.
@@ -110,6 +118,7 @@ What changed: the chat opens with the newest 100 messages ("Show older messages"
 - **BUG-004** live notices and chat updates were pushed before the database save was final.
 - **BUG-005** the chat connection crashed on valid JSON that is not an object (e.g. `[1]`).
 - **BUG-006** notices made by the timer runner never reached pages that were already open.
+- **BUG-007** chat media files stayed on disk after a chat/post was permanently deleted.
 
 How they were found (two rounds; the second after the chat/notification queue, run on the whole program): every page opened as every demo role plus a Developer account (about 1,150 pages including /django-admin/, 0 crashes after the fixes), forms without the security (CSRF) token refused, `check --deploy` with online settings, every form action sent empty and hostile data as every role (77 routes), a live run of the real server (sign-up → Test inbox code → limited chat over WebSocket → verify → sign in with Student ID), the timer runner, and a backup/restore round trip.
 

@@ -34,3 +34,7 @@ How I like to work:
 - **Claude Code on your PC** is best for bug fixing: it can run `FindIT.cmd`, reproduce the bug on Windows and check the fix.
 - **A Claude chat** is best for planning, design, Figma and paper writing. Give it the same prompt; it will work from GitHub.
 - Start a **new session per batch** of bugs rather than one endless chat — it's faster and uses less of your plan.
+
+Every version I approve must come with docs/CHANGES_v<version>.md and docs/TEST_REPORT_v<version>.md
+(bug hunt + performance on phone, web and backend, plain text), like the v1.1.1 ones, and every bug
+logged in docs/BUG_REPORTS.md. Use and extend tools/testing/.

@@ -22,7 +22,14 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 - One bug or change = one commit (message starts with its ID, e.g. `BUG-003: …`), so any fix can be reverted alone.
 - **Version plan:** v1.1.1 = V2-I school verification + bug fixes → v2.0.0 interface overhaul → v2.1.0 its bug fixes → v3.0.0 online hosting + PostgreSQL + all of V2-J (performance and uptime evidence). Don't start hosting/PostgreSQL/Redis/SMTP/V2-J work before v3.0.0 unless asked; keep the code PostgreSQL-compatible meanwhile. Details in `docs/ROADMAP.md`.
 - When the owner approves 1.1.1: merge `release/1.1.1` into `main`, tag `v1.1.1`. Never rewrite or delete history.
-- Log every fix in `docs/BUG_REPORTS.md` and add a "Changes in 1.1.1" section to `HANDOFF.md`.
+- Log every fix in `docs/BUG_REPORTS.md` and add a "Changes in <version>" section to `HANDOFF.md`.
+
+## Reports required for EVERY version (owner's rule since v1.1.1)
+Before a version is pushed for approval, it must include, in plain text (readable in any Claude session):
+1. **`docs/CHANGES_v<version>.md`** — what changed: features, speed changes, bugs fixed, migrations, new packages, what is not included. Model: `docs/CHANGES_v1.1.1.md`.
+2. **`docs/TEST_REPORT_v<version>.md`** — automated test results, **bug hunt** over the whole program (pages per role, hostile form/address input, security checks, real-browser checks), **performance** on phone + web + backend with before/after numbers, bugs found and fixed, what was not tested. Model: `docs/TEST_REPORT_v1.1.1.md`. Reuse and extend `tools/testing/`.
+3. Every bug and change logged in **`docs/BUG_REPORTS.md`** with its commit.
+Run the bug hunt again after any big change (e.g. chat, media) and once more on the whole program before pushing.
 
 ## Decisions already made by the owner (keep them)
 1. **Session 4's design has priority** whenever sessions named or behaved differently.
@@ -35,8 +42,9 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 8. **Location is DORMANT** (future DOrSU campus map in segments). Keep the field; don't show, collect or filter it unless `FINDIT_LOCATION_ENABLED=1`. Don't remove it, don't build the map unless asked.
 9. **Backups:** session 4 engine (`backup_now`, `restore_backup`), daily via the timer runner, 14 days kept.
 10. **Example values in the interface, docs, Figma and tests:** Student ID **`2020-0001`**, name **Cruz, Juan D. (Dela)**. **Never use the old example ID from the starter project** — it is the owner's real personal account. Never use any real ID or name as an example.
-11. **Verification (V2-I, v1.1.1):** optional email code → ✔ Verified. Students sign in with email (or a verified Student ID). Student IDs may be shared until one account verifies (then locked; others get 14 days; 3 different IDs = disabled); ID reviews by verified moderators/admins. Unverified limits: 3 open claims, 3-day claim expiry, 1 post/day, 10 chat msgs/10 min, 100 chars, red warning for others. Report & block = one button, reason optional ("Block" category). Real email, ID barcode and 2-step sign-in → v3.0.0.
-12. Privacy: no real student data, passwords, secrets, `db.sqlite3`, `media/`, `private_media/`, `backups/` or `.env` in Git. Demo accounts are fictional and local-only.
+11. **Chat (v1.1.1):** messages and notifications have queues and one-time ids (never lost or doubled). History pages are sized by bytes (~8 KB, max 50 messages), load on scroll; search per chat. **Photos/videos in chats** are re-encoded (JPEG / 720p MP4), private, original not kept. Verified: photo 5 MB, video 20 MB/60 s, unlimited count but heavy floods quietly slowed down. Unverified: photo 2 MB, video 8 MB/20 s, 3 per chat. Post photos are compressed on upload too (1600 px/~300 KB + 480 px preview). Posts stay photos-only.
+12. **Verification (V2-I, v1.1.1):** optional email code → ✔ Verified. Students sign in with email (or a verified Student ID). Student IDs may be shared until one account verifies (then locked; others get 14 days; 3 different IDs = disabled); ID reviews by verified moderators/admins. Unverified limits: 3 open claims, 3-day claim expiry, 1 post/day, 10 chat msgs/10 min, 100 chars, red warning for others. Report & block = one button, reason optional ("Block" category). Real email, ID barcode and 2-step sign-in → v3.0.0.
+13. Privacy: no real student data, passwords, secrets, `db.sqlite3`, `media/`, `private_media/`, `backups/` or `.env` in Git. Demo accounts are fictional and local-only.
 
 ## Working rules (how the owner wants Claude to work)
 - **Ask before building** when anything is unclear — the owner prefers many questions over a wrong implementation. Use question cards/options when available.
@@ -49,7 +57,7 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 ```powershell
 python manage.py migrate            # never run makemigrations on a server; commit new migrations
 python manage.py seed_demo          # fictional demo data (local only)
-python manage.py test core          # 184 tests; keep them passing, add tests for each fix
+python manage.py test core          # 202 tests; keep them passing, add tests for each fix
 python manage.py create_developer   # the owner's Developer account (password typed privately)
 python manage.py makemigrations --check --dry-run   # must say "No changes detected" before committing
 python manage.py backup_now [--list] / restore_backup NAME
@@ -58,6 +66,8 @@ Demo sign-ins: students by email, e.g. `alex.finder@example.com` (or verified ID
 
 ## Where things are
 - `core/models.py`, `forms.py`, `services.py` (all state changes go through services), `views.py`, `urls.py`, `permissions.py`
+- `core/chat_history.py` (byte-sized history pages, chat search), `core/chat_media.py` (chat photos/videos, worker), `core/images.py` (photo compression)
+- `docs/CHANGES_v1.1.1.md`, `docs/TEST_REPORT_v1.1.1.md`, `tools/testing/` (bug-hunt and performance scripts)
 - `core/verification.py` (v1.1.1 verification, Student IDs, ID reviews, limits, report & block), `core/auth.py` (sign-in rules), `core/mail.py` (Test inbox)
 - `core/matching.py` (LOST↔FOUND matches), `core/backups.py`, `core/idempotency.py` (duplicate-submit protection), `core/security.py` (sign-in lockout)
 - `templates/core/`, `static/css/app.css`, `static/js/app.js`, `chat.js`, `scan.js`
