@@ -435,10 +435,7 @@ class BugFixTests(FindItTestCase):
             self.assertEqual(client.get(url, {"date_from": "2026-99-99", "date_to": "abc"}).status_code, 200)
 
 
-class ChatQueueTests(FindItTestCase):
-    """CHG-003: messages carry a one-time id, so a message re-sent from the browser's
-    queue after a dropped connection is saved once and never counted twice."""
-
+class SocketHelpers:
     def _communicator(self, user, conversation):
         from channels.routing import URLRouter
         from channels.testing import WebsocketCommunicator
@@ -452,6 +449,11 @@ class ChatQueueTests(FindItTestCase):
     def _run(self, coro):
         from asgiref.sync import async_to_sync
         return async_to_sync(coro)()
+
+
+class ChatQueueTests(SocketHelpers, FindItTestCase):
+    """CHG-003: messages carry a one-time id, so a message re-sent from the browser's
+    queue after a dropped connection is saved once and never counted twice."""
 
     def test_resend_after_reconnect_is_saved_once(self):
         post = self.create_post(self.finder)
@@ -525,3 +527,76 @@ class ChatQueueTests(FindItTestCase):
             return reply
 
         self.assertEqual(self._run(scenario)["type"], "error")
+
+
+class NotificationQueueTests(SocketHelpers, FindItTestCase):
+    """CHG-004 / BUG-004 / BUG-005."""
+
+    def _notice_communicator(self, user):
+        from channels.routing import URLRouter
+        from channels.testing import WebsocketCommunicator
+        from django.urls import path
+        from core.consumers import NotificationConsumer
+        communicator = WebsocketCommunicator(URLRouter([path("ws/notifications/", NotificationConsumer.as_asgi())]), "/ws/notifications/")
+        communicator.scope["user"] = user
+        return communicator
+
+    def test_reconnect_gets_true_counts_and_missed_notices(self):
+        from core.services import notify_user
+        post = self.create_post(self.finder)
+        InAppNotification.objects.filter(recipient=self.alice).update(read_at=timezone.now())
+        notify_user(self.alice, post, "first notice")
+        before = InAppNotification.objects.filter(recipient=self.alice).latest("pk").pk
+        notify_user(self.alice, post, "missed while offline", priority=True)
+
+        async def scenario():
+            ws = self._notice_communicator(self.alice)
+            await ws.connect()
+            sync = await ws.receive_json_from()
+            await ws.send_json_to({"type": "since", "after_id": before})
+            missed = await ws.receive_json_from()
+            await ws.send_json_to([1, 2])           # junk is ignored, not a crash
+            await ws.send_to(text_data="not json")
+            await ws.send_json_to({"type": "since", "after_id": "abc"})
+            nothing = await ws.receive_nothing(timeout=0.3)
+            await ws.send_json_to({"type": "sync"})  # BUG-006: periodic re-check
+            resync = await ws.receive_json_from()
+            assert resync["type"] == "sync" and resync["unread"] == 2
+            await ws.disconnect()
+            return sync, missed, nothing
+
+        sync, missed, nothing = self._run(scenario)
+        self.assertEqual(sync["type"], "sync")
+        self.assertEqual(sync["unread"], 2)
+        self.assertEqual(sync["priority"], 1)
+        self.assertEqual(missed["text"], "missed while offline")
+        self.assertTrue(missed["catch_up"])
+        self.assertTrue(nothing)
+
+    def test_live_push_waits_for_the_save(self):
+        from core.services import notify_user
+        post = self.create_post(self.finder)
+        with self.captureOnCommitCallbacks(execute=False) as callbacks:
+            notify_user(self.alice, post, "pushed after commit")
+        self.assertEqual(len(callbacks), 1)  # BUG-004: the push is queued until the save is final
+
+    def test_bug_005_non_object_json_does_not_crash_chat(self):
+        post = self.create_post(self.finder)
+        self.claim(post, self.alice)
+        conversation = Conversation.objects.get(claim__claimant=self.alice)
+
+        async def scenario():
+            ws = self._communicator(self.alice, conversation)
+            await ws.connect()
+            await ws.receive_json_from()
+            replies = []
+            for junk in ([1], "hello", 5, None):
+                await ws.send_json_to(junk)
+                replies.append(await ws.receive_json_from())
+            await ws.send_json_to({"message": "still works", "client_id": "ok-1"})
+            replies.append(await ws.receive_json_from())
+            await ws.disconnect()
+            return replies
+
+        replies = self._run(scenario)
+        self.assertEqual([r["type"] for r in replies], ["error"] * 4 + ["message"])

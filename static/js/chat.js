@@ -175,12 +175,14 @@ document.addEventListener("DOMContentLoaded", function () {
     setStatus((navigator.onLine === false ? "You are offline." : "Connection lost.") +
       (waiting ? " " + waiting + " message" + (waiting === 1 ? " is" : "s are") + " waiting and will be sent automatically." : " Reconnecting…"));
     window.setTimeout(connect, retryDelay);
-    retryDelay = Math.min(retryDelay * 2, 30000);
+    retryDelay = Math.min(retryDelay * 2, 10000);
   }
 
-  window.addEventListener("online", function () {
-    if (!socket || socket.readyState === WebSocket.CLOSED) { retryDelay = 1000; connect(); }
-  });
+  var reconnectNow = function () {
+    if (!stopped && (!socket || socket.readyState === WebSocket.CLOSED)) { retryDelay = 1000; connect(); }
+  };
+  window.addEventListener("online", reconnectNow);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) reconnectNow(); });
 
   // Refresh question cards and the claim strip when the other side sends or answers a question.
   var refreshing = false;

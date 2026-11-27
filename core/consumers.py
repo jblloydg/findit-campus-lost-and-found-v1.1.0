@@ -176,6 +176,47 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         self.group_name = f"notifications_{user.pk}"
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
+        # The saved notifications are the queue: on every (re)connect the browser gets the
+        # true unread counts, so nothing is missed while the connection was down.
+        await self.send(text_data=json.dumps({"type": "sync", **(await self._counts())}))
+
+    async def receive(self, text_data=None, bytes_data=None):
+        """{"type": "since", "after_id": N}: the newest unread notices the browser has not shown yet."""
+        try:
+            payload = json.loads(text_data or "")
+        except json.JSONDecodeError:
+            return
+        if isinstance(payload, dict) and payload.get("type") == "sync":
+            # BUG-006: notices made by the timer runner (another program) cannot be pushed
+            # live, so open pages ask about once a minute.
+            await self.send(text_data=json.dumps({"type": "sync", **(await self._counts())}))
+            return
+        if not isinstance(payload, dict) or payload.get("type") != "since":
+            return
+        try:
+            after_id = int(payload.get("after_id") or 0)
+        except (TypeError, ValueError):
+            return
+        for row in await self._missed(after_id):
+            await self.send(text_data=json.dumps({"type": "notification", **row}))
+
+    @database_sync_to_async
+    def _counts(self):
+        from .models import InAppNotification
+        unread = InAppNotification.objects.filter(recipient_id=self.scope["user"].pk, read_at__isnull=True)
+        latest = InAppNotification.objects.filter(recipient_id=self.scope["user"].pk).order_by("-pk").first()
+        return {
+            "unread": unread.count(), "priority": unread.filter(is_priority=True).count(),
+            "latest_id": latest.pk if latest else 0,
+        }
+
+    @database_sync_to_async
+    def _missed(self, after_id):
+        from .models import InAppNotification
+        rows = InAppNotification.objects.filter(
+            recipient_id=self.scope["user"].pk, read_at__isnull=True, pk__gt=after_id,
+        ).order_by("-pk")[:5]
+        return [{"id": n.pk, "text": n.text, "priority": n.is_priority, "catch_up": True} for n in reversed(list(rows))]
 
     async def disconnect(self, close_code):
         if hasattr(self, "group_name"):
@@ -186,4 +227,5 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             "type": "notification",
             "id": event["id"],
             "text": event["text"],
+            "priority": bool(event.get("priority")),
         }))
