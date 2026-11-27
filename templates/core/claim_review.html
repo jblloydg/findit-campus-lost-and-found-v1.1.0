@@ -3,7 +3,7 @@
 {% block title %}Private claim form · Find-IT{% endblock %}
 {% block content %}
 <section class="narrow-page">
-  <a class="back-link" href="{% if viewer_is_claimant %}{% url 'my-claims' %}{% else %}{% url 'post-detail' claim.post.pk %}{% endif %}">← {% if viewer_is_claimant %}My claims{% else %}Back to listing{% endif %}</a>
+  <a class="back-link" href="{% if viewer_is_claimant %}{% url 'my-claims' %}{% else %}{% url 'post-detail' claim.post.pk %}{% endif %}">{% include "core/includes/icon.html" with name="arrow-left" %}{% if viewer_is_claimant %}My claims{% else %}Back to listing{% endif %}</a>
   <div class="claim-card">
     <span class="eyebrow">Private ownership verification</span><h1>{{ claim.post.display_title }}</h1>
     {% if viewer_is_claimant %}<p class="muted">These are the answers you submitted. Only you, the finder, and authorized staff can view them. They cannot be edited after submission.</p>{% else %}<p class="muted">Only the claimant, the finder, and authorized staff can view this form. Do not share answers with other claimants.</p>{% endif %}

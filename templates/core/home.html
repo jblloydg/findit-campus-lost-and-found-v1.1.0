@@ -1,22 +1,46 @@
 {% extends "core/base.html" %}
-{% block title %}Browse items · Find-IT{% endblock %}
+{% block title %}{% if selected_type == "LOST" %}Lost items{% elif selected_type == "FOUND" %}Found items{% else %}Dashboard{% endif %} · Find-IT{% endblock %}
 {% block content %}
-<section class="page-wrap page-heading">
-  <div>
-    <span class="eyebrow">Campus item board</span>
-    <h1>Find what’s missing.</h1>
-    <p class="muted">Keep descriptions broad. Verify ownership privately.</p>
-  </div>
-  <a class="button button-primary" href="{% url 'create-post' %}">＋ Create post</a>
-</section>
-<section class="page-wrap">
-  <form class="search-panel" method="get" action="{% url 'home' %}">
-    <label class="search-field"><span aria-hidden="true">⌕</span><input type="search" name="q" value="{{ q }}" placeholder="Search by title, description or category" aria-label="Search listings"></label>
+<div class="page-wrap">
+  {% if selected_type %}
+  <section class="page-heading">
+    <div>
+      <span class="eyebrow">Campus item board</span>
+      <h1>{% if selected_type == "LOST" %}Lost items{% else %}Found items{% endif %}</h1>
+      <p class="muted">{% if selected_type == "LOST" %}Things people are looking for. If you found one, message the owner or bring it to the guard house.{% else %}Things people have found. Claim one privately if it's yours.{% endif %}</p>
+    </div>
+    <a class="button button-primary" href="{% url 'create-post' %}?type={{ selected_type }}">{% include "core/includes/icon.html" with name="plus-circle" %}{% if selected_type == "LOST" %}Report lost item{% else %}Report found item{% endif %}</a>
+  </section>
+  {% else %}
+  <section class="dash-hero campus-banner">
+    <span class="eyebrow">{{ current_role_label|default:"Student" }} dashboard</span>
+    <h1>Hello, {{ user.first_name|default:user.username }}.</h1>
+    <p>Lost something or found something? Post it here, then verify ownership privately and hand it over on campus.</p>
+    <div class="hero-actions">
+      <a class="button button-light" href="{% url 'create-post' %}?type=LOST">{% include "core/includes/icon.html" with name="plus-circle" %}Report lost item</a>
+      <a class="button button-ghost-light" href="{% url 'create-post' %}?type=FOUND">{% include "core/includes/icon.html" with name="file-plus" %}Report found item</a>
+    </div>
+  </section>
+  <section class="metric-grid" aria-label="Your activity">
+    <a class="metric" href="{% url 'my-posts' %}"><span class="metric-icon">{% include "core/includes/icon.html" with name="folder" %}</span><span><strong>{{ my_counts.active_posts }}</strong><small>Active posts</small></span></a>
+    <a class="metric" href="{% url 'my-claims' %}"><span class="metric-icon">{% include "core/includes/icon.html" with name="clipboard" %}</span><span><strong>{{ my_counts.open_claims }}</strong><small>Open claims</small></span></a>
+    <a class="metric" href="{% url 'messages' %}"><span class="metric-icon alert">{% include "core/includes/icon.html" with name="message" %}</span><span><strong>{{ priority_message_count }}</strong><small>Messages need you</small></span></a>
+    <a class="metric" href="{% url 'notifications' %}"><span class="metric-icon alert">{% include "core/includes/icon.html" with name="bell" %}</span><span><strong>{{ unread_notification_count }}</strong><small>Unread updates</small></span></a>
+  </section>
+  {% endif %}
+
+  <nav class="segmented" aria-label="Show posts">
+    <a href="{% url 'home' %}{% if q %}?q={{ q|urlencode }}{% endif %}" class="{% if not selected_type %}is-active{% endif %}"{% if not selected_type %} aria-current="page"{% endif %}>All posts</a>
+    <a href="{% url 'home' %}?type=LOST{% if q %}&amp;q={{ q|urlencode }}{% endif %}" class="{% if selected_type == 'LOST' %}is-active{% endif %}"{% if selected_type == 'LOST' %} aria-current="page"{% endif %}>Lost</a>
+    <a href="{% url 'home' %}?type=FOUND{% if q %}&amp;q={{ q|urlencode }}{% endif %}" class="{% if selected_type == 'FOUND' %}is-active{% endif %}"{% if selected_type == 'FOUND' %} aria-current="page"{% endif %}>Found</a>
+  </nav>
+  <form class="search-panel" method="get" action="{% url 'home' %}" role="search">
+    <label class="search-field">{% include "core/includes/icon.html" with name="search" %}<input type="search" name="q" value="{{ q }}" placeholder="Search by title, description or category" aria-label="Search listings"></label>
     <label class="select-field"><span class="sr-only">Type</span><select name="type"><option value="">All posts</option><option value="LOST" {% if selected_type == "LOST" %}selected{% endif %}>Lost</option><option value="FOUND" {% if selected_type == "FOUND" %}selected{% endif %}>Found</option></select></label>
     <label class="select-field"><span class="sr-only">Category</span><select name="category"><option value="">All categories</option>{% for category in categories %}<option value="{{ category.pk }}" {% if selected_category == category.pk|stringformat:"d" %}selected{% endif %}>{{ category.name }}</option>{% endfor %}</select></label>
     <label class="select-field"><span class="sr-only">Status</span><select name="status"><option value="">Any status</option>{% for value,label in status_choices %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
     {% if location_enabled %}<label class="select-field location-field"><span class="sr-only">Location</span><input type="text" name="location" value="{{ location }}" maxlength="120" placeholder="Any location" aria-label="Filter by location"></label>{% endif %}
-    <button class="button button-outline" type="submit">Search</button>
+    <button class="button button-primary" type="submit">{% include "core/includes/icon.html" with name="search" %}Search</button>
     <div class="filter-row">
       <span class="filter-label">Item date</span>
       <label class="date-field"><span>From</span><input type="date" name="date_from" value="{{ date_from }}" aria-label="Item date from"></label>
@@ -25,31 +49,18 @@
       {% if filters_active %}<a class="text-action filter-clear" href="{% url 'home' %}">Clear filters</a>{% endif %}
     </div>
   </form>
-  <div class="result-heading"><h2>Recent listings</h2><span class="muted">{{ page_obj.paginator.count }} found</span></div>
+  <div class="result-heading"><h2>{% if filters_active %}Results{% else %}Recent listings{% endif %}</h2><span class="muted">{{ page_obj.paginator.count }} found</span></div>
   <div class="post-grid">
     {% for post in posts %}
-    <article class="post-card">
-      <a class="post-card-link" href="{% url 'post-detail' post.pk %}">
-        {% with cover=post.cover_photo %}{% if cover %}<img class="post-photo" src="{{ cover.preview_url }}" alt="Photo of {{ post.display_title }}" loading="lazy" decoding="async">{% else %}<div class="post-photo photo-placeholder"><span aria-hidden="true">◈</span><small>No photo added</small></div>{% endif %}{% endwith %}
-        {% if post.photos.all|length > 1 %}<span class="photo-count-badge">{{ post.photos.all|length }} photos</span>{% endif %}
-        <div class="post-card-body">
-<<<<<<< HEAD
-          <div class="card-meta"><span class="type-pill type-{{ post.post_type|lower }}">{{ post.get_post_type_display }}</span>{% if post.category %}<span class="subtle-chip">{{ post.category.name }}</span>{% endif %}<span class="status-dot">{{ post.get_status_display }}</span></div>
-          <h3>{{ post.display_title }}</h3>
-          {% if location_enabled and post.location %}<p class="item-tags"><span class="location-tag">📍 {{ post.location }}</span></p>{% endif %}
-          <p class="clamp-3">{{ post.description }}</p>
-          <div class="post-card-foot"><span>{{ post.author.first_name|default:post.author.username }}</span>{% if post.has_approximate_when %}<span>{% if post.approximate_date %}{{ post.approximate_date|date:"M j, Y" }}{% endif %}{% if post.approximate_date and post.approximate_time %} · {% endif %}{% if post.approximate_time %}{{ post.approximate_time|time:"g:i A" }}{% endif %}</span>{% endif %}</div>
-        </div>
-      </a>
-    </article>
+    {% include "core/includes/post_card.html" %}
     {% empty %}
     <div class="empty-state">
-      <div class="empty-icon">⌕</div><h3>No listings match that search</h3>
+      <div class="empty-icon">{% include "core/includes/icon.html" with name="search" %}</div><h3>No listings match that search</h3>
       <p>Try another word or clear the filters.</p>
       <a class="button button-soft" href="{% url 'home' %}">Clear search</a>
     </div>
     {% endfor %}
   </div>
   {% include "core/includes/pagination.html" %}
-</section>
+</div>
 {% endblock %}

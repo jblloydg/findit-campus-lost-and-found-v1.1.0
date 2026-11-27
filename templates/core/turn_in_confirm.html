@@ -2,7 +2,7 @@
 {% block title %}Turn-in {{ code }} · Find-IT{% endblock %}
 {% block content %}
 <section class="narrow-page">
-  {% if is_staff_user or ticket %}<a class="back-link" href="{% url 'staff-scan' %}">← Scan another</a>{% endif %}
+  {% if is_staff_user or ticket %}<a class="back-link" href="{% url 'staff-scan' %}">{% include "core/includes/icon.html" with name="arrow-left" %}Scan another</a>{% endif %}
   {% if not ticket %}
   <div class="panel turn-in-panel not-found">
     <span class="eyebrow">Turn-in code {{ code }}</span>

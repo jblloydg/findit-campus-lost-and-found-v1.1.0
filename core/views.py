@@ -249,7 +249,15 @@ def home(request):
         if date_to:
             posts = posts.filter(item_date__lte=date_to)
     page_obj = _paginate(request, posts, 24)  # session 1: pagination
+    # v2.0.0 dashboard tiles: the signed-in person's own numbers (read-only counts).
+    my_counts = {
+        "active_posts": ItemPost.objects.filter(author=request.user, is_archived=False).exclude(
+            status__in=[ItemPost.Status.CLAIMED, ItemPost.Status.CLOSED]).count(),
+        "open_claims": ClaimApplication.objects.filter(
+            claimant=request.user, status__in=ClaimApplication.ACTIVE_STATUSES).count(),
+    }
     return render(request, "core/home.html", {
+        "my_counts": my_counts,
         "posts": page_obj,
         "page_obj": page_obj,
         "querystring": _querystring_without_page(request),
@@ -448,7 +456,10 @@ def _posting_rate_limited(user):
 
 @login_required
 def create_post(request):
-    form = ItemPostForm(request.POST or None, request.FILES or None)
+    # v2.0.0: the sidebar's "Report lost item" / "Report found item" links pre-select the post type.
+    picked = request.GET.get("type", "").upper()
+    initial = {"post_type": picked} if picked in ItemPost.Type.values else None
+    form = ItemPostForm(request.POST or None, request.FILES or None, initial=initial)
     if request.method == "POST":
         daily_limit = posting_limit_message(request.user)
         if daily_limit:
@@ -1475,7 +1486,33 @@ def admin_dashboard(request):
         counts["TOTAL"] = sum(counts.values())
         return counts
 
+    # v2.0.0: lost-and-found activity, item vs system report split, and the latest audit entries.
+    live_posts = ItemPost.objects.filter(is_archived=False)
+    active_statuses = [ItemPost.Status.OPEN, ItemPost.Status.CLAIM_IN_PROGRESS]
+    item_counts = live_posts.aggregate(
+        lost_active=Count("pk", filter=Q(post_type=ItemPost.Type.LOST, status__in=active_statuses)),
+        found_active=Count("pk", filter=Q(post_type=ItemPost.Type.FOUND, status__in=active_statuses)),
+        at_guardhouse=Count("pk", filter=Q(status=ItemPost.Status.TURNED_OVER)),
+        claimed_or_closed=Count("pk", filter=Q(status__in=[ItemPost.Status.CLAIMED, ItemPost.Status.CLOSED])),
+    )
+    item_counts.update(ClaimApplication.objects.aggregate(
+        claims_awaiting=Count("pk", filter=Q(status=ClaimApplication.Status.SUBMITTED)),
+        claims_completed=Count("pk", filter=Q(status=ClaimApplication.Status.COMPLETED)),
+    ))
+    # "System" = technical problems, and "Other" reports not tied to a listing. Everything else is an item report.
+    system_q = Q(category=GeneralReport.Category.TECHNICAL) | Q(category=GeneralReport.Category.OTHER, post__isnull=True)
+
+    def split_counts(queryset):
+        counts = {value: 0 for value in ReportStatus.values}
+        for row in queryset.values("status").annotate(n=Count("pk")):
+            counts[row["status"]] = row["n"]
+        return counts
+
     return render(request, "core/admin_dashboard.html", {
+        "item_counts": item_counts,
+        "item_report_counts": split_counts(GeneralReport.objects.exclude(system_q)),
+        "system_report_counts": split_counts(GeneralReport.objects.filter(system_q)),
+        "recent_audit": StaffAuditLog.objects.select_related("actor")[:6],
         "account_counts": account_counts,
         "verification_counts": verification_counts,
         "chat_counts": report_counts(AbuseReport),

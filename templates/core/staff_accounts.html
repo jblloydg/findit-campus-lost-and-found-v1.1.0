@@ -2,7 +2,7 @@
 {% block title %}Accounts · Find-IT{% endblock %}
 {% block content %}
 <section class="page-wrap">
-  <a class="back-link" href="{% url 'admin-dashboard' %}">← Admin dashboard</a>
+  <a class="back-link" href="{% url 'admin-dashboard' %}">{% include "core/includes/icon.html" with name="arrow-left" %}Admin dashboard</a>
   <div class="page-heading"><div><span class="eyebrow">Administrator only</span><h1>Accounts</h1><p class="muted">Create staff accounts, edit any account, and activate or deactivate access. Students register themselves; only administrators can create staff or change roles.</p></div>
     <div class="button-row"><a class="button button-soft" href="{% url 'moderator-verifications' %}">Moderator verification</a></div></div>
   <div class="two-column">
@@ -19,7 +19,7 @@
         <div><strong><a href="{% url 'edit-account' staff.pk %}">{% firstof staff.get_full_name staff.username %}</a></strong><small>{{ staff.username }}{% if staff.email %} · {{ staff.email }}{% endif %} · {% if staff.is_active %}Active{% else %}Inactive{% endif %}</small>
           {% with v=staff.moderator_verification %}<span class="mod-status mod-status-{% if v %}{{ v.status|lower }}{% else %}none{% endif %}">Moderator: {% if v %}{{ v.get_status_display }}{% else %}Not requested{% endif %}</span>{% endwith %}</div>
         <form method="post" action="{% url 'staff-account-status' staff.pk %}">{% csrf_token %}
-          {% if staff.is_active %}<button class="button button-outline button-small" type="submit" name="action" value="suspend">Deactivate</button>{% else %}<button class="button button-soft button-small" type="submit" name="action" value="activate">Activate</button>{% endif %}
+          {% if staff.is_active %}<button class="button button-outline button-small" type="submit" name="action" value="suspend" data-confirm="Deactivate this account?" data-confirm-text="The person will be signed out and blocked from protected functions until an administrator activates the account again." data-confirm-ok="Deactivate">Deactivate</button>{% else %}<button class="button button-soft button-small" type="submit" name="action" value="activate">Activate</button>{% endif %}
         </form>
       </div>
       {% empty %}<p class="muted">No staff accounts yet.</p>{% endfor %}
@@ -28,7 +28,7 @@
   <section class="panel accounts-panel">
     <div class="result-heading"><h2>All accounts and roles</h2></div>
     <form method="get" class="search-panel account-filters">
-      <label class="search-field"><span aria-hidden="true">⌕</span><input type="search" name="q" value="{{ q }}" placeholder="Name, Student ID, username, or email" aria-label="Search accounts"></label>
+      <label class="search-field">{% include "core/includes/icon.html" with name="search" %}<input type="search" name="q" value="{{ q }}" placeholder="Name, Student ID, username, or email" aria-label="Search accounts"></label>
       <label class="select-field"><span class="sr-only">Role</span><select name="role"><option value="">All roles</option>{% for value,label in role_choices %}<option value="{{ value }}" {% if role_filter == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
       <label class="select-field"><span class="sr-only">Status</span><select name="status"><option value="">Any status</option><option value="active" {% if status_filter == "active" %}selected{% endif %}>Active</option><option value="inactive" {% if status_filter == "inactive" %}selected{% endif %}>Inactive</option></select></label>
       <button class="button button-outline" type="submit">Filter</button>
@@ -41,7 +41,7 @@
           {% for account in page_obj %}
           <tr><td>{{ account.get_full_name|default:"—" }}</td><td>{{ account.username }}</td><td>{{ account.email|default:"—" }}</td><td><span class="subtle-chip role-{% if account.is_superuser %}admin{% else %}{{ account.profile.role }}{% endif %}">{% if account.is_superuser %}Administrator{% else %}{{ account.profile.get_role_display }}{% endif %}</span></td><td><span class="subtle-chip {% if account.is_active %}account-active{% else %}account-suspended{% endif %}">{% if account.is_active %}Active{% else %}Inactive{% endif %}</span></td><td>{{ account.date_joined|date:"M j, Y" }}</td>
             <td class="row-actions"><a class="button button-soft button-small" href="{% url 'edit-account' account.pk %}">Edit</a>
-              {% if account.pk != user.pk and not account.is_superuser %}<form method="post" action="{% url 'staff-account-status' account.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">{% if account.is_active %}<button class="button button-outline button-small" type="submit" name="action" value="suspend">Deactivate</button>{% else %}<button class="button button-soft button-small" type="submit" name="action" value="activate">Activate</button>{% endif %}</form>{% endif %}</td></tr>
+              {% if account.pk != user.pk and not account.is_superuser %}<form method="post" action="{% url 'staff-account-status' account.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">{% if account.is_active %}<button class="button button-outline button-small" type="submit" name="action" value="suspend" data-confirm="Deactivate this account?" data-confirm-text="The person will be signed out and blocked from protected functions until an administrator activates the account again." data-confirm-ok="Deactivate">Deactivate</button>{% else %}<button class="button button-soft button-small" type="submit" name="action" value="activate">Activate</button>{% endif %}</form>{% endif %}</td></tr>
           {% empty %}<tr><td colspan="7"><div class="empty-state compact-empty"><div class="empty-icon">⌕</div><h3>No accounts match</h3><p>Try another search or clear the filters.</p></div></td></tr>{% endfor %}
         </tbody>
       </table>

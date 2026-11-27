@@ -2,7 +2,7 @@
 {% block title %}{% if template %}Edit{% else %}New{% endif %} question · Find-IT{% endblock %}
 {% block content %}
 <section class="narrow-page">
-  <a class="back-link" href="{% url 'admin-questions' %}">← Question bank</a>
+  <a class="back-link" href="{% url 'admin-questions' %}">{% include "core/includes/icon.html" with name="arrow-left" %}Question bank</a>
   <div class="panel settings-panel">
     <span class="eyebrow">Administrator only</span><h1>{% if template %}Edit question{% else %}New question{% endif %}</h1>
     {% if template %}<p class="muted">Posts that already use this question keep their original wording and options.</p>{% endif %}

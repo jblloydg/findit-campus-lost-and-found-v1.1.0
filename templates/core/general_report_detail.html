@@ -2,7 +2,7 @@
 {% block title %}{{ report.reference }} · General report · Find-IT{% endblock %}
 {% block content %}
 <section class="page-wrap">
-  <a class="back-link" href="{% url 'general-reports' %}">← General reports</a>
+  <a class="back-link" href="{% url 'general-reports' %}">{% include "core/includes/icon.html" with name="arrow-left" %}General reports</a>
   <div class="page-heading"><div><span class="eyebrow">General item &amp; system report</span><h1>{{ report.reference }}</h1>
     <div class="card-meta">{% include "core/includes/report_status.html" with status=report.status label=report.get_status_display %}<span class="subtle-chip">{{ report.get_category_display }}</span></div></div></div>
   <div class="report-detail-layout">

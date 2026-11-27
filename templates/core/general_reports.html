@@ -2,7 +2,7 @@
 {% block title %}General reports · Find-IT{% endblock %}
 {% block content %}
 <section class="page-wrap">
-  <a class="back-link" href="{% if current_role == 'admin' %}{% url 'admin-dashboard' %}{% else %}{% url 'staff-dashboard' %}{% endif %}">← Back</a>
+  <a class="back-link" href="{% if current_role == 'admin' %}{% url 'admin-dashboard' %}{% else %}{% url 'staff-dashboard' %}{% endif %}">{% include "core/includes/icon.html" with name="arrow-left" %}Back</a>
   <div class="page-heading"><div><span class="eyebrow">Administrators and verified moderators</span><h1>General item &amp; system reports</h1><p class="muted">Reports about listings and technical problems. Nothing is hidden or deleted until a reviewer decides.</p></div>
     <div class="button-row"><a class="button button-outline" href="{% url 'admin-reports' %}">Chat safety reports</a></div></div>
   {% include "core/includes/report_filters.html" with search_placeholder="Reference, name, listing, or description" %}

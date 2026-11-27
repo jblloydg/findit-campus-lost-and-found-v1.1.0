@@ -3,72 +3,151 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#17344f">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b2a23">
   <title>{% block title %}Find-IT · Davao Oriental State University{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23a8c9b6'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Arial' font-weight='700' font-size='17' fill='%230b2a23'%3EF%3C/text%3E%3C/svg%3E">
+  <link rel="preload" href="{% static 'vendor/fonts/instrument-sans-latin-wght-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'css/campus-bg.css' %}">
+  <link rel="stylesheet" href="{% static 'css/v2.css' %}">
   {% block extra_head %}{% endblock %}
 </head>
-<body data-user-authenticated="{{ user.is_authenticated|yesno:'true,false' }}" data-user-id="{% if user.is_authenticated %}{{ user.pk }}{% endif %}">
-  <header class="topbar">
-    <a class="brand" href="{% if user.is_authenticated %}{% url 'home' %}{% else %}{% url 'landing' %}{% endif %}">
-      <span class="brand-mark" aria-hidden="true">F</span>
-      <span><strong>Find-IT</strong><small>Davao Oriental State University</small></span>
-    </a>
-    {% if user.is_authenticated %}
-    <nav class="main-nav" aria-label="Main navigation">
-      <a href="{% url 'home' %}">Browse</a>
-      <a href="{% url 'create-post' %}">Create post</a>
-      <a href="{% url 'my-posts' %}">My posts</a>
-      <a href="{% url 'my-claims' %}">My claims</a>
-      <a href="{% url 'messages' %}" class="nav-messages">Messages{% if priority_message_count %}<span class="priority-count" title="Needs your attention">{{ priority_message_count }}</span>{% endif %}</a>
-      <a href="{% url 'notifications' %}" class="nav-notice">Updates{% if unread_notification_count %}<span class="notice-count">{{ unread_notification_count }}</span>{% endif %}</a>
-      {% if current_is_staff %}<a href="{% url 'staff-dashboard' %}">Staff</a>{% endif %}
-      {% if current_is_admin %}<a href="{% url 'admin-dashboard' %}">Admin</a>{% endif %}
-      {% if test_inbox_enabled %}<a href="{% url 'test-inbox' %}" title="Emails Find-IT printed instead of sending (local test only)">Test inbox</a>{% endif %}
-      <a href="{% url 'my-profile' %}">My profile</a>
-    </nav>
-    <div class="user-menu">
-      <details class="profile-menu" data-profile-menu>
-        <summary aria-label="Account menu for {{ user.first_name|default:user.username }}">
+{% with url_name=request.resolver_match.url_name picked_type=request.GET.type %}
+<body class="campus-bg {% block bg_variant %}{% if user.is_authenticated %}campus-bg--app{% else %}campus-bg--hero{% endif %}{% endblock %} {% if user.is_authenticated %}has-shell{% else %}is-public{% endif %} {% block body_class %}{% endblock %}" data-user-authenticated="{{ user.is_authenticated|yesno:'true,false' }}" data-user-id="{% if user.is_authenticated %}{{ user.pk }}{% endif %}">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  {% if user.is_authenticated %}
+  <div class="app-shell">
+    <aside class="sidebar campus-sidebar" id="app-sidebar" aria-label="Find-IT menu">
+      <div class="sidebar-head">
+        <a class="brand brand-on-dark" href="{% url 'home' %}">
+          <span class="brand-mark" aria-hidden="true">F</span>
+          <span><strong>Find<em>-IT</em></strong><small>DOrSU lost &amp; found</small></span>
+        </a>
+        <button type="button" class="sidebar-close" data-sidebar-close aria-label="Close menu">{% include "core/includes/icon.html" with name="x" %}</button>
+      </div>
+      <nav class="sidebar-nav" aria-label="Main navigation">
+        <p class="nav-group">Overview</p>
+        <a href="{% url 'home' %}" class="nav-link{% if url_name == 'home' and not picked_type %} is-active{% endif %}"{% if url_name == 'home' and not picked_type %} aria-current="page"{% endif %}>{% include "core/includes/icon.html" with name="dashboard" %}<span>Dashboard</span></a>
+        <a href="{% url 'home' %}?type=LOST" class="nav-link{% if url_name == 'home' and picked_type == 'LOST' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="lost" %}<span>Lost items</span></a>
+        <a href="{% url 'home' %}?type=FOUND" class="nav-link{% if url_name == 'home' and picked_type == 'FOUND' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="found" %}<span>Found items</span></a>
+        <p class="nav-group">Report an item</p>
+        <a href="{% url 'create-post' %}?type=LOST" class="nav-link{% if url_name == 'create-post' and picked_type != 'FOUND' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="plus-circle" %}<span>Report lost item</span></a>
+        <a href="{% url 'create-post' %}?type=FOUND" class="nav-link{% if url_name == 'create-post' and picked_type == 'FOUND' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="file-plus" %}<span>Report found item</span></a>
+        <p class="nav-group">My activity</p>
+        <a href="{% url 'my-posts' %}" class="nav-link{% if url_name == 'my-posts' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="folder" %}<span>My posts</span></a>
+        <a href="{% url 'my-claims' %}" class="nav-link{% if url_name == 'my-claims' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="clipboard" %}<span>My claims</span></a>
+        <a href="{% url 'messages' %}" class="nav-link nav-messages{% if url_name == 'messages' or url_name == 'chat-room' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="message" %}<span>Messages</span>{% if priority_message_count %}<span class="priority-count" title="Needs your attention">{{ priority_message_count }}</span>{% endif %}</a>
+        <a href="{% url 'notifications' %}" class="nav-link nav-notice{% if url_name == 'notifications' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="bell" %}<span>Notifications</span>{% if unread_notification_count %}<span class="notice-count">{{ unread_notification_count }}</span>{% endif %}</a>
+        <a href="{% url 'my-reports' %}" class="nav-link{% if url_name == 'my-reports' or url_name == 'general-report-create' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="flag" %}<span>My reports</span></a>
+        {% if current_is_staff %}
+        <p class="nav-group">Staff</p>
+        <a href="{% url 'staff-dashboard' %}" class="nav-link{% if url_name == 'staff-dashboard' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="shield" %}<span>Staff workspace</span></a>
+        <a href="{% url 'staff-scan' %}" class="nav-link{% if url_name == 'staff-scan' or url_name == 'turn-in' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="scan" %}<span>Scan turn-in QR</span></a>
+        <a href="{% url 'walk-in' %}" class="nav-link{% if url_name == 'walk-in' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="walk-in" %}<span>Walk-in item</span></a>
+        <a href="{% url 'admin-reports' %}" class="nav-link{% if url_name == 'admin-reports' or url_name == 'review-report' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="alert" %}<span>Chat reports</span></a>
+        <a href="{% url 'general-reports' %}" class="nav-link{% if url_name == 'general-reports' or url_name == 'general-report-detail' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="list-check" %}<span>General reports</span></a>
+        <a href="{% url 'id-reviews' %}" class="nav-link{% if url_name == 'id-reviews' or url_name == 'id-review-detail' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="id-card" %}<span>Student ID reviews</span></a>
+        {% endif %}
+        {% if current_is_admin %}
+        <p class="nav-group">Administrator</p>
+        <a href="{% url 'admin-dashboard' %}" class="nav-link{% if url_name == 'admin-dashboard' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="dashboard" %}<span>Admin dashboard</span></a>
+        <a href="{% url 'staff-accounts' %}" class="nav-link{% if url_name == 'staff-accounts' or url_name == 'edit-account' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="users" %}<span>Accounts</span></a>
+        <a href="{% url 'moderator-verifications' %}" class="nav-link{% if url_name == 'moderator-verifications' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="user-check" %}<span>Moderators</span></a>
+        <a href="{% url 'admin-categories' %}" class="nav-link{% if url_name == 'admin-categories' or url_name == 'admin-category-edit' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="tag" %}<span>Categories</span></a>
+        <a href="{% url 'admin-questions' %}" class="nav-link{% if url_name == 'admin-questions' or url_name == 'admin-question-edit' or url_name == 'admin-question-new' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="help" %}<span>Question bank</span></a>
+        <a href="{% url 'admin-settings' %}" class="nav-link{% if url_name == 'admin-settings' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="sliders" %}<span>System settings</span></a>
+        <a href="{% url 'backup-status' %}" class="nav-link{% if url_name == 'backup-status' %} is-active{% endif %}">{% include "core/includes/icon.html" with name="database" %}<span>Backups</span></a>
+        {% endif %}
+        {% if test_inbox_enabled %}
+        <p class="nav-group">Local testing</p>
+        <a href="{% url 'test-inbox' %}" class="nav-link{% if url_name == 'test-inbox' %} is-active{% endif %}" title="Emails Find-IT printed instead of sending (local test only)">{% include "core/includes/icon.html" with name="inbox" %}<span>Test inbox</span></a>
+        {% endif %}
+      </nav>
+      <div class="sidebar-foot">
+        <a class="sidebar-person" href="{% url 'my-profile' %}">
           {% include "core/includes/avatar.html" with person=user size="sm" %}
-          <span class="role-chip">{{ user.first_name|default:user.username }}</span>
-          <span class="profile-caret" aria-hidden="true">▾</span>
-        </summary>
-        <div class="profile-dropdown" role="menu">
-          <div class="profile-dropdown-head"><strong>{% firstof user.get_full_name user.username %}</strong><small>{{ current_role_label }} · {{ current_sign_in_name }}</small></div>
-          <a role="menuitem" href="{% url 'my-profile' %}">My profile</a>
-          <a role="menuitem" href="{% url 'edit-profile' %}">Edit profile</a>
-          <a role="menuitem" href="{% url 'change-password' %}">Change password</a>
-          <a role="menuitem" href="{% url 'my-reports' %}">My reports</a>
-          <a role="menuitem" href="{% url 'general-report-create' %}">Report a problem</a>
-          {% if current_unverified %}<a role="menuitem" href="{% url 'verify-email' %}">Verify my email</a>{% endif %}
-          {% if current_is_admin %}<a role="menuitem" href="{% url 'admin-dashboard' %}">Admin dashboard</a>{% endif %}
-          <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link-button" role="menuitem" type="submit">Log out</button></form>
+          <span><strong>{% firstof user.get_full_name user.username %}</strong><small>{{ current_role_label }}</small></span>
+        </a>
+        <p class="sidebar-note">{% include "core/includes/icon.html" with name="pin" %}<span>Hand-offs happen on school premises only.</span></p>
+      </div>
+    </aside>
+    <div class="sidebar-scrim" data-sidebar-close hidden></div>
+    <div class="app-main">
+      <header class="app-topbar campus-topbar">
+        <button type="button" class="icon-button menu-button" data-sidebar-open aria-controls="app-sidebar" aria-expanded="false" aria-label="Open menu">{% include "core/includes/icon.html" with name="menu" %}</button>
+        <form class="topbar-search" method="get" action="{% url 'home' %}" role="search">
+          {% include "core/includes/icon.html" with name="search" %}
+          <label class="sr-only" for="topbar-q">Search lost and found items</label>
+          <input id="topbar-q" type="search" name="q" value="{% if url_name == 'home' %}{{ request.GET.q }}{% endif %}" placeholder="Search lost and found items…" autocomplete="off">
+        </form>
+        <div class="topbar-actions">
+          <a class="button button-primary button-pill new-post-button" href="{% url 'create-post' %}">{% include "core/includes/icon.html" with name="plus-circle" %}<span>New post</span></a>
+          <a class="icon-button nav-messages" href="{% url 'messages' %}" aria-label="Messages{% if priority_message_count %}, {{ priority_message_count }} need you{% endif %}">{% include "core/includes/icon.html" with name="message" %}{% if priority_message_count %}<span class="priority-count">{{ priority_message_count }}</span>{% endif %}</a>
+          <a class="icon-button nav-notice" href="{% url 'notifications' %}" aria-label="Notifications{% if unread_notification_count %}, {{ unread_notification_count }} unread{% endif %}">{% include "core/includes/icon.html" with name="bell" %}{% if unread_notification_count %}<span class="notice-count">{{ unread_notification_count }}</span>{% endif %}</a>
+          <details class="profile-menu" data-profile-menu>
+            <summary aria-label="Account menu for {{ user.first_name|default:user.username }}">
+              {% include "core/includes/avatar.html" with person=user size="sm" %}
+              <span class="role-chip">{{ user.first_name|default:user.username }}</span>
+              <span class="profile-caret" aria-hidden="true">{% include "core/includes/icon.html" with name="chevron-down" %}</span>
+            </summary>
+            <div class="profile-dropdown" role="menu">
+              <div class="profile-dropdown-head"><strong>{% firstof user.get_full_name user.username %}</strong><small>{{ current_role_label }} · {{ current_sign_in_name }}</small></div>
+              <a role="menuitem" href="{% url 'my-profile' %}">My profile</a>
+              <a role="menuitem" href="{% url 'edit-profile' %}">Edit profile</a>
+              <a role="menuitem" href="{% url 'change-password' %}">Change password</a>
+              <a role="menuitem" href="{% url 'blocked-people' %}">Blocked people</a>
+              <a role="menuitem" href="{% url 'my-reports' %}">My reports</a>
+              <a role="menuitem" href="{% url 'general-report-create' %}">Report a problem</a>
+              {% if current_unverified %}<a role="menuitem" href="{% url 'verify-email' %}">Verify my email</a>{% endif %}
+              {% if current_is_admin %}<a role="menuitem" href="{% url 'admin-dashboard' %}">Admin dashboard</a>{% endif %}
+              <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link-button" role="menuitem" type="submit">Log out</button></form>
+            </div>
+          </details>
         </div>
-      </details>
-    </div>
-    {% else %}
-    <a class="button button-outline topbar-login" href="{% url 'login' %}">Log in</a>
+      </header>
+      {% if current_unverified %}
+      <div class="verify-strip">Your account is not verified yet, so some limits apply. <a href="{% url 'verify-email' %}">Verify your email</a> to get ✔ Verified.</div>
+      {% endif %}
+      <main id="main-content" class="app-content">
+  {% else %}
+  <header class="public-topbar campus-topbar">
+    <a class="brand brand-on-dark" href="{% url 'landing' %}">
+      <span class="brand-mark" aria-hidden="true">F</span>
+      <span><strong>Find<em>-IT</em></strong><small>Davao Oriental State University</small></span>
+    </a>
+    {% if url_name == 'landing' %}
+    <nav class="public-nav" aria-label="On this page">
+      <a href="#overview">Overview</a><a href="#how-it-works">How it works</a><a href="#privacy">Privacy</a>
+    </nav>
     {% endif %}
+    <div class="public-actions">
+      {% if url_name != 'login' %}<a class="button button-ghost-light button-pill button-small topbar-login" href="{% url 'login' %}">Log in</a>{% endif %}
+      {% if url_name != 'signup' %}<a class="button button-light button-pill button-small topbar-signup" href="{% url 'signup' %}">Create account</a>{% endif %}
+    </div>
   </header>
-  {% if messages %}
-  <div class="flash-stack" role="status" aria-live="polite">
-    {% for message in messages %}<div class="flash flash-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+  <main id="main-content" class="public-content">
+  {% endif %}
+        {% block content %}{% endblock %}
+  {% if user.is_authenticated %}
+      </main>
+      <footer class="site-footer">
+        <span>Find-IT · Davao Oriental State University</span>
+        <span>Meet-ups and item hand-offs must happen within school premises.</span>
+      </footer>
+    </div>
   </div>
-  {% endif %}
-  {% if current_unverified %}
-  <div class="verify-strip">Your account is not verified yet, so some limits apply. <a href="{% url 'verify-email' %}">Verify your email</a> to get ✔ Verified.</div>
-  {% endif %}
-  <main id="main-content">
-    {% block content %}{% endblock %}
+  {% else %}
   </main>
-  <footer class="site-footer">
-    <span>Find-IT · Campus lost and found</span>
-    <span>Meet-ups and item hand-offs must happen within school premises.</span>
+  <footer class="public-footer">
+    <div class="public-footer-inner">
+      <div class="public-footer-brand">
+        <span class="brand-mark" aria-hidden="true">F</span>
+        <div><strong>Find-IT</strong><p>A campus repository for lost and found items, private ownership checks, and safe hand-offs on school premises.</p></div>
+      </div>
+      <div class="public-footer-note mono"><span>Davao Oriental State University</span><span>Meet-ups and item hand-offs must happen within school premises.</span></div>
+    </div>
   </footer>
-
-  {% if not user.is_authenticated %}
   <div class="modal-backdrop" id="login-modal" aria-hidden="true">
     <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
       <button type="button" class="modal-close" data-close-login aria-label="Close sign-in">×</button>
@@ -86,8 +165,14 @@
     </section>
   </div>
   {% endif %}
+  {% if messages %}
+  <div class="flash-stack" role="status" aria-live="polite">
+    {% for message in messages %}<div class="flash flash-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+  </div>
+  {% endif %}
   {% block unverified_warning %}{% if unverified_warning %}{% include "core/includes/unverified_warning.html" %}{% endif %}{% endblock %}
   <script src="{% static 'js/app.js' %}" defer></script>
   {% block scripts %}{% endblock %}
 </body>
+{% endwith %}
 </html>

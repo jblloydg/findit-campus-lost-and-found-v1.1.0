@@ -2,12 +2,23 @@
 {% block title %}Staff workspace · Find-IT{% endblock %}
 {% block content %}
 <section class="page-wrap">
-  <div class="page-heading"><div><span class="eyebrow">Authorized staff</span><h1>Staff workspace</h1><p class="muted">Assist with private verification, record guard-house custody, and review safety reports.</p>
-    <div class="button-row gh-actions"><a class="button button-primary" href="{% url 'staff-scan' %}">⌖ Scan turn-in QR</a><a class="button button-soft" href="{% url 'walk-in' %}">＋ Walk-in item</a></div></div>
-    <div class="button-row">{% if is_admin %}<a class="button button-soft" href="{% url 'admin-dashboard' %}">Admin dashboard</a><a class="button button-outline" href="{% url 'staff-accounts' %}">Accounts</a><a class="button button-outline" href="{% url 'admin-categories' %}">Categories</a><a class="button button-outline" href="{% url 'admin-questions' %}">Question bank</a><a class="button button-outline" href="{% url 'admin-settings' %}">System timers</a>{% endif %}{% if is_reviewer %}<a class="button button-outline" href="{% url 'admin-reports' %}">Chat reports</a><a class="button button-outline" href="{% url 'general-reports' %}">General reports</a><a class="button button-outline" href="{% url 'id-reviews' %}">Student ID reviews</a>{% endif %}</div>
+  <div class="page-heading"><div><span class="eyebrow">Authorized staff</span><h1>Staff workspace</h1><p class="muted">Assist with private verification, record guard-house custody, and review safety reports.</p></div>
+    <div class="button-row gh-actions"><a class="button button-primary" href="{% url 'staff-scan' %}">{% include "core/includes/icon.html" with name="scan" %}Scan turn-in QR</a><a class="button button-soft" href="{% url 'walk-in' %}">{% include "core/includes/icon.html" with name="walk-in" %}Walk-in item</a></div>
   </div>
-  <div class="staff-stats"><div class="stat-card"><span>Active posts</span><strong>{{ posts|length }}</strong></div>{% if is_reviewer %}<a class="stat-card" href="{% url 'admin-reports' %}?status=OPEN"><span>Open chat reports</span><strong>{{ recent_reports|length }}</strong></a><a class="stat-card" href="{% url 'general-reports' %}?status=OPEN"><span>Open general reports</span><strong>{{ open_general_count }}</strong></a>{% else %}<div class="stat-card"><span>Moderator status</span><strong>{% if moderator_status %}{{ moderator_status.get_status_display }}{% else %}Not verified{% endif %}</strong></div>{% endif %}</div>
-  {% if not is_reviewer %}<div class="form-callout"><strong>Moderator authorization required</strong><span>Reviewing reports and private conversations is limited to administrators and Staff accounts an administrator has verified as moderators. Your current moderator status: {% if moderator_status %}{{ moderator_status.get_status_display }}{% else %}not requested{% endif %}.</span></div>{% endif %}
+  <div class="staff-stats stat-grid-5">
+    <div class="stat-card is-hero"><span>Active posts</span><strong>{{ posts|length }}</strong></div>
+    <div class="stat-card stat-amber"><span>On the way</span><strong>{{ incoming|length }}</strong></div>
+    <div class="stat-card accent-bar"><span>At the guard house</span><strong>{{ at_guardhouse|length }}</strong></div>
+    <div class="stat-card stat-review"><span>Status requests</span><strong>{{ status_requests|length }}</strong></div>
+    {% if is_reviewer %}<a class="stat-card stat-danger" href="{% url 'admin-reports' %}?status=OPEN"><span>Open chat reports</span><strong>{{ recent_reports|length }}</strong><small>{{ open_general_count }} open general reports</small></a>
+    {% else %}<div class="stat-card stat-neutral"><span>Moderator status</span><strong class="stat-small">{% if moderator_status %}{{ moderator_status.get_status_display }}{% else %}Not verified{% endif %}</strong></div>{% endif %}
+  </div>
+  <nav class="staff-shortcuts" aria-label="Staff shortcuts">
+    <a class="quick-link" href="#open-items"><span class="metric-icon">{% include "core/includes/icon.html" with name="list-check" %}</span><span><strong>Claims</strong><small>Open items and their applications</small></span></a>
+    <a class="quick-link" href="{% url 'home' %}?type=FOUND"><span class="metric-icon">{% include "core/includes/icon.html" with name="found" %}</span><span><strong>Found items</strong><small>Browse handed-in items</small></span></a>
+    <a class="quick-link" href="{% url 'home' %}?type=LOST"><span class="metric-icon">{% include "core/includes/icon.html" with name="lost" %}</span><span><strong>Lost items</strong><small>Items people are looking for</small></span></a>
+  </nav>
+  {% if not is_reviewer %}<div class="notice-banner"><strong>Moderator authorization required</strong><span>Reviewing reports and private conversations is limited to administrators and Staff accounts an administrator has verified as moderators. Your current moderator status: {% if moderator_status %}{{ moderator_status.get_status_display }}{% else %}not requested{% endif %}.</span></div>{% endif %}
   <div class="staff-columns">
     <section class="panel"><div class="section-heading"><div><span class="eyebrow">Guard house</span><h2>On the way ({{ incoming|length }})</h2></div></div>
       {% for t in incoming %}<article class="staff-row"><div><h3><a href="{% url 'post-detail' t.post.pk %}">{{ t.post.display_title }}</a></h3><small>Code {{ t.code }} · {{ t.finder.first_name|default:t.finder.username }} · {{ t.requested_at|date:"M j, g:i a" }}</small></div><a class="button button-soft button-small" href="{% url 'turn-in' t.code %}">Confirm</a></article>
@@ -22,9 +33,9 @@
     </section>
   </div>
   <div class="staff-columns">
-    <section class="panel"><div class="section-heading"><div><span class="eyebrow">Campus listings</span><h2>Open items</h2></div></div>
+    <section class="panel" id="open-items"><div class="section-heading"><div><span class="eyebrow">Campus listings</span><h2>Open items</h2></div></div>
       {% for post in posts %}
-      <article class="staff-row"><div><div class="card-meta"><span class="type-pill type-{{ post.post_type|lower }}">{{ post.get_post_type_display }}</span><span class="status-dot">{{ post.get_status_display }}</span></div><h3><a href="{% url 'post-detail' post.pk %}">{{ post.display_title }}</a></h3><small>By {{ post.author.first_name|default:post.author.username }} · {{ post.claim_count }} claims</small></div><a class="button button-soft button-small" href="{% url 'post-detail' post.pk %}">Review</a></article>
+      <article class="staff-row"><div><div class="card-meta"><span class="type-pill type-{{ post.post_type|lower }}">{{ post.get_post_type_display }}</span><span class="status-pill status-{{ post.status|lower }}">{{ post.get_status_display }}</span></div><h3><a href="{% url 'post-detail' post.pk %}">{{ post.display_title }}</a></h3><small>By {{ post.author.first_name|default:post.author.username }} · {{ post.claim_count }} claims</small></div><a class="button button-soft button-small" href="{% url 'post-detail' post.pk %}">Review</a></article>
       {% empty %}<p class="muted">No active listings.</p>{% endfor %}
     </section>
     {% if is_reviewer %}<section class="panel"><div class="section-heading"><div><span class="eyebrow">Safety review</span><h2>Open chat reports</h2></div><a class="text-action" href="{% url 'admin-reports' %}?status=OPEN">View all</a></div>

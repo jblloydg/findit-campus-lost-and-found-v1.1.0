@@ -3,7 +3,7 @@
 {% block title %}{{ case.reference }} · Find-IT{% endblock %}
 {% block content %}
 <section class="narrow-page">
-  <a class="back-link" href="{% url 'id-reviews' %}">← Student ID reviews</a>
+  <a class="back-link" href="{% url 'id-reviews' %}">{% include "core/includes/icon.html" with name="arrow-left" %}Student ID reviews</a>
   <div class="panel">
     <span class="eyebrow">{{ case.get_kind_display }}</span><h1>{{ case.reference }} · Student ID {{ case.student_id }}</h1>
     <dl class="profile-details">

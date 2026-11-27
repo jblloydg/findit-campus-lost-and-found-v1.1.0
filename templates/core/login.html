@@ -1,9 +1,14 @@
 {% extends "core/base.html" %}
 {% block title %}Log in · Find-IT{% endblock %}
 {% block content %}
-<section class="narrow-page auth-page">
-  <div class="auth-card">
-    <span class="eyebrow">Welcome back</span><h1>Log in to Find-IT</h1>
+<section class="auth-shell auth-page">
+  <div class="auth-shell-head">
+    <span class="brand-mark" aria-hidden="true">F</span>
+    <h1>Campus lost &amp; found, <span class="accent">returned safely.</span></h1>
+    <p>Post an item, prove ownership privately, and hand it over on school premises.</p>
+  </div>
+  <div class="auth-shell-body">
+    <span class="eyebrow">Welcome back</span><h2>Log in to Find-IT</h2>
     <p class="muted">Students sign in with their <strong>email address</strong> (or their Student ID once it is ✔ Verified). Staff and administrators use their assigned username.</p>
     <form method="post" class="stack-form" novalidate>
       {% csrf_token %}<input type="hidden" name="next" value="{{ next }}">

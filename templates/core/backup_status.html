@@ -2,7 +2,7 @@
 {% block title %}Backups · Find-IT{% endblock %}
 {% block content %}
 <section class="page-wrap">
-  <a class="back-link" href="{% url 'admin-dashboard' %}">← Admin dashboard</a>
+  <a class="back-link" href="{% url 'admin-dashboard' %}">{% include "core/includes/icon.html" with name="arrow-left" %}Admin dashboard</a>
   <div class="page-heading"><div><span class="eyebrow">Administrator only · read-only</span><h1>Daily backups</h1><p class="muted">Backups are never downloadable from the website, and restoring is done on the computer running Find-IT with a command.</p></div></div>
   <div class="staff-stats stat-grid-4">
     <div class="stat-card {% if status.ok %}stat-resolved{% else %}stat-danger{% endif %}"><span>Last backup</span><strong class="stat-small">{% if status %}{% if status.ok %}Succeeded{% else %}Failed{% endif %}{% else %}None yet{% endif %}</strong>{% if status %}<small>{{ status.at|slice:":16"|cut:"T" }} UTC</small>{% endif %}</div>

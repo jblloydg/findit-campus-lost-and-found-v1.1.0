@@ -2,7 +2,7 @@
 {% block title %}Moderator verification · Find-IT{% endblock %}
 {% block content %}
 <section class="page-wrap">
-  <a class="back-link" href="{% url 'admin-dashboard' %}">← Admin dashboard</a>
+  <a class="back-link" href="{% url 'admin-dashboard' %}">{% include "core/includes/icon.html" with name="arrow-left" %}Admin dashboard</a>
   <div class="page-heading"><div><span class="eyebrow">Administrator only</span><h1>Moderator verification</h1><p class="muted">Give selected Staff accounts permission to review chat safety and general reports and private conversations. This is an authorization inside Find-IT only. It does not verify university employment.</p></div></div>
   <div class="staff-stats stat-grid-5">
     <a class="stat-card{% if status_filter == 'NONE' %} is-active{% endif %}" href="?status=NONE"><span>Not requested</span><strong>{{ unrequested_count }}</strong></a>

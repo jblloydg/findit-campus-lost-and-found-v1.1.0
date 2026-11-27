@@ -2,7 +2,7 @@
 {% block title %}{{ report.reference }} · Chat safety report · Find-IT{% endblock %}
 {% block content %}
 <section class="page-wrap">
-  <a class="back-link" href="{% url 'admin-reports' %}">← Chat safety reports</a>
+  <a class="back-link" href="{% url 'admin-reports' %}">{% include "core/includes/icon.html" with name="arrow-left" %}Chat safety reports</a>
   <div class="page-heading"><div><span class="eyebrow">Chat safety report</span><h1>{{ report.reference }}</h1>
     <div class="card-meta">{% include "core/includes/report_status.html" with status=report.status label=report.get_status_display %}<span class="subtle-chip">{{ report.get_reason_display }}</span></div></div></div>
   <div class="report-detail-layout">

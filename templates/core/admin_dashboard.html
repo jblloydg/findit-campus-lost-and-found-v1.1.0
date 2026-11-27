@@ -3,46 +3,92 @@
 {% block content %}
 <section class="page-wrap">
   <div class="page-heading"><div><span class="eyebrow">Administrator only</span><h1>Admin dashboard</h1><p class="muted">Live counts from the Find-IT database. Select a number to open the matching list.</p></div>
-    <div class="button-row"><a class="button button-outline" href="{% url 'staff-dashboard' %}">Staff workspace</a><a class="button button-outline" href="{% url 'admin-settings' %}">System timers</a><a class="button button-outline" href="{% url 'backup-status' %}">Backups</a></div></div>
+    <div class="button-row"><a class="button button-outline" href="{% url 'staff-dashboard' %}">{% include "core/includes/icon.html" with name="shield" %}Staff workspace</a><a class="button button-outline" href="{% url 'admin-settings' %}">{% include "core/includes/icon.html" with name="sliders" %}System settings</a><a class="button button-outline" href="{% url 'backup-status' %}">{% include "core/includes/icon.html" with name="database" %}Backups</a></div></div>
+
+  <nav class="quick-links" aria-label="Admin shortcuts">
+    <a class="quick-link" href="{% url 'staff-accounts' %}"><span class="metric-icon">{% include "core/includes/icon.html" with name="users" %}</span><span><strong>Accounts</strong><small>Create staff, edit roles</small></span></a>
+    <a class="quick-link" href="{% url 'moderator-verifications' %}"><span class="metric-icon">{% include "core/includes/icon.html" with name="user-check" %}</span><span><strong>Moderator verification</strong><small>{{ verification_counts.PENDING }} pending</small></span></a>
+    <a class="quick-link" href="{% url 'id-reviews' %}"><span class="metric-icon">{% include "core/includes/icon.html" with name="id-card" %}</span><span><strong>Student ID reviews</strong><small>{{ open_id_reviews }} open</small></span></a>
+    <a class="quick-link" href="{% url 'admin-questions' %}"><span class="metric-icon">{% include "core/includes/icon.html" with name="help" %}</span><span><strong>Question bank</strong><small>Ownership questions</small></span></a>
+  </nav>
 
   <section class="panel dash-section">
-    <div class="section-heading"><div><span class="eyebrow">A</span><h2>User accounts</h2></div><a class="button button-soft button-small" href="{% url 'staff-accounts' %}">Manage accounts</a></div>
+    <div class="section-heading"><div><span class="eyebrow">Accounts</span><h2>User accounts</h2></div><a class="button button-soft button-small" href="{% url 'staff-accounts' %}">Manage accounts</a></div>
     <div class="staff-stats stat-grid-6">
-      <a class="stat-card" href="{% url 'staff-accounts' %}"><span>Total users</span><strong>{{ account_counts.total }}</strong></a>
-      <a class="stat-card" href="{% url 'staff-accounts' %}?role=student"><span>Students</span><strong>{{ account_counts.students }}</strong></a>
-      <a class="stat-card" href="{% url 'staff-accounts' %}?role=staff"><span>Staff</span><strong>{{ account_counts.staff }}</strong></a>
-      <a class="stat-card" href="{% url 'staff-accounts' %}?role=admin"><span>Admins</span><strong>{{ account_counts.admins }}</strong></a>
+      <a class="stat-card is-hero" href="{% url 'staff-accounts' %}"><span>Total users</span><strong>{{ account_counts.total }}</strong></a>
+      <a class="stat-card accent-bar" href="{% url 'staff-accounts' %}?role=student"><span>Students</span><strong>{{ account_counts.students }}</strong><small>{{ account_counts.verified_students }} ✔ verified</small></a>
+      <a class="stat-card accent-bar" href="{% url 'staff-accounts' %}?role=staff"><span>Staff</span><strong>{{ account_counts.staff }}</strong></a>
+      <a class="stat-card accent-bar" href="{% url 'staff-accounts' %}?role=admin"><span>Admins</span><strong>{{ account_counts.admins }}</strong></a>
       <a class="stat-card stat-resolved" href="{% url 'staff-accounts' %}?status=active"><span>Active</span><strong>{{ account_counts.active }}</strong></a>
-      <a class="stat-card stat-danger" href="{% url 'staff-accounts' %}?status=inactive"><span>Inactive</span><strong>{{ account_counts.inactive }}</strong></a>
+      <a class="stat-card stat-danger" href="{% url 'staff-accounts' %}?status=inactive"><span>Inactive</span><strong>{{ account_counts.inactive }}</strong><small>{{ account_counts.flagged }} red-flagged</small></a>
     </div>
   </section>
 
   <section class="panel dash-section">
-    <div class="section-heading"><div><span class="eyebrow">B</span><h2>Moderator verification</h2></div><a class="button button-soft button-small" href="{% url 'moderator-verifications' %}">Review verifications</a></div>
+    <div class="section-heading"><div><span class="eyebrow">Items &amp; claims</span><h2>Lost and found activity</h2></div><div class="button-row"><a class="button button-soft button-small" href="{% url 'home' %}?type=LOST">Lost items</a><a class="button button-soft button-small" href="{% url 'home' %}?type=FOUND">Found items</a><a class="button button-soft button-small" href="{% url 'staff-dashboard' %}">Staff workspace</a></div></div>
+    <div class="staff-stats stat-grid-6">
+      <a class="stat-card stat-amber" href="{% url 'home' %}?type=LOST"><span>Lost · active</span><strong>{{ item_counts.lost_active }}</strong></a>
+      <a class="stat-card stat-green" href="{% url 'home' %}?type=FOUND"><span>Found · active</span><strong>{{ item_counts.found_active }}</strong></a>
+      <a class="stat-card accent-bar" href="{% url 'home' %}?status=TURNED_OVER"><span>At guard house</span><strong>{{ item_counts.at_guardhouse }}</strong></a>
+      <div class="stat-card stat-neutral"><span>Claimed or closed</span><strong>{{ item_counts.claimed_or_closed }}</strong></div>
+      <div class="stat-card stat-review"><span>Claims awaiting</span><strong>{{ item_counts.claims_awaiting }}</strong></div>
+      <div class="stat-card stat-resolved"><span>Claims completed</span><strong>{{ item_counts.claims_completed }}</strong></div>
+    </div>
+  </section>
+
+  <section class="panel dash-section">
+    <div class="section-heading"><div><span class="eyebrow">Moderators</span><h2>Moderator verification</h2></div><a class="button button-soft button-small" href="{% url 'moderator-verifications' %}">Review verifications</a></div>
     <div class="staff-stats stat-grid-4">
       <a class="stat-card stat-submitted" href="{% url 'moderator-verifications' %}?status=PENDING"><span>Pending</span><strong>{{ verification_counts.PENDING }}</strong></a>
       <a class="stat-card stat-resolved" href="{% url 'moderator-verifications' %}?status=VERIFIED"><span>Verified moderators</span><strong>{{ verification_counts.VERIFIED }}</strong></a>
-      <a class="stat-card" href="{% url 'moderator-verifications' %}?status=REJECTED"><span>Rejected</span><strong>{{ verification_counts.REJECTED }}</strong></a>
+      <a class="stat-card stat-neutral" href="{% url 'moderator-verifications' %}?status=REJECTED"><span>Rejected</span><strong>{{ verification_counts.REJECTED }}</strong></a>
       <a class="stat-card stat-danger" href="{% url 'moderator-verifications' %}?status=REVOKED"><span>Revoked</span><strong>{{ verification_counts.REVOKED }}</strong></a>
     </div>
     <div class="dash-lists">
       <div><h3>Waiting for a decision</h3>{% for v in pending_verifications %}<div class="staff-row"><div><strong>{% firstof v.staff.get_full_name v.staff.username %}</strong><small>Requested {{ v.requested_at|date:"M j, Y" }}</small></div></div>{% empty %}<p class="muted">No pending verifications.</p>{% endfor %}</div>
-      <div><h3>Recent history</h3>{% for e in recent_verification_events %}<div class="staff-row"><div><strong>{% firstof e.verification.staff.get_full_name e.verification.staff.username %}</strong><small>{{ e.previous_status_label }} → {{ e.get_new_status_display }} · {{ e.created_at|date:"M j, g:i a" }}</small></div></div>{% empty %}<p class="muted">No decisions yet.</p>{% endfor %}<a class="text-action" href="{% url 'moderator-verifications' %}#history">Full verification history</a></div>
+      <div><h3>Recent history</h3>{% for e in recent_verification_events %}<div class="staff-row"><div><strong>{% firstof e.verification.staff.get_full_name e.verification.staff.username %}</strong><small>{{ e.previous_status_label }} → {{ e.get_new_status_display }} · {{ e.created_at|date:"M j, g:i a" }}</small></div></div>{% empty %}<p class="muted">No decisions yet.</p>{% endfor %}<a class="text-action" href="{% url 'moderator-verifications' %}#history">Full verification history →</a></div>
     </div>
   </section>
 
   <section class="panel dash-section">
-    <div class="section-heading"><div><span class="eyebrow">C</span><h2>Chat safety reports</h2></div><a class="button button-soft button-small" href="{% url 'admin-reports' %}">Open queue</a></div>
+    <div class="section-heading"><div><span class="eyebrow">Safety</span><h2>Chat safety reports</h2></div><a class="button button-soft button-small" href="{% url 'admin-reports' %}">Open queue</a></div>
     {% include "core/includes/report_count_cards.html" with counts=chat_counts list_url="admin-reports" %}
     <h3>Open reports</h3>
-    {% for r in open_chat_reports %}<div class="staff-row"><div><strong><a href="{% url 'review-report' r.pk %}">{{ r.reference }}</a> · {{ r.get_reason_display }}</strong><small>About {% firstof r.target_user.get_full_name r.target_user.username "—" %} · {{ r.created_at|date:"M j, g:i a" }}</small></div>{% include "core/includes/report_status.html" with status=r.status label=r.get_status_display %}</div>{% empty %}<p class="muted">No open chat safety reports.</p>{% endfor %}
+    {% for r in open_chat_reports %}<div class="queue-row"><div><strong><a href="{% url 'review-report' r.pk %}"><span class="ref">{{ r.reference }}</span></a> · {{ r.get_reason_display }}</strong><small>About {% firstof r.target_user.get_full_name r.target_user.username "—" %} · {{ r.created_at|date:"M j, g:i a" }}</small></div>{% include "core/includes/report_status.html" with status=r.status label=r.get_status_display %}</div>{% empty %}<p class="muted">No open chat safety reports.</p>{% endfor %}
   </section>
 
-  <section class="panel dash-section">
-    <div class="section-heading"><div><span class="eyebrow">D</span><h2>General item &amp; system reports</h2></div><a class="button button-soft button-small" href="{% url 'general-reports' %}">Open queue</a></div>
-    {% include "core/includes/report_count_cards.html" with counts=general_counts list_url="general-reports" %}
-    <h3>Open reports</h3>
-    {% for r in open_general_reports %}<div class="staff-row"><div><strong><a href="{% url 'general-report-detail' r.pk %}">{{ r.reference }}</a> · {{ r.get_category_display }}</strong><small>{% if r.post %}{{ r.post.title|truncatechars:50 }} · {% endif %}{{ r.created_at|date:"M j, g:i a" }}</small></div>{% include "core/includes/report_status.html" with status=r.status label=r.get_status_display %}</div>{% empty %}<p class="muted">No open general reports.</p>{% endfor %}
-  </section>
+  <div class="split-panels">
+    <section class="panel">
+      <div class="section-heading"><div><span class="eyebrow">Listings</span><h2>Item reports</h2></div><a class="button button-soft button-small" href="{% url 'general-reports' %}">Open queue</a></div>
+      <div class="staff-stats stat-grid-4">
+        <div class="stat-card stat-submitted"><span>Submitted</span><strong>{{ item_report_counts.SUBMITTED }}</strong></div>
+        <div class="stat-card stat-review"><span>Under review</span><strong>{{ item_report_counts.UNDER_REVIEW }}</strong></div>
+        <div class="stat-card stat-resolved"><span>Resolved</span><strong>{{ item_report_counts.RESOLVED }}</strong></div>
+        <div class="stat-card stat-neutral"><span>Dismissed</span><strong>{{ item_report_counts.DISMISSED }}</strong></div>
+      </div>
+      <p class="panel-foot-note">Suspicious, incorrect, duplicate or inappropriate listings and suspected scams.</p>
+    </section>
+    <section class="panel">
+      <div class="section-heading"><div><span class="eyebrow">Platform</span><h2>System reports</h2></div><a class="button button-soft button-small" href="{% url 'general-reports' %}?category=TECHNICAL">Open queue</a></div>
+      <div class="staff-stats stat-grid-4">
+        <div class="stat-card stat-submitted"><span>Submitted</span><strong>{{ system_report_counts.SUBMITTED }}</strong></div>
+        <div class="stat-card stat-review"><span>Under review</span><strong>{{ system_report_counts.UNDER_REVIEW }}</strong></div>
+        <div class="stat-card stat-resolved"><span>Resolved</span><strong>{{ system_report_counts.RESOLVED }}</strong></div>
+        <div class="stat-card stat-neutral"><span>Dismissed</span><strong>{{ system_report_counts.DISMISSED }}</strong></div>
+      </div>
+      <p class="panel-foot-note">Technical problems, and “Other” reports that are not tied to a listing.</p>
+    </section>
+  </div>
+
+  <div class="split-panels">
+    <section class="panel">
+      <div class="section-heading"><div><span class="eyebrow">Queue</span><h2>Open item &amp; system reports</h2></div><a class="text-action" href="{% url 'general-reports' %}?status=OPEN">View all →</a></div>
+      {% for r in open_general_reports %}<div class="queue-row"><div><strong><a href="{% url 'general-report-detail' r.pk %}"><span class="ref">{{ r.reference }}</span></a> · {{ r.get_category_display }}</strong><small>{% if r.post %}{{ r.post.display_title|truncatechars:50 }} · {% endif %}{{ r.created_at|date:"M j, g:i a" }}</small></div>{% include "core/includes/report_status.html" with status=r.status label=r.get_status_display %}</div>{% empty %}<p class="muted">No open general reports.</p>{% endfor %}
+    </section>
+    <section class="panel">
+      <div class="section-heading"><div><span class="eyebrow">Accountability</span><h2>Recent audit trail</h2></div></div>
+      {% for entry in recent_audit %}<div class="audit-row"><strong>{{ entry.action_label }}</strong><small>{% firstof entry.actor.get_full_name entry.actor.username %} · {{ entry.created_at|date:"M j, g:i a" }}{% if entry.details %} · {{ entry.details|truncatechars:90 }}{% endif %}</small></div>{% empty %}<p class="muted">No staff actions recorded yet.</p>{% endfor %}
+    </section>
+  </div>
 </section>
 {% endblock %}

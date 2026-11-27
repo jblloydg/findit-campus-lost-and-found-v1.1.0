@@ -2,7 +2,7 @@
 {% block title %}Blocked people · Find-IT{% endblock %}
 {% block content %}
 <section class="narrow-page">
-  <a class="back-link" href="{% url 'my-profile' %}">← My profile</a>
+  <a class="back-link" href="{% url 'my-profile' %}">{% include "core/includes/icon.html" with name="arrow-left" %}My profile</a>
   <div class="panel">
     <span class="eyebrow">Safety</span><h1>Blocked people</h1>
     {% for b in blocks %}

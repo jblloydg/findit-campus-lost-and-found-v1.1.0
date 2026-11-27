@@ -2,7 +2,7 @@
 {% block title %}Edit category · Find-IT{% endblock %}
 {% block content %}
 <section class="narrow-page">
-  <a class="back-link" href="{% url 'admin-categories' %}">← Categories</a>
+  <a class="back-link" href="{% url 'admin-categories' %}">{% include "core/includes/icon.html" with name="arrow-left" %}Categories</a>
   <div class="panel settings-panel">
     <span class="eyebrow">Administrator only</span><h1>Edit “{{ category.name }}”</h1>
     <form method="post" class="stack-form">{% csrf_token %}

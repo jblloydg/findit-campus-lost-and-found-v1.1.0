@@ -2,7 +2,7 @@
 {% block title %}{% if editing %}Edit{% else %}Create{% endif %} post · Find-IT{% endblock %}
 {% block content %}
 <section class="narrow-page form-page">
-  <a class="back-link" href="{% if post %}{% url 'post-detail' post.pk %}{% else %}{% url 'home' %}{% endif %}">← Back</a>
+  <a class="back-link" href="{% if post %}{% url 'post-detail' post.pk %}{% else %}{% url 'home' %}{% endif %}">{% include "core/includes/icon.html" with name="arrow-left" %}Back</a>
   <div class="page-heading compact-heading"><div><span class="eyebrow">Share with campus</span><h1>{% if walk_in %}Record a walk-in item{% elif editing %}Edit your post{% else %}Create a post{% endif %}</h1><p class="muted">Broad details help people recognize the item without revealing private identifiers.</p></div></div>
   <form method="post" enctype="multipart/form-data" class="panel stack-form post-editor">
     {% csrf_token %}
@@ -48,7 +48,7 @@
         <ol class="locked-questions">{% for q in locked_questions %}<li>{{ q.text }}</li>{% endfor %}</ol>
       {% else %}
         <div class="question-toolbar">
-          <label class="search-field question-search"><span aria-hidden="true">⌕</span><input type="search" id="question-search" placeholder="Search questions" aria-label="Search questions"></label>
+          <label class="search-field question-search">{% include "core/includes/icon.html" with name="search" %}<input type="search" id="question-search" placeholder="Search questions" aria-label="Search questions"></label>
           <span class="subtle-chip" id="question-picked" aria-live="polite">0 of 5 picked</span>
         </div>
         <p class="fine-print" id="question-suggest-note" hidden>Questions for the chosen category are shown first.</p>

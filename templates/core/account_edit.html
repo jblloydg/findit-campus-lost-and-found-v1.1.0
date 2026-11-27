@@ -2,7 +2,7 @@
 {% block title %}Edit account {{ account.username }} · Find-IT{% endblock %}
 {% block content %}
 <section class="narrow-page form-page">
-  <a class="back-link" href="{% url 'staff-accounts' %}">← Accounts</a>
+  <a class="back-link" href="{% url 'staff-accounts' %}">{% include "core/includes/icon.html" with name="arrow-left" %}Accounts</a>
   <div class="page-heading compact-heading"><div><span class="eyebrow">Administrator only</span><h1>Edit account</h1><p class="muted">Changes are recorded in the staff audit log.</p></div></div>
   <div class="panel">
     <div class="profile-head">{% include "core/includes/avatar.html" with person=account size="lg" %}

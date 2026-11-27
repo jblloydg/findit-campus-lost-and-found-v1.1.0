@@ -1311,8 +1311,9 @@ class ReliabilityTests(ModerationTestBase):
         # v1.1.0: home has 3 extra *constant* queries from session 4 (category filter list,
         # Messages priority badge, photo prefetch); my-posts has 2 (photos + claims prefetch); my-claims and messages have 1 (photo prefetch / priority badge); the staff dashboard has 3
         # (guard-house lists: on the way, held, status requests).
+        # v2.0.0: home has 2 more constant queries for the dashboard tiles (my active posts, my open claims).
         # Measured flat from 0 to 15 extra posts, so the test still guards against N+1 growth.
-        checks = [(self.student, "home", 11), (self.student, "my-posts", 10), (self.other_student, "my-claims", 9),
+        checks = [(self.student, "home", 13), (self.student, "my-posts", 10), (self.other_student, "my-claims", 9),
                   (self.student, "messages", 9), (self.admin, "staff-dashboard", 17)]
         for user, name, limit in checks:
             self.client.force_login(user)

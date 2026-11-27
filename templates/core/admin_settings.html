@@ -2,7 +2,7 @@
 {% block title %}System timers · Find-IT{% endblock %}
 {% block content %}
 <section class="narrow-page">
-  <a class="back-link" href="{% url 'staff-dashboard' %}">← Staff workspace</a>
+  <a class="back-link" href="{% url 'staff-dashboard' %}">{% include "core/includes/icon.html" with name="arrow-left" %}Staff workspace</a>
   <div class="panel settings-panel">
     <span class="eyebrow">Administrator only</span><h1>System timers</h1>
     <p class="muted">Leave a timer blank to keep it disabled. These settings are stored in the database, not hard-coded in the website.</p>

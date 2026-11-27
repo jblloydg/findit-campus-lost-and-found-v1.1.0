@@ -72,15 +72,17 @@ document.addEventListener("DOMContentLoaded", function () {
       seen[id] = true;
       try { window.sessionStorage.setItem(seenKey, JSON.stringify(Object.keys(seen).slice(-200))); } catch (e) {}
     };
+    // v2.0.0: the same badge shows in the sidebar and in the top bar, so update every copy.
     var setBadge = function (selector, navSelector, count) {
-      var badge = document.querySelector(selector);
-      var nav = document.querySelector(navSelector);
-      if (!badge && nav && count > 0) {
-        badge = document.createElement("span");
-        badge.className = selector.slice(1);
-        nav.appendChild(badge);
-      }
-      if (badge) { badge.textContent = String(count); badge.hidden = count <= 0; }
+      document.querySelectorAll(navSelector).forEach(function (nav) {
+        var badge = nav.querySelector(selector);
+        if (!badge && count > 0) {
+          badge = document.createElement("span");
+          badge.className = selector.slice(1);
+          nav.appendChild(badge);
+        }
+        if (badge) { badge.textContent = String(count); badge.hidden = count <= 0; }
+      });
     };
     var currentCount = function (selector) {
       var badge = document.querySelector(selector);
@@ -402,6 +404,63 @@ document.addEventListener("DOMContentLoaded", function () {
       input.focus();
     });
     wrap.appendChild(button);
+  });
+
+  // v2.0.0: phone/tablet menu. The sidebar slides in; the dark scrim or Escape closes it.
+  var openBtn = document.querySelector("[data-sidebar-open]");
+  var scrim = document.querySelector(".sidebar-scrim");
+  var setMenu = function (open) {
+    document.body.classList.toggle("sidebar-open", open);
+    if (openBtn) openBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    if (scrim) scrim.hidden = !open;
+    if (open) { var first = document.querySelector("#app-sidebar .nav-link"); if (first) first.focus(); }
+    else if (openBtn && document.activeElement && document.activeElement.closest("#app-sidebar")) openBtn.focus();
+  };
+  if (openBtn) openBtn.addEventListener("click", function () { setMenu(true); });
+  document.querySelectorAll("[data-sidebar-close]").forEach(function (el) { el.addEventListener("click", function () { setMenu(false); }); });
+  document.addEventListener("keydown", function (event) { if (event.key === "Escape" && document.body.classList.contains("sidebar-open")) setMenu(false); });
+
+  // v2.0.0: styled "Are you sure?" pop-up for buttons with data-confirm (e.g. Deactivate).
+  // Without JavaScript the form simply submits, so nothing is blocked.
+  var confirmModal = null;
+  var pendingForm = null;
+  var pendingButton = null;
+  function buildConfirm() {
+    confirmModal = document.createElement("div");
+    confirmModal.className = "modal-backdrop";
+    confirmModal.setAttribute("aria-hidden", "true");
+    confirmModal.innerHTML = '<section class="modal-card confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text">' +
+      '<span class="confirm-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 2.4 17.5A2 2 0 0 0 4.1 20.5h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h0"/></svg></span>' +
+      '<h2 id="confirm-title"></h2><p id="confirm-text"></p>' +
+      '<div class="confirm-actions"><button type="button" class="button button-outline button-small" data-confirm-cancel>Cancel</button><button type="button" class="button button-danger button-small" data-confirm-ok></button></div></section>';
+    document.body.appendChild(confirmModal);
+    var close = function () { confirmModal.classList.remove("is-open"); confirmModal.setAttribute("aria-hidden", "true"); if (pendingButton) pendingButton.focus(); pendingForm = null; };
+    confirmModal.querySelector("[data-confirm-cancel]").addEventListener("click", close);
+    confirmModal.addEventListener("click", function (e) { if (e.target === confirmModal) close(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && confirmModal.classList.contains("is-open")) close(); });
+    confirmModal.querySelector("[data-confirm-ok]").addEventListener("click", function () {
+      var form = pendingForm, button = pendingButton;
+      confirmModal.classList.remove("is-open");
+      if (!form) return;
+      form.setAttribute("data-confirmed", "true");
+      if (form.requestSubmit) form.requestSubmit(button || undefined); else form.submit();
+    });
+  }
+  document.querySelectorAll("[data-confirm]").forEach(function (button) {
+    var form = button.form || button.closest("form");
+    if (!form) return;
+    button.addEventListener("click", function (event) {
+      if (form.getAttribute("data-confirmed") === "true") return;
+      event.preventDefault();
+      if (!confirmModal) buildConfirm();
+      pendingForm = form; pendingButton = button;
+      confirmModal.querySelector("#confirm-title").textContent = button.getAttribute("data-confirm") || "Are you sure?";
+      confirmModal.querySelector("#confirm-text").textContent = button.getAttribute("data-confirm-text") || "";
+      confirmModal.querySelector("[data-confirm-ok]").textContent = button.getAttribute("data-confirm-ok") || button.textContent.trim();
+      confirmModal.classList.add("is-open");
+      confirmModal.setAttribute("aria-hidden", "false");
+      confirmModal.querySelector("[data-confirm-cancel]").focus();
+    });
   });
 
   // Close the profile dropdown when clicking elsewhere or pressing Escape.

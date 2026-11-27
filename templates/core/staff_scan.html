@@ -3,7 +3,7 @@
 {% block title %}Scan turn-in QR · Find-IT{% endblock %}
 {% block content %}
 <section class="narrow-page scan-page">
-  <a class="back-link" href="{% url 'staff-dashboard' %}">← Staff workspace</a>
+  <a class="back-link" href="{% url 'staff-dashboard' %}">{% include "core/includes/icon.html" with name="arrow-left" %}Staff workspace</a>
   <div class="panel">
     <span class="eyebrow">Guard house</span><h1>Scan a turn-in QR</h1>
     <p class="muted">Point the camera at the finder's QR code. You'll get a one-tap confirm screen. If there is no internet, scans are saved on this device and you confirm them when you're back online.</p>

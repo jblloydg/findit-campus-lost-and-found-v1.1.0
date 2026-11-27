@@ -1,16 +1,22 @@
+from django.conf import settings
+
 from .mail import test_inbox_enabled
 from .models import InAppNotification, Profile
 from .permissions import is_admin, is_developer, is_staff_or_admin, role_of
 
 
 def site_context(request):
+    # Decision 8: location stays dormant unless FINDIT_LOCATION_ENABLED=1 (every page can check it).
+    location_enabled = getattr(settings, "FINDIT_LOCATION_ENABLED", False)
     if not request.user.is_authenticated:
-        return {"unread_notification_count": 0, "current_role": None, "priority_message_count": 0}
+        return {"unread_notification_count": 0, "current_role": None, "priority_message_count": 0,
+                "location_enabled": location_enabled}
     try:
         profile = request.user.profile
     except Profile.DoesNotExist:
         profile = None
     return {
+        "location_enabled": location_enabled,
         "current_is_staff": is_staff_or_admin(request.user),
         "current_is_admin": is_admin(request.user),
         "current_is_developer": is_developer(request.user),

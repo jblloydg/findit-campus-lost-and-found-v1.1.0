@@ -2,13 +2,13 @@
 {% block title %}Question bank · Find-IT{% endblock %}
 {% block content %}
 <section class="page-wrap">
-  <a class="back-link" href="{% url 'staff-dashboard' %}">← Staff workspace</a>
+  <a class="back-link" href="{% url 'staff-dashboard' %}">{% include "core/includes/icon.html" with name="arrow-left" %}Staff workspace</a>
   <div class="page-heading compact-heading">
     <div><span class="eyebrow">Administrator only</span><h1>Ownership question bank</h1>
       <p class="muted">Finders pick from these questions. Posts keep a copy of each question, so editing here never changes what earlier claimants answered. Turn questions off instead of deleting them.</p></div>
     <a class="button button-primary" href="{% url 'admin-question-new' %}">＋ New question</a>
   </div>
-  <form class="search-panel" method="get"><label class="search-field"><span aria-hidden="true">⌕</span><input type="search" name="q" value="{{ q }}" placeholder="Search questions" aria-label="Search questions"></label><button class="button button-outline" type="submit">Search</button></form>
+  <form class="search-panel" method="get"><label class="search-field">{% include "core/includes/icon.html" with name="search" %}<input type="search" name="q" value="{{ q }}" placeholder="Search questions" aria-label="Search questions"></label><button class="button button-outline" type="submit">Search</button></form>
   <section class="panel question-bank-panel">
     {% for t in templates %}
     <article class="staff-row">

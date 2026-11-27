@@ -2,7 +2,7 @@
 {% block title %}Report a problem · Find-IT{% endblock %}
 {% block content %}
 <section class="narrow-page form-page">
-  <a class="back-link" href="{% if post %}{% url 'post-detail' post.pk %}{% else %}{% url 'home' %}{% endif %}">← Back</a>
+  <a class="back-link" href="{% if post %}{% url 'post-detail' post.pk %}{% else %}{% url 'home' %}{% endif %}">{% include "core/includes/icon.html" with name="arrow-left" %}Back</a>
   <div class="page-heading compact-heading"><div><span class="eyebrow">General report</span><h1>{% if post %}Report this listing{% else %}Report a problem{% endif %}</h1><p class="muted">For listing or system issues. To report someone's behavior in a chat, use <strong>Report</strong> inside that conversation instead.</p></div></div>
   <form method="post" enctype="multipart/form-data" class="panel stack-form" novalidate>{% csrf_token %}
     {% if post %}<input type="hidden" name="post" value="{{ post.pk }}"><div class="related-listing"><span class="eyebrow">Related listing</span><strong>{{ post.title }}</strong><small>{{ post.get_post_type_display }} · {{ post.get_status_display }} · posted by {{ post.author.first_name|default:post.author.username }}</small></div>{% endif %}

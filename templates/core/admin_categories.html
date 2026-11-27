@@ -2,7 +2,7 @@
 {% block title %}Categories · Find-IT{% endblock %}
 {% block content %}
 <section class="page-wrap">
-  <a class="back-link" href="{% url 'staff-dashboard' %}">← Staff workspace</a>
+  <a class="back-link" href="{% url 'staff-dashboard' %}">{% include "core/includes/icon.html" with name="arrow-left" %}Staff workspace</a>
   <div class="page-heading compact-heading"><div><span class="eyebrow">Administrator only</span><h1>Item categories</h1><p class="muted">Every post needs a category. Turn a category off instead of deleting it, so older posts keep their label.</p></div></div>
   <div class="staff-columns">
     <section class="panel">

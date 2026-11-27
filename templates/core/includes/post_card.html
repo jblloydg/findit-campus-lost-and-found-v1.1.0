@@ -1,0 +1,13 @@
+{% comment %}v2.0.0 post card (Browse, Lost/Found lists). Needs: post, location_enabled.{% endcomment %}<article class="post-card">
+  <a class="post-card-link" href="{% url 'post-detail' post.pk %}">
+    {% with cover=post.cover_photo %}{% if cover %}<img class="post-photo" src="{{ cover.preview_url }}" alt="Photo of {{ post.display_title }}" loading="lazy" decoding="async">{% else %}<div class="post-photo photo-placeholder"><span aria-hidden="true">◈</span><small>No photo added</small></div>{% endif %}{% endwith %}
+    {% if post.photos.all|length > 1 %}<span class="photo-count-badge">{{ post.photos.all|length }} photos</span>{% endif %}
+    <div class="post-card-body">
+      <div class="card-meta"><span class="type-pill type-{{ post.post_type|lower }}">{{ post.get_post_type_display }}</span><span class="status-pill status-{{ post.status|lower }}">{{ post.get_status_display }}</span></div>
+      <h3>{{ post.display_title }}</h3>
+      {% if post.description %}<p class="clamp-3">{{ post.description }}</p>{% endif %}
+      <div class="card-tags">{% if post.category %}<span class="subtle-chip">{{ post.category.name }}</span>{% endif %}{% if location_enabled and post.location %}<span class="location-tag">{{ post.location }}</span>{% endif %}</div>
+      <div class="post-card-foot"><span>{{ post.author.first_name|default:post.author.username }}</span><span>{% if post.approximate_date %}{{ post.approximate_date|date:"M j, Y" }}{% if post.approximate_time %} · {{ post.approximate_time|time:"g:i A" }}{% endif %}{% else %}{{ post.created_at|date:"M j, Y" }}{% endif %}</span></div>
+    </div>
+  </a>
+</article>

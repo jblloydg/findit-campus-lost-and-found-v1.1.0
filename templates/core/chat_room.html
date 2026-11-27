@@ -3,7 +3,7 @@
 {% block title %}Private chat · Find-IT{% endblock %}
 {% block content %}
 <section class="page-wrap chat-page">
-  <a class="back-link" href="{% url 'post-detail' conversation.post.pk %}">← Back to {{ conversation.post.display_title }}</a>
+  <a class="back-link" href="{% url 'post-detail' conversation.post.pk %}">{% include "core/includes/icon.html" with name="arrow-left" %}Back to {{ conversation.post.display_title }}</a>
   <div class="chat-shell">
     <header class="chat-header">
       <div class="avatar">{{ conversation.post.display_title|slice:":1"|upper }}</div>
@@ -41,7 +41,7 @@
     {% endif %}
     {% if conversation.is_paused %}<div class="form-callout warning-callout"><strong>Chat paused</strong><span>{{ conversation.pause_reason|default:"A staff member paused this chat for review." }}</span></div>{% endif %}
     <div class="chat-search" data-chat-search>
-      <label class="search-field"><span aria-hidden="true">⌕</span><input type="search" id="chat-search-input" maxlength="100" placeholder="Search this chat" aria-label="Search this chat" autocomplete="off"></label>
+      <label class="search-field">{% include "core/includes/icon.html" with name="search" %}<input type="search" id="chat-search-input" maxlength="100" placeholder="Search this chat" aria-label="Search this chat" autocomplete="off"></label>
       <div class="chat-search-results" id="chat-search-results" role="listbox" hidden></div>
     </div>
     <div class="chat-messages" id="chat-messages" data-conversation="{{ conversation.pk }}" data-can-send="{{ can_send|yesno:'true,false' }}" data-has-older="{{ has_older_messages|yesno:'true,false' }}">
@@ -72,7 +72,7 @@
     <details class="question-ask" id="question-ask"><summary class="button button-soft button-small">＋ Questions ({{ questions_left }} left)</summary>
       <form method="post" action="{% url 'ask-questions' conversation.pk %}" class="stack-form">{% csrf_token %}
         <p class="fine-print">Pick questions to send as answer cards. You judge the answers yourself. {% if conversation.post.post_type == "LOST" %}At least 3 answered questions are needed before you can approve the owner.{% endif %}</p>
-        <label class="search-field question-search"><span aria-hidden="true">⌕</span><input type="search" class="question-filter" placeholder="Search questions" aria-label="Search questions"></label>
+        <label class="search-field question-search">{% include "core/includes/icon.html" with name="search" %}<input type="search" class="question-filter" placeholder="Search questions" aria-label="Search questions"></label>
         <div class="question-list chat-question-list" data-max="{{ questions_left }}">
           {% for t in question_bank %}<label class="question-option" data-categories="{% for c in t.categories.all %}{{ c.pk }} {% endfor %}" data-general="{{ t.is_general|yesno:'1,0' }}"><input type="checkbox" name="questions" value="{{ t.pk }}"><span><strong>{{ t.text }}</strong><small>{{ t.get_answer_type_display }}</small></span></label>{% endfor %}
         </div>
