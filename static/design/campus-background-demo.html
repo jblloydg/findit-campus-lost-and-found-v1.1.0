@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Find-IT · Campus background demo</title>
+<link rel="stylesheet" href="../css/campus-bg.css">
+<style>
+  /* Demo-only layout. Shows how pages sit on the campus background.
+     Same unit rules as the master instruction: %, rem, clamp(), vw/dvh. */
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; font-size: clamp(0.9rem, 0.85rem + 0.3vw, 1rem); line-height: 1.5; overflow-wrap: anywhere; }
+  img { max-width: 100%; height: auto; }
+  h1, h2, h3 { margin: 0; line-height: 1.15; letter-spacing: -0.02em; }
+  p { margin: 0.4rem 0 0; }
+  a { color: inherit; }
+  .view { display: none; }
+  body[data-view="landing"] .view-landing,
+  body[data-view="login"] .view-login,
+  body[data-view="app"] .view-app,
+  body[data-view="admin"] .view-app { display: block; }
+  body[data-view="admin"] .only-student, body[data-view="app"] .only-admin { display: none; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 2.75rem; min-width: 2.75rem; padding: 0.6rem 1.1rem; border-radius: 999rem; border: 1px solid transparent; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; }
+  .btn-primary { background: var(--fi-emerald); color: #fff; }
+  .btn-light { background: var(--fi-sage-pale); color: var(--fi-forest); }
+  .btn-ghost { background: transparent; color: inherit; border-color: currentColor; }
+  .btn-danger { background: #a3352c; color: #fff; }
+  .row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+  .eyebrow { font: 600 clamp(0.66rem, 0.62rem + 0.2vw, 0.74rem) ui-monospace, Consolas, monospace; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.8; }
+  .wrap { width: 92%; max-width: 72rem; margin-inline: auto; }
+
+  /* Demo switcher */
+  .switcher { position: fixed; z-index: 50; bottom: 1rem; left: 50%; transform: translateX(-50%); display: flex; gap: 0.35rem; padding: 0.35rem; border-radius: 999rem; background: rgba(11,42,35,.9); box-shadow: 0 8px 24px rgba(0,0,0,.25); max-width: 94%; overflow-x: auto; }
+  .switcher button { min-height: 2.75rem; padding: 0 0.9rem; border: 0; border-radius: 999rem; background: transparent; color: #dfeae4; font: inherit; font-size: 0.85rem; cursor: pointer; white-space: nowrap; }
+  .switcher button[aria-pressed="true"] { background: var(--fi-sage-pale); color: var(--fi-forest); font-weight: 700; }
+
+  /* ---------- Public header ---------- */
+  .pub-top { position: sticky; top: 0; z-index: 10; }
+  .pub-top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 4rem; }
+  .brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 700; }
+  .brand-mark { display: grid; place-items: center; width: 2.5rem; aspect-ratio: 1; border-radius: 0.75rem; background: linear-gradient(145deg, #cfe5d8, #8fb8a2); color: var(--fi-forest); font-weight: 800; }
+  .brand small { display: block; font-weight: 400; font-size: 0.72rem; opacity: 0.8; }
+  .pub-nav { display: none; gap: 1.5rem; font-size: 0.9rem; }
+  @media (min-width: 48em) { .pub-nav { display: flex; } }
+
+  /* ---------- Landing ---------- */
+  .hero { display: grid; gap: clamp(1.5rem, 4vw, 3rem); grid-template-columns: 1fr; padding-block: clamp(2rem, 7vh, 5rem) clamp(5rem, 10vh, 6rem); align-items: center; }
+  @media (min-width: 64em) { .hero { grid-template-columns: 1.15fr 0.85fr; } }
+  .hero h1 { font-size: clamp(2.2rem, 1.4rem + 4vw, 4.2rem); color: #fff; }
+  .hero h1 em { font-family: Georgia, "Times New Roman", serif; font-weight: 400; color: #b9d6c6; }
+  .hero-lead { max-width: 36rem; color: #d7e4dc; font-size: clamp(1rem, 0.95rem + 0.3vw, 1.1rem); }
+  .pill { display: inline-block; padding: 0.3rem 0.8rem; border-radius: 999rem; border: 1px solid rgba(255,255,255,.2); margin-bottom: 1rem; }
+  .features { display: grid; gap: 0.9rem; margin-top: 1.75rem; padding: 0; list-style: none; }
+  .features li { display: flex; gap: 0.75rem; }
+  .features b { color: #fff; }
+  .features span { display: block; color: #c4d6cb; font-size: 0.88rem; }
+  .ico { flex: none; display: grid; place-items: center; width: 2.25rem; aspect-ratio: 1; border-radius: 0.6rem; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); }
+
+  .auth-card { padding: clamp(1.25rem, 3vw, 2rem); width: 100%; max-width: 28rem; justify-self: center; }
+  .auth-card h2 { font-size: clamp(1.3rem, 1.1rem + 0.8vw, 1.6rem); color: var(--fi-forest); }
+  .field { display: grid; gap: 0.35rem; margin-top: 1rem; }
+  .field label { font-weight: 600; font-size: 0.88rem; }
+  .field input, .field select, .field textarea { width: 100%; min-height: 2.75rem; padding: 0.6rem 0.85rem; border: 1px solid #cbd8d0; border-radius: 0.7rem; font: inherit; }
+  .hint { color: var(--fi-muted); font-size: 0.82rem; }
+
+  .section { padding-block: clamp(2.5rem, 6vw, 4.5rem); }
+  .grid-3 { display: grid; gap: clamp(0.75rem, 2vw, 1.25rem); grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); margin-top: 1.5rem; }
+  .step { padding: clamp(1rem, 2.5vw, 1.5rem); }
+  .step .num { font-size: clamp(1.6rem, 1.3rem + 1vw, 2.2rem); color: var(--fi-sage); font-weight: 700; }
+  .on-light h2 { color: var(--fi-forest); font-size: clamp(1.6rem, 1.2rem + 2vw, 2.4rem); }
+  .on-light { color: var(--fi-ink); }
+  .light-band { background: rgba(238,243,238,.94); }
+
+  /* ---------- App shell ---------- */
+  .shell { display: grid; grid-template-columns: 1fr; min-height: 100dvh; }
+  @media (min-width: 64em) { .shell { grid-template-columns: minmax(14rem, 18%) 1fr; } }
+  .sidebar { display: none; padding: 1.25rem 0.9rem; position: sticky; top: 0; height: 100vh; height: 100dvh; overflow-y: auto; }
+  @media (min-width: 64em) { .sidebar { display: flex; flex-direction: column; } }
+  .sidebar.open { display: flex; flex-direction: column; position: fixed; inset: 0 auto 0 0; width: min(85%, 20rem); z-index: 40; }
+  .side-group { margin-top: 1.3rem; }
+  .side-group .eyebrow { padding-left: 0.6rem; opacity: 0.55; }
+  .side-link { display: flex; align-items: center; gap: 0.6rem; min-height: 2.75rem; padding: 0 0.7rem; border-radius: 0.7rem; text-decoration: none; color: #dbe7e0; }
+  .side-link.active { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.1); color: #fff; }
+  .badge { margin-left: auto; min-width: 1.4rem; padding: 0 0.35rem; border-radius: 999rem; background: #c4553f; color: #fff; font-size: 0.72rem; text-align: center; }
+
+  .app-top { position: sticky; top: 0; z-index: 20; }
+  .app-top .inner { display: flex; align-items: center; gap: 0.6rem; min-height: 4rem; padding-inline: 4%; }
+  .menu-btn { display: inline-flex; }
+  @media (min-width: 64em) { .menu-btn { display: none; } }
+  .search { flex: 1; min-width: 0; max-width: 28rem; min-height: 2.75rem; padding: 0 1rem; border-radius: 999rem; border: 1px solid #d3ded7; font: inherit; }
+  .app-main { padding: clamp(1rem, 3vw, 2rem) 4% 6rem; width: 100%; max-width: 80rem; }
+  .banner { padding: clamp(1.25rem, 4vw, 2.5rem); }
+  .banner h1 { font-size: clamp(1.8rem, 1.3rem + 2.5vw, 2.8rem); color: #fff; margin-top: 0.4rem; }
+  .banner p { color: #d4e2da; max-width: 40rem; }
+  .stats { display: grid; gap: clamp(0.6rem, 1.5vw, 1rem); grid-template-columns: repeat(auto-fit, minmax(min(46%, 12rem), 1fr)); margin-top: 1rem; }
+  .stat { padding: 0.9rem 1rem; }
+  .stat b { display: block; font-size: clamp(1.3rem, 1.1rem + 0.8vw, 1.7rem); color: var(--fi-forest); }
+  .stat span { color: var(--fi-muted); font-size: 0.85rem; }
+  .panel { padding: clamp(1rem, 2.5vw, 1.5rem); margin-top: 1rem; }
+  .panel h2 { font-size: clamp(1.1rem, 1rem + 0.5vw, 1.35rem); color: var(--fi-forest); }
+  .page-head h1 { font-size: clamp(1.6rem, 1.2rem + 2vw, 2.4rem); color: var(--fi-forest); }
+  .table-wrap { overflow-x: auto; margin-top: 0.75rem; border-radius: 0.75rem; border: 1px solid var(--fi-line); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  table { min-width: 32rem; }
+  th, td { overflow-wrap: normal; text-align: left; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--fi-line); }
+  th { font: 600 0.72rem ui-monospace, Consolas, monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fi-muted); }
+  .chip { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999rem; font-size: 0.75rem; font-weight: 600; background: #fdf1d8; color: #7a5410; }
+  .chip.ok { background: #dff0e6; color: #1d5a3c; }
+  .shell > *, .two > *, .stats > * { min-width: 0; }
+  .two { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); }
+
+  .only-wide { display: none; } @media (min-width: 30em) { .only-wide { display: inline; } }
+  /* Modal */
+  .modal-layer { display: none; z-index: 60; }
+  .modal-layer.show { display: grid; place-items: center; }
+  .modal { position: relative; width: min(92vw, 28rem); max-height: 90dvh; overflow: auto; padding: clamp(1.1rem, 3vw, 1.6rem); }
+  .modal h3 { color: var(--fi-forest); font-size: 1.15rem; }
+</style>
+</head>
+<body class="campus-bg campus-bg--hero" data-view="landing">
+
+<!-- ============ LANDING (public) ============ -->
+<div class="view view-landing">
+  <header class="pub-top campus-topbar">
+    <div class="wrap">
+      <div class="brand"><span class="brand-mark">F</span><span>Find-IT<small>Davao Oriental State University</small></span></div>
+      <nav class="pub-nav" aria-label="Main"><a href="#how">How it works</a><a href="#privacy">Privacy</a></nav>
+      <div class="row"><a class="btn btn-ghost" href="#" data-go="login">Log in</a></div>
+    </div>
+  </header>
+  <main class="wrap hero">
+    <div>
+      <span class="pill eyebrow">● Campus community, connected</span>
+      <h1>Lost something?<br><em>Found something?</em></h1>
+      <p class="hero-lead">Find-IT helps the Davao Oriental State University community reunite belongings with their owners through simple posts and private ownership checks.</p>
+      <div class="row" style="margin-top:1.5rem"><a class="btn btn-light" href="#">Create a student account →</a><a class="btn btn-ghost" href="#how">How it works</a></div>
+      <ul class="features">
+        <li><span class="ico">⌕</span><div><b>Search campus listings</b><span>Browse broad item details without exposing private information.</span></div></li>
+        <li><span class="ico">🔒</span><div><b>Verify ownership privately</b><span>Answer finder questions that only the finder and authorized staff can review.</span></div></li>
+        <li><span class="ico">⌖</span><div><b>Arrange a safe return</b><span>Meet only within school premises.</span></div></li>
+      </ul>
+    </div>
+    <form class="campus-card auth-card" onsubmit="return false">
+      <span class="eyebrow" style="color:var(--fi-emerald)">Welcome back</span>
+      <h2>Log in to Find-IT</h2>
+      <div class="field"><label for="l1">Student ID or staff username</label><input id="l1" placeholder="2020-0001"></div>
+      <div class="field"><label for="l2">Password</label><input id="l2" type="password" placeholder="Enter your password"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:1.1rem">Log in</button>
+      <p class="hint" style="text-align:center">Student ID format: YYYY-NNNN</p>
+    </form>
+  </main>
+  <section id="how" class="section light-band on-light">
+    <div class="wrap">
+      <span class="eyebrow">02 — How it works</span>
+      <h2>A safer way to <em style="font-family:Georgia,serif;font-weight:400">reconnect.</em></h2>
+      <div class="grid-3">
+        <div class="campus-card step"><div class="num">01</div><h3>Discover</h3><p>Browse public item posts. Broad descriptions only.</p></div>
+        <div class="campus-card step"><div class="num">02</div><h3>Verify</h3><p>Answer private ownership questions.</p></div>
+        <div class="campus-card step"><div class="num">03</div><h3>Return safely</h3><p>Pick it up at the guard house on campus.</p></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ============ LOGIN (public) ============ -->
+<div class="view view-login">
+  <header class="pub-top campus-topbar">
+    <div class="wrap"><div class="brand"><span class="brand-mark">F</span><span>Find-IT<small>DOrSU lost &amp; found</small></span></div><a class="btn btn-ghost" href="#" data-go="landing">Back</a></div>
+  </header>
+  <main class="wrap" style="display:grid;place-items:center;min-height:calc(100dvh - 4rem);padding-block:2rem 6rem">
+    <form class="campus-card auth-card" onsubmit="return false">
+      <span class="eyebrow" style="color:var(--fi-emerald)">Create account</span>
+      <h2>Join Find-IT</h2>
+      <div class="field"><label for="r1">Full name</label><input id="r1" placeholder="Cruz, Juan D. (Dela)"></div>
+      <div class="field"><label for="r2">Student ID</label><input id="r2" placeholder="2020-0001"></div>
+      <div class="field"><label for="r3">School email</label><input id="r3" type="email" placeholder="name@dorsu.edu.ph"></div>
+      <div class="field"><label for="r4">Password</label><input id="r4" type="password"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:1.1rem">Create account</button>
+    </form>
+  </main>
+</div>
+
+<!-- ============ APP (student / admin) ============ -->
+<div class="view view-app">
+  <div class="shell">
+    <aside class="sidebar campus-sidebar" id="sidebar" aria-label="Sidebar">
+      <div class="row" style="justify-content:space-between"><div class="brand"><span class="brand-mark">F</span><span>Find-IT<small>DOrSU lost &amp; found</small></span></div><button class="btn btn-ghost menu-btn" data-close aria-label="Close menu" style="color:#fff;border:0">✕</button></div>
+      <div class="side-group"><span class="eyebrow">Overview</span>
+        <a class="side-link active" href="#">▦ Dashboard</a><a class="side-link" href="#">◇ Lost items</a><a class="side-link" href="#">◆ Found items</a></div>
+      <div class="side-group"><span class="eyebrow">My activity</span>
+        <a class="side-link" href="#">▤ My posts</a><a class="side-link" href="#">☑ My claims</a><a class="side-link" href="#">◌ Messages <span class="badge">2</span></a><a class="side-link" href="#">◔ Notifications <span class="badge">3</span></a></div>
+      <div class="side-group only-admin"><span class="eyebrow">Staff</span>
+        <a class="side-link" href="#">⛨ Staff workspace</a><a class="side-link" href="#">⌗ Scan turn-in QR</a><a class="side-link" href="#">⚙ System settings</a></div>
+      <p class="hint" style="margin-top:auto;color:#a9bfb3">⌖ Hand-offs happen on school premises only.</p>
+    </aside>
+    <div>
+      <header class="app-top campus-topbar">
+        <div class="inner">
+          <button class="btn btn-ghost menu-btn" data-open aria-label="Open menu" style="border:0">☰</button>
+          <input class="search" placeholder="Search lost and found items…" aria-label="Search">
+          <a class="btn btn-primary" href="#" style="margin-left:auto">＋<span class="only-wide"> New post</span></a>
+        </div>
+      </header>
+      <main class="app-main">
+        <section class="campus-banner banner only-student">
+          <span class="eyebrow">Student dashboard</span>
+          <h1>Hello, Juan.</h1>
+          <p>Lost something or found something? Post it here, then verify ownership privately and hand it over on campus.</p>
+          <div class="row" style="margin-top:1.25rem"><a class="btn btn-light" href="#">⊕ Report lost item</a><a class="btn btn-ghost" href="#">⊕ Report found item</a></div>
+        </section>
+        <div class="page-head only-admin"><span class="eyebrow" style="color:var(--fi-emerald)">Administrator only</span><h1>Admin dashboard</h1><p style="color:var(--fi-muted)">Live counts from the Find-IT database.</p></div>
+        <div class="stats">
+          <div class="campus-glass stat"><b>2</b><span>Active posts</span></div>
+          <div class="campus-glass stat"><b>0</b><span>Open claims</span></div>
+          <div class="campus-glass stat"><b>2</b><span>Messages need you</span></div>
+          <div class="campus-glass stat"><b>3</b><span>Unread updates</span></div>
+        </div>
+        <div class="two">
+          <section class="campus-card panel">
+            <h2>Recent listings</h2>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Item</th><th>Type</th><th>Status</th><th>Date</th></tr></thead>
+              <tbody>
+                <tr><td>Scientific calculator</td><td>Found</td><td><span class="chip">At guard house</span></td><td>Nov 27, 2026</td></tr>
+                <tr><td>Gray earbuds case</td><td>Found</td><td><span class="chip">Claim in progress</span></td><td>Nov 27, 2026</td></tr>
+                <tr><td>Black folding umbrella</td><td>Lost</td><td><span class="chip ok">Returned</span></td><td>Nov 26, 2026</td></tr>
+              </tbody>
+            </table></div>
+          </section>
+          <section class="campus-card panel">
+            <h2>Create staff account</h2>
+            <div class="field"><label for="s1">Staff username</label><input id="s1" placeholder="guard.main"></div>
+            <div class="field"><label for="s2">Role</label><select id="s2"><option>Staff</option></select></div>
+            <div class="row" style="margin-top:1rem"><button class="btn btn-primary">Create</button><button class="btn btn-danger" data-modal>Deactivate…</button></div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="campus-scrim modal-layer" id="modal" role="dialog" aria-modal="true" aria-labelledby="mt">
+    <div class="campus-card modal">
+      <h3 id="mt">Deactivate this account?</h3>
+      <p style="color:var(--fi-muted)">The person will be signed out and blocked until an administrator activates the account again.</p>
+      <div class="row" style="justify-content:flex-end;margin-top:1.1rem"><button class="btn btn-ghost" data-dismiss style="color:var(--fi-ink)">Cancel</button><button class="btn btn-danger" data-dismiss>Deactivate</button></div>
+    </div>
+  </div>
+</div>
+
+<nav class="switcher" aria-label="Demo pages">
+  <button data-go="landing">Landing</button><button data-go="login">Sign-up</button><button data-go="app">Student</button><button data-go="admin">Admin</button>
+</nav>
+
+<script>
+  // Demo only: switch between page types. Public pages use --hero, signed-in pages use --app.
+  const body = document.body;
+  function show(view) {
+    body.dataset.view = view;
+    body.classList.toggle('campus-bg--hero', view === 'landing' || view === 'login');
+    body.classList.toggle('campus-bg--app', view === 'app' || view === 'admin');
+    document.querySelectorAll('.switcher button').forEach(b => b.setAttribute('aria-pressed', b.dataset.go === view));
+    history.replaceState(null, '', '?view=' + view);
+    window.scrollTo(0, 0);
+  }
+  document.addEventListener('click', e => {
+    const go = e.target.closest('[data-go]'); if (go) { e.preventDefault(); show(go.dataset.go); }
+    if (e.target.closest('[data-open]')) document.getElementById('sidebar').classList.add('open');
+    if (e.target.closest('[data-close]')) document.getElementById('sidebar').classList.remove('open');
+    if (e.target.closest('[data-modal]')) document.getElementById('modal').classList.add('show');
+    if (e.target.closest('[data-dismiss]')) document.getElementById('modal').classList.remove('show');
+  });
+  const q = new URLSearchParams(location.search);
+  show(['landing','login','app','admin'].includes(q.get('view')) ? q.get('view') : 'landing');
+  if (q.get('modal')) document.getElementById('modal').classList.add('show');
+  if (q.get('menu')) document.getElementById('sidebar').classList.add('open');
+</script>
+</body>
+</html>
