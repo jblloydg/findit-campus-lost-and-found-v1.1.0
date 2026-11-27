@@ -20,7 +20,7 @@ All accounts, names and photos in the demo are fictional. The repository contain
 | Rollback point | branch `stable/v1.1.0` → `bd1bf55` (GitHub refused tag pushes from this session, so a branch is used; tag `v1.1.0` can be added later from GitHub's Releases page) |
 | `main` | unchanged (v1.1.0) until the owner approves; then merge `release/1.1.1` and tag `v1.1.1` |
 
-Commits (each can be reverted on its own): `V2-I …` (feature), `BUG-001`, `V2-I: … form submissions too`, `CHG-002`, `BUG-002`, `BUG-003`, then the docs commit.
+Commits (each can be reverted on its own): `V2-I …` (feature), `BUG-001`, `V2-I: … form submissions too`, `CHG-002`, `BUG-002`, `BUG-003`, the docs commit, a merge of the owner's README edit from `main`, and `CHG-003` (chat queue).
 
 ### A. Email verification (optional) — V2-I
 
@@ -78,6 +78,14 @@ All database access uses Django's ORM, which sends what people type as **separat
 ### H. Easier to run
 
 `FindIT.cmd` is a numbered menu (1 Start — also automatic after 20 seconds, 2 demo sign-ins, 3 reset demo data with a backup first, 4 automatic checks, 5 backup, 6 Developer account). It offers to install Python 3.13 when missing and explains common problems. `START-HERE.txt` has the steps in plain words.
+
+### H2. Chat queue and duplicate protection (CHG-003)
+
+- Every chat message carries a **one-time id**. The server saves each id **once**, so a double press, a resend after a dropped connection, or two copies arriving together all end up as **one** message. A re-sent message is never counted twice against the unverified-student limits, and nobody can reuse another person's message id.
+- Messages written while the connection is down go into a **queue** in that browser (it survives a page reload). They show as *"Waiting to send…"* and are sent **automatically, in order**, when the chat reconnects by itself (it keeps retrying, and retries at once when the PC comes back online). Messages from the other person that arrived meanwhile are fetched and shown.
+- If a waiting message is refused (limit, chat closed), the reason shows under the chat box and the text is put back.
+- Forms (claims, comments, question answers, approvals…) already had one-time keys (`core/idempotency.py`); the guard-house Scan page already had its offline queue.
+- Tested in a real browser: chat open → server stopped → messages typed (one pressed twice) → server started → both messages sent once, nothing duplicated after reload.
 
 ### I. Bugs found and fixed (details in `docs/BUG_REPORTS.md`)
 

@@ -2,9 +2,10 @@ import json
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.db import IntegrityError
 from django.utils import timezone
 
-from .models import ChatMessage, ClaimApplication, Conversation, Profile
+from .models import ChatMessage, ClaimApplication, Conversation
 from .permissions import can_review_private_chats
 
 
@@ -53,7 +54,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         if len(message) > 2000:
             await self.send(text_data=json.dumps({"type": "error", "message": "Messages must be 2,000 characters or fewer."}))
             return
-        limit = await self._limit_message(message)
+        limit = await self._limit_message(message, client_id)
         if limit:
             await self.send(text_data=json.dumps({"type": "error", "message": limit, "client_id": client_id}))
             return
@@ -109,10 +110,13 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         return not conversation.is_closed and not conversation.is_paused
 
     @database_sync_to_async
-    def _limit_message(self, text):
-        """v1.1.1: unverified students have a per-message length and a messages-per-window limit."""
+    def _limit_message(self, text, client_id=""):
+        """v1.1.1: unverified students have a per-message length and a messages-per-window limit.
+        A resend of a message that is already saved (same client_id) is never counted again."""
         from django.contrib.auth import get_user_model
         from .verification import chat_limit_message
+        if client_id and ChatMessage.objects.filter(conversation_id=self.conversation_id, client_id=client_id).exists():
+            return None
         user = get_user_model().objects.select_related("profile").filter(pk=self.scope["user"].pk).first()
         if user is None:
             return "Please sign in again."
@@ -127,11 +131,17 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             return None
         if client_id:
             # A resend after a dropped connection carries the same id: save once.
-            message, created = ChatMessage.objects.get_or_create(
-                conversation=conversation, client_id=client_id,
-                defaults={"sender_id": user_id, "text": text},
-            )
+            try:
+                message, created = ChatMessage.objects.get_or_create(
+                    conversation=conversation, client_id=client_id,
+                    defaults={"sender_id": user_id, "text": text},
+                )
+            except IntegrityError:
+                # Two copies arrived at the same moment: the other one was saved; use it.
+                message, created = ChatMessage.objects.get(conversation=conversation, client_id=client_id), False
             if not created:
+                if message.sender_id != user_id:
+                    return None  # an id belongs to the person who sent it
                 return self._serialize(message, user_id)
         else:
             message = ChatMessage.objects.create(conversation=conversation, sender_id=user_id, text=text)

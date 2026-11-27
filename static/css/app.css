@@ -727,3 +727,5 @@ body:has(.unverified-warning) .site-footer { padding-bottom: 70px; }
 .email-body { white-space: pre-wrap; word-break: break-word; font-family: inherit; font-size: .88rem; margin: 10px 0 0; }
 .test-email summary { cursor: pointer; }
 .notification-row.is-priority p { font-weight: 800; }
+.chat-message.is-pending .message-bubble { opacity: .65; border-style: dashed; }
+.chat-message.is-pending time { font-style: italic; }

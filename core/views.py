@@ -369,6 +369,10 @@ def post_detail(request, post_id):
         application.claimant_unverified = is_unverified_student(application.claimant)
     viewer_is_student_other = request.user.is_authenticated and request.user.pk != post.author_id
     context = {
+        "chat_char_limit": (
+            SystemSettings.current().unverified_chat_max_chars
+            if request.user.is_authenticated and is_unverified_student(request.user) else 2000
+        ),
         "is_blocked": is_blocked,
         "unverified_warning": viewer_is_student_other and is_unverified_student(post.author),
         "author_verified": post.author.profile.is_verified,

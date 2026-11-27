@@ -433,3 +433,95 @@ class BugFixTests(FindItTestCase):
         client = self.client_for(self.admin)
         for url in ("/staff/reports/", "/staff/general-reports/"):
             self.assertEqual(client.get(url, {"date_from": "2026-99-99", "date_to": "abc"}).status_code, 200)
+
+
+class ChatQueueTests(FindItTestCase):
+    """CHG-003: messages carry a one-time id, so a message re-sent from the browser's
+    queue after a dropped connection is saved once and never counted twice."""
+
+    def _communicator(self, user, conversation):
+        from channels.routing import URLRouter
+        from channels.testing import WebsocketCommunicator
+        from django.urls import path
+        from core.consumers import ConversationConsumer
+        app = URLRouter([path("ws/conversations/<uuid:conversation_id>/", ConversationConsumer.as_asgi())])
+        communicator = WebsocketCommunicator(app, f"/ws/conversations/{conversation.pk}/")
+        communicator.scope["user"] = user
+        return communicator
+
+    def _run(self, coro):
+        from asgiref.sync import async_to_sync
+        return async_to_sync(coro)()
+
+    def test_resend_after_reconnect_is_saved_once(self):
+        post = self.create_post(self.finder)
+        self.claim(post, self.alice)
+        conversation = Conversation.objects.get(claim__claimant=self.alice)
+
+        async def scenario():
+            first = self._communicator(self.alice, conversation)
+            await first.connect()
+            await first.receive_json_from()  # connection notice
+            await first.send_json_to({"message": "Is it still there?", "client_id": "queue-1"})
+            await first.send_json_to({"message": "Is it still there?", "client_id": "queue-1"})  # double press
+            a = await first.receive_json_from()
+            b = await first.receive_json_from()
+            await first.disconnect()
+            # Connection dropped before the browser saw the reply: the queue sends it again.
+            second = self._communicator(self.alice, conversation)
+            await second.connect()
+            await second.receive_json_from()
+            await second.send_json_to({"message": "Is it still there?", "client_id": "queue-1"})
+            c = await second.receive_json_from()
+            await second.disconnect()
+            return a, b, c
+
+        a, b, c = self._run(scenario)
+        self.assertEqual({a["type"], b["type"], c["type"]}, {"message"})
+        self.assertEqual(a["id"], c["id"])
+        self.assertEqual(ChatMessage.objects.filter(conversation=conversation, client_id="queue-1").count(), 1)
+
+    def test_resend_is_not_blocked_by_unverified_limit(self):
+        casey = self.make_user("2026-0005", verified=False)
+        post = self.create_post(self.finder)
+        self.claim(post, casey)
+        conversation = Conversation.objects.get(claim__claimant=casey)
+        for i in range(9):
+            ChatMessage.objects.create(conversation=conversation, sender=casey, text=f"m{i}", client_id=f"old-{i}")
+
+        async def scenario():
+            ws = self._communicator(casey, conversation)
+            await ws.connect()
+            await ws.receive_json_from()
+            await ws.send_json_to({"message": "tenth", "client_id": "q-10"})
+            first = await ws.receive_json_from()
+            await ws.send_json_to({"message": "tenth", "client_id": "q-10"})  # resend from the queue
+            again = await ws.receive_json_from()
+            await ws.send_json_to({"message": "eleventh", "client_id": "q-11"})
+            refused = await ws.receive_json_from()
+            await ws.disconnect()
+            return first, again, refused
+
+        first, again, refused = self._run(scenario)
+        self.assertEqual(first["type"], "message")
+        self.assertEqual(again["type"], "message")
+        self.assertEqual(refused["type"], "error")
+        self.assertEqual(refused["client_id"], "q-11")
+        self.assertEqual(ChatMessage.objects.filter(conversation=conversation, sender=casey).count(), 10)
+
+    def test_someone_elses_message_id_cannot_be_reused(self):
+        post = self.create_post(self.finder)
+        self.claim(post, self.alice)
+        conversation = Conversation.objects.get(claim__claimant=self.alice)
+        ChatMessage.objects.create(conversation=conversation, sender=self.finder, text="from finder", client_id="shared-id")
+
+        async def scenario():
+            ws = self._communicator(self.alice, conversation)
+            await ws.connect()
+            await ws.receive_json_from()
+            await ws.send_json_to({"message": "fake", "client_id": "shared-id"})
+            reply = await ws.receive_json_from()
+            await ws.disconnect()
+            return reply
+
+        self.assertEqual(self._run(scenario)["type"], "error")
