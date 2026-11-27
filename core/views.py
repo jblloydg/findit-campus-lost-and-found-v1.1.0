@@ -368,6 +368,11 @@ def post_detail(request, post_id):
     for application in applications:
         application.claimant_unverified = is_unverified_student(application.claimant)
     viewer_is_student_other = request.user.is_authenticated and request.user.pk != post.author_id
+    from .chat_history import latest_page
+    panel_history = (
+        latest_page(panel_conversation.messages.select_related("sender"), budget=4 * 1024)
+        if panel_conversation else ([], False)
+    )
     context = {
         "chat_char_limit": (
             SystemSettings.current().unverified_chat_max_chars
@@ -407,7 +412,8 @@ def post_detail(request, post_id):
         "status_request_form": StatusChangeRequestForm() if my_ticket and post.status == ItemPost.Status.TURNED_OVER else None,
         "my_pending_request": post.status_requests.filter(requester=request.user, decision="PENDING").first() if request.user.is_authenticated else None,
         "pending_status_requests": post.status_requests.filter(decision="PENDING").select_related("requester") if can_moderate else [],
-        "panel_messages": list(panel_conversation.messages.select_related("sender").order_by("-sent_at")[:50])[::-1] if panel_conversation else [],
+        "panel_messages": panel_history[0],
+        "panel_has_older": panel_history[1],
         "panel_can_send": bool(
             panel_conversation and panel_conversation.includes(request.user)
             and not panel_conversation.is_closed and not panel_conversation.is_paused
@@ -928,9 +934,6 @@ def remove_post_view(request, post_id):
 
 
 
-CHAT_PAGE_SIZE = 100
-
-
 def _message_json(message):
     return {
         "id": message.pk, "sender": message.sender.first_name or message.sender.username,
@@ -942,24 +945,43 @@ def _message_json(message):
 @never_cache
 @login_required
 def chat_messages_json(request, conversation_id):
-    """PERF-001: small JSON pages of messages — newer than ?after=ID (catch up after a
-    reconnect) or older than ?before=ID ("Show older messages"). At most 100 per call."""
+    """CHG-005: chat history pages sized by bytes, plus search inside the conversation.
+    ?latest=1 · ?before=ID · ?after=ID · ?around=ID · ?q=text. Rate-limited per person."""
+    from . import chat_history
     conversation = get_object_or_404(Conversation, pk=conversation_id)
     if not (conversation.includes(request.user) or can_review_private_chats(request.user)):
         return HttpResponseForbidden("This conversation is private to its participants and authorized reviewers.")
     rows = conversation.messages.select_related("sender")
-    after, before = request.GET.get("after", ""), request.GET.get("before", "")
-    if after.isdigit():
-        page = list(rows.filter(pk__gt=int(after)).order_by("pk")[:CHAT_PAGE_SIZE + 1])
-        more = len(page) > CHAT_PAGE_SIZE
-        page = page[:CHAT_PAGE_SIZE]
-    elif before.isdigit():
-        page = list(rows.filter(pk__lt=int(before)).order_by("-pk")[:CHAT_PAGE_SIZE + 1])
-        more = len(page) > CHAT_PAGE_SIZE
-        page = page[:CHAT_PAGE_SIZE][::-1]
+    get = request.GET
+    if "q" in get:
+        if chat_history.over_rate_limit(request.user, "search", chat_history.SEARCHES_PER_MINUTE):
+            return JsonResponse({"error": "Too many searches. Wait a moment and try again."}, status=429)
+        query = get.get("q", "")
+        return JsonResponse({
+            "results": chat_history.search(rows, query),
+            "too_short": len(query.strip()) < chat_history.SEARCH_MIN_CHARS,
+        })
+    if chat_history.over_rate_limit(request.user, "page", chat_history.PAGES_PER_MINUTE):
+        return JsonResponse({"error": "Loading too fast. Wait a moment."}, status=429)
+    payload = {"has_older": False, "has_newer": False}
+    if get.get("around", "").isdigit():
+        found = chat_history.around_page(rows, int(get["around"]))
+        if found is None:
+            return JsonResponse({"error": "That message is no longer in this chat."}, status=404)
+        page, payload["has_older"], payload["has_newer"] = found
+    elif get.get("before", "").isdigit():
+        page, payload["has_older"] = chat_history.older_page(rows, int(get["before"]))
+        payload["has_newer"] = True
+    elif get.get("after", "").isdigit():
+        page, payload["has_newer"] = chat_history.newer_page(rows, int(get["after"]))
+        payload["has_older"] = True
+    elif get.get("latest") == "1":
+        page, payload["has_older"] = chat_history.latest_page(rows)
     else:
-        return JsonResponse({"messages": [], "more": False})
-    return JsonResponse({"messages": [_message_json(m) for m in page], "more": more})
+        return JsonResponse({"messages": [], **payload})
+    payload["messages"] = [_message_json(m) for m in page]
+    payload["more"] = payload["has_newer"] if "after" in get else payload["has_older"]  # older clients
+    return JsonResponse(payload)
 
 
 @never_cache
@@ -975,10 +997,10 @@ def chat_room(request, conversation_id):
         return HttpResponseForbidden("This conversation is private to its participants and authorized reviewers.")
     if staff_view:
         audit(request.user, "reviewed_chat", conversation, "Authorized reviewer opened private chat history.")
-    # PERF-001: only the newest messages are put in the page; older ones load on request.
-    latest = list(conversation.messages.select_related("sender").order_by("-sent_at", "-pk")[:CHAT_PAGE_SIZE + 1])
-    has_older = len(latest) > CHAT_PAGE_SIZE
-    messages_qs = latest[:CHAT_PAGE_SIZE][::-1]
+    # PERF-001 / CHG-005: only the newest ~8 KB of messages are put in the page;
+    # older ones load by themselves when the reader scrolls up.
+    from .chat_history import latest_page
+    messages_qs, has_older = latest_page(conversation.messages.select_related("sender"))
     asker, answerer = chat_roles(conversation)
     claim = conversation.claim
     questions = list(conversation.questions.all())

@@ -638,3 +638,129 @@ class ChatWorkerThreadTests(SocketHelpers, TransactionTestCase):
         replies = self._run(scenario)
         self.assertEqual({r["type"] for r in replies}, {"message"})
         self.assertEqual(ChatMessage.objects.filter(client_id="thread-1").count(), 1)
+
+
+class CompressedPhotoTests(FindItTestCase):
+    """PERF-003: originals are never stored; a compressed photo + small preview are."""
+
+    def big_upload(self):
+        import io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        image = Image.effect_noise((2600, 1900), 60).convert("RGB")
+        exif = Image.Exif()
+        exif[0x8825] = {2: (7.0, 5.0, 0.0)}  # GPS block, like a phone photo
+        buffer = io.BytesIO()
+        image.save(buffer, "JPEG", quality=90, exif=exif)
+        self.assertGreater(buffer.tell(), 1_000_000)
+        return SimpleUploadedFile("phone.jpg", buffer.getvalue(), content_type="image/jpeg")
+
+    def test_upload_is_compressed_and_original_not_kept(self):
+        from PIL import Image
+        from core.models import PostPhoto
+        response = self.client_for(self.finder).post("/posts/new/", {
+            "post_type": "FOUND", "category": self.category.pk, "photos": [self.big_upload()],
+        })
+        self.assertEqual(response.status_code, 302)
+        photo = PostPhoto.objects.latest("pk")
+        self.assertLessEqual(photo.image.size, 300 * 1024)
+        self.assertLessEqual(photo.preview.size, 40 * 1024)
+        with Image.open(photo.image.path) as full, Image.open(photo.preview.path) as small:
+            self.assertLessEqual(max(full.size), 1600)
+            self.assertLessEqual(max(small.size), 480)
+            self.assertNotIn(0x8825, full.getexif())  # GPS removed
+        self.assertTrue(photo.image.name.endswith(".jpg"))
+        self.assertNotIn("phone", photo.image.name)  # the original upload was not saved
+
+    def test_transparent_png_and_file_cleanup(self):
+        import io, os
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        from core.models import PostPhoto
+        buffer = io.BytesIO()
+        Image.new("RGBA", (800, 600), (0, 0, 0, 0)).save(buffer, "PNG")
+        self.create_post(self.finder, photos=[SimpleUploadedFile("t.png", buffer.getvalue(), content_type="image/png")])
+        photo = PostPhoto.objects.latest("pk")
+        paths = [photo.image.path, photo.preview.path]
+        self.assertTrue(all(os.path.exists(p) for p in paths))
+        with self.captureOnCommitCallbacks(execute=True):
+            photo.delete()
+        self.assertFalse(any(os.path.exists(p) for p in paths))
+
+    def test_lists_use_previews(self):
+        post = self.create_post(self.finder)
+        html = self.client_for(self.alice).get("/home/").content.decode()
+        self.assertIn(post.cover_photo.preview.url, html)
+        self.assertIn('loading="lazy"', html)
+
+
+class ChatHistoryTests(FindItTestCase):
+    """CHG-005: pages sized by bytes, older/newer/around, search, rate limits."""
+
+    def setUp(self):
+        super().setUp()
+        from django.core.cache import cache
+        cache.clear()
+        post = self.create_post(self.finder)
+        self.claim(post, self.alice)
+        self.conversation = Conversation.objects.get(claim__claimant=self.alice)
+        ChatMessage.objects.bulk_create([
+            ChatMessage(conversation=self.conversation, sender=self.alice if i % 2 else self.finder,
+                        text=("long " * 200 if i % 10 == 0 else f"short message {i}"))
+            for i in range(300)
+        ])
+        ChatMessage.objects.create(conversation=self.conversation, sender=self.finder, text="The umbrella is BLUE with a strap")
+        self.url = f"/conversations/{self.conversation.pk}/messages/"
+        self.client_a = self.client_for(self.alice)
+
+    def test_pages_are_sized_by_bytes(self):
+        from core.chat_history import MAX_MESSAGES, OVERHEAD_BYTES, PAGE_BYTES
+        data = self.client_a.get(self.url, {"latest": "1"}).json()
+        size = sum(len(m["text"].encode()) + OVERHEAD_BYTES for m in data["messages"])
+        self.assertLessEqual(size, PAGE_BYTES + 1100)  # one long message may cross the line
+        self.assertLessEqual(len(data["messages"]), MAX_MESSAGES)
+        self.assertTrue(data["has_older"])
+        ids = [m["id"] for m in data["messages"]]
+        self.assertEqual(ids, sorted(ids))
+        older = self.client_a.get(self.url, {"before": ids[0]}).json()
+        self.assertTrue(older["messages"])
+        self.assertLess(older["messages"][-1]["id"], ids[0])
+        newer = self.client_a.get(self.url, {"after": older["messages"][0]["id"]}).json()
+        self.assertEqual(newer["messages"][0]["id"], older["messages"][1]["id"])
+
+    def test_whole_history_can_be_read_back_without_gaps(self):
+        seen, before = [], None
+        data = self.client_a.get(self.url, {"latest": "1"}).json()
+        while True:
+            seen = [m["id"] for m in data["messages"]] + seen
+            if not data["has_older"]:
+                break
+            data = self.client_a.get(self.url, {"before": seen[0]}).json()
+        self.assertEqual(seen, list(self.conversation.messages.order_by("pk").values_list("pk", flat=True)))
+
+    def test_search_and_open_result(self):
+        data = self.client_a.get(self.url, {"q": "blue"}).json()
+        self.assertEqual(len(data["results"]), 1)
+        self.assertIn("BLUE", data["results"][0]["snippet"])
+        around = self.client_a.get(self.url, {"around": data["results"][0]["id"]}).json()
+        self.assertIn(data["results"][0]["id"], [m["id"] for m in around["messages"]])
+        self.assertTrue(self.client_a.get(self.url, {"q": "b"}).json()["too_short"])
+        self.assertEqual(self.client_a.get(self.url, {"q": "' OR 1=1 --"}).json()["results"], [])
+        self.assertEqual(len(self.client_a.get(self.url, {"q": "short"}).json()["results"]), 30)
+
+    def test_strangers_cannot_read_or_search(self):
+        self.assertEqual(self.client_for(self.bob).get(self.url, {"q": "blue"}).status_code, 403)
+        self.assertEqual(self.client_for(self.bob).get(self.url, {"latest": "1"}).status_code, 403)
+        other = Conversation.objects.create(post=self.conversation.post, initiator=self.bob, recipient=self.finder)
+        self.assertEqual(self.client_a.get(f"/conversations/{other.pk}/messages/", {"around": "1"}).status_code, 403)
+
+    def test_search_and_paging_are_rate_limited(self):
+        from core.chat_history import PAGES_PER_MINUTE, SEARCHES_PER_MINUTE
+        codes = [self.client_a.get(self.url, {"q": "blue"}).status_code for _ in range(SEARCHES_PER_MINUTE + 1)]
+        self.assertEqual(codes[-1], 429)
+        codes = [self.client_a.get(self.url, {"latest": "1"}).status_code for _ in range(PAGES_PER_MINUTE + 1)]
+        self.assertEqual(codes[-1], 429)
+
+    def test_bad_values_do_not_crash(self):
+        for params in ({"before": "abc"}, {"after": "-1"}, {"around": "99999999"}, {"q": "x" * 5000}, {}):
+            self.assertIn(self.client_a.get(self.url, params).status_code, {200, 404})

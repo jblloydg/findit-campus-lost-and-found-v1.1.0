@@ -21,10 +21,10 @@
     <article class="detail-main">
       {% with photos=post.photos.all %}
       <div class="detail-media{% if photos|length > 1 %} detail-gallery{% endif %}" tabindex="0" aria-label="Item photos">
-        {% for photo in photos %}<figure class="gallery-slide" id="photo-{{ forloop.counter }}"><img src="{{ photo.image.url }}" alt="Photo {{ forloop.counter }} of {{ post.display_title }}"{% if not forloop.first %} loading="lazy"{% endif %}></figure>
+        {% for photo in photos %}<figure class="gallery-slide" id="photo-{{ forloop.counter }}"><img src="{{ photo.image.url }}" alt="Photo {{ forloop.counter }} of {{ post.display_title }}" decoding="async"{% if not forloop.first %} loading="lazy"{% endif %}></figure>
         {% empty %}<div class="detail-placeholder"><span>◈</span><p>No photo was added</p></div>{% endfor %}
       </div>
-      {% if photos|length > 1 %}<nav class="gallery-thumbs" aria-label="Choose photo">{% for photo in photos %}<a href="#photo-{{ forloop.counter }}"><img src="{{ photo.image.url }}" alt="Show photo {{ forloop.counter }}" loading="lazy"></a>{% endfor %}</nav>{% endif %}
+      {% if photos|length > 1 %}<nav class="gallery-thumbs" aria-label="Choose photo">{% for photo in photos %}<a href="#photo-{{ forloop.counter }}"><img src="{{ photo.preview_url }}" alt="Show photo {{ forloop.counter }}" loading="lazy" decoding="async"></a>{% endfor %}</nav>{% endif %}
       {% endwith %}
       <div class="detail-heading">
         <div class="card-meta"><span class="type-pill type-{{ post.post_type|lower }}">{{ post.get_post_type_display }}</span>{% if post.category %}<span class="subtle-chip">{{ post.category.name }}</span>{% endif %}<span class="status-pill status-{{ post.status|lower }}">{{ post.get_status_display }}</span></div>
@@ -196,7 +196,7 @@
         {% for row in pending_status_requests %}
           <div class="status-request-row">
             <strong>{{ row.requester.first_name|default:row.requester.username }} asks: {{ row.get_requested_status_display }}</strong>
-            <p>{{ row.reason }}</p>{% if row.photo %}<a href="{{ row.photo.url }}" target="_blank" rel="noopener"><img src="{{ row.photo.url }}" alt="Photo attached to the request" class="request-photo"></a>{% endif %}
+            <p>{{ row.reason }}</p>{% if row.photo %}<a href="{{ row.photo.url }}" target="_blank" rel="noopener"><img src="{{ row.photo.url }}" alt="Photo attached to the request" class="request-photo" loading="lazy" decoding="async"></a>{% endif %}
             <form method="post" action="{% url 'review-status-request' row.pk %}" class="stack-form compact-form">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
               <label>Note to the finder (optional)<input name="note" maxlength="500"></label>
               <div class="button-row"><button class="button button-small button-primary" name="decision" value="approve" type="submit">Approve</button><button class="button button-small button-outline" name="decision" value="reject" type="submit">Reject</button></div>
@@ -265,12 +265,13 @@
   <aside class="chat-panel" id="chat-panel" hidden data-panel-id="{{ panel_conversation.pk }}" aria-label="Chat with {% if post.post_type == 'FOUND' %}the finder{% else %}the owner{% endif %}">
     <header class="chat-panel-head"><strong>{% if post.post_type == "FOUND" %}Chat with the finder{% else %}Chat with the owner{% endif %}</strong>
       <div><a class="text-action" href="{% url 'chat-room' panel_conversation.pk %}">Full chat</a><button type="button" class="modal-close" data-chat-toggle aria-label="Hide chat">×</button></div></header>
-    <div class="chat-messages panel-messages" id="chat-messages" data-conversation="{{ panel_conversation.pk }}" data-can-send="{{ panel_can_send|yesno:'true,false' }}">
-      {% if panel_messages|length >= 50 %}<button type="button" class="link-button chat-older" data-chat-older>Show older messages</button>{% endif %}
+    <div class="chat-messages panel-messages" id="chat-messages" data-conversation="{{ panel_conversation.pk }}" data-can-send="{{ panel_can_send|yesno:'true,false' }}" data-has-older="{{ panel_has_older|yesno:'true,false' }}">
+      <p class="chat-history-status" data-history-status>{% if panel_has_older %}Scroll up for older messages{% endif %}</p>
       {% for message in panel_messages %}
       <article class="chat-message {% if message.sender_id == user.pk %}mine{% endif %}" data-message-id="{{ message.pk }}"><div class="message-bubble"><div class="message-meta"><strong>{{ message.sender.first_name|default:message.sender.username }}</strong><time>{{ message.sent_at|date:"M j · g:i a" }}</time></div><p>{{ message.text|linebreaksbr }}</p></div></article>
       {% empty %}<div class="chat-empty"><p>No messages yet. Questions and answers appear in the full chat.</p></div>{% endfor %}
     </div>
+    <button type="button" class="button button-soft button-small chat-jump" data-chat-jump hidden>↓ Jump to latest</button>
     {% if panel_can_send %}
     <form class="chat-composer" id="chat-form"><label for="chat-input" class="sr-only">Message</label><textarea id="chat-input" rows="2" maxlength="{{ chat_char_limit }}" placeholder="Write a message…" required></textarea><button class="button button-primary button-small" type="submit">Send</button></form>
     <p class="chat-status" id="chat-status" role="status" aria-live="polite"></p>

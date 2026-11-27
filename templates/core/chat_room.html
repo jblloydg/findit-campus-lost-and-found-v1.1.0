@@ -40,14 +40,19 @@
     {% if claim.is_lost_report and can_decide and claim.status == "SUBMITTED" and not lost_ready %}<p class="fine-print claim-strip-note">Approve unlocks after at least 3 questions are sent and all are answered. Read the answers yourself; nothing is checked automatically.</p>{% endif %}
     {% endif %}
     {% if conversation.is_paused %}<div class="form-callout warning-callout"><strong>Chat paused</strong><span>{{ conversation.pause_reason|default:"A staff member paused this chat for review." }}</span></div>{% endif %}
-    <div class="chat-messages" id="chat-messages" data-conversation="{{ conversation.pk }}" data-can-send="{{ can_send|yesno:'true,false' }}">
-      {% if has_older_messages %}<button type="button" class="link-button chat-older" data-chat-older>Show older messages</button>{% endif %}
+    <div class="chat-search" data-chat-search>
+      <label class="search-field"><span aria-hidden="true">⌕</span><input type="search" id="chat-search-input" maxlength="100" placeholder="Search this chat" aria-label="Search this chat" autocomplete="off"></label>
+      <div class="chat-search-results" id="chat-search-results" role="listbox" hidden></div>
+    </div>
+    <div class="chat-messages" id="chat-messages" data-conversation="{{ conversation.pk }}" data-can-send="{{ can_send|yesno:'true,false' }}" data-has-older="{{ has_older_messages|yesno:'true,false' }}">
+      <p class="chat-history-status" data-history-status>{% if has_older_messages %}Scroll up for older messages{% elif chat_messages %}Start of the conversation{% endif %}</p>
       {% for message in chat_messages %}
       <article class="chat-message {% if message.sender_id == user.pk %}mine{% endif %}" data-message-id="{{ message.pk }}">
         <div class="message-bubble"><div class="message-meta"><strong>{{ message.sender.first_name|default:message.sender.username }}</strong><time>{{ message.sent_at|date:"M j · g:i a" }}</time></div><p>{{ message.text|linebreaksbr }}</p></div>
       </article>
       {% empty %}{% if not questions %}<div class="chat-empty"><span>✦</span><p>Start with a helpful message. Keep private details in the verification form and meet only within school premises.</p></div>{% endif %}{% endfor %}
     </div>
+    <button type="button" class="button button-soft button-small chat-jump" data-chat-jump hidden>↓ Jump to latest</button>
     <section class="question-cards" id="question-cards" data-answer-url="{% url 'answer-question' 0 %}" data-is-answerer="{{ is_answerer|yesno:'true,false' }}" aria-label="Ownership questions">
       {% for q in questions %}
       <article class="question-card{% if q.is_answered %} is-answered{% endif %}" id="question-{{ q.pk }}" data-question-id="{{ q.pk }}">
