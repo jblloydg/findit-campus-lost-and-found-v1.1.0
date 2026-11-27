@@ -20,7 +20,7 @@ All accounts, names and photos in the demo are fictional. The repository contain
 | Rollback point | branch `stable/v1.1.0` → `bd1bf55` (GitHub refused tag pushes from this session, so a branch is used; tag `v1.1.0` can be added later from GitHub's Releases page) |
 | `main` | unchanged (v1.1.0) until the owner approves; then merge `release/1.1.1` and tag `v1.1.1` |
 
-Commits (each can be reverted on its own): `V2-I …` (feature), `BUG-001`, `V2-I: … form submissions too`, `CHG-002`, `BUG-002`, `BUG-003`, the docs commit, a merge of the owner's README edit from `main`, `CHG-003` (chat queue), `BUG-005`, `BUG-004`, `CHG-004 / BUG-006` (notification queue), and the final docs commit.
+Commits (each can be reverted on its own): `V2-I …` (feature), `BUG-001`, `V2-I: … form submissions too`, `CHG-002`, `BUG-002`, `BUG-003`, the docs commit, a merge of the owner's README edit from `main`, `CHG-003` (chat queue), `BUG-005`, `BUG-004`, `CHG-004 / BUG-006` (notification queue), the docs commit, the release merge into `main`, then `PERF-001` and `PERF-002`.
 
 ### A. Email verification (optional) — V2-I
 
@@ -88,6 +88,19 @@ All database access uses Django's ORM, which sends what people type as **separat
 - Tested in a real browser: chat open → server stopped → messages typed (one pressed twice) → server started → both messages sent once, nothing duplicated after reload.
 - **Notifications (CHG-004):** the saved notices on the server are the queue. Each time the page (re)connects, the server sends the true unread counts and the page fetches any notices it missed. Each notice id is shown and counted once, also after a reload. The red Messages count updates live. Both connections reconnect by themselves within about 10 seconds (immediately when the tab is shown again or the PC is back online). Open pages also re-check once a minute, so notices made by the timer runner appear without reloading (BUG-006).
 - Browser test across a server restart: a live approval notice appeared once; two notices and one chat message created while the server was down appeared about 6 seconds after it came back; the badges matched the database; nothing was shown twice after reload.
+
+### H3. Speed and smoothness (PERF-001, PERF-002) — measured, not guessed
+
+| Test | Before | After |
+| --- | --- | --- |
+| Chat page with 3,000 messages (server) | 828 KB, 373 ms | 27 KB, 17 ms |
+| Opening that chat on a 4× slowed-down phone | 2.3 s | 0.5 s |
+| Phone smoothness while 200 messages arrive | 9 fps, freezes up to 250 ms | 54 fps, worst frame 50 ms |
+| Phone smoothness during a 500-message flood | — | 50 fps; at most 300 messages kept on screen |
+| Heavy load: 100 people chatting (50 msgs/s) + 100 notice connections + 20 page loaders + timer | median 20.7 s per message, 919 of 1,500 not delivered, "database is locked" errors | median 0.18 s (95% under 1.1 s), all 1,500 delivered, no lock errors |
+| Realistic load: 20 people chatting + 5 loading pages | — | median 8 ms per message, 18 ms per page |
+
+What changed: the chat opens with the newest 100 messages ("Show older messages" loads 100 more); incoming messages are drawn in one batch per screen frame; after a reconnect only the missed messages are fetched; chat saves take one database trip in their own worker thread; SQLite runs in WAL mode with IMMEDIATE transactions. These numbers come from this test machine with the local development server; v3.0.0 hosting will repeat the measurements on the real server (V2-J).
 
 ### I. Bugs found and fixed (details in `docs/BUG_REPORTS.md`)
 

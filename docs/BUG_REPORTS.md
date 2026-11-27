@@ -35,6 +35,8 @@ For a change request (CHG), replace Expected/Actual with **What to change** and 
 | BUG-004 | Live notices and chat updates were pushed before the database save was final (a failed save could show a notice that does not exist) | Medium | Claude (chat/notification bug hunt) | Fixed (on release/1.1.1) | 930f969 | Push now waits for the save |
 | BUG-005 | Chat WebSocket crashed on valid JSON that is not an object, e.g. `[1]` | Medium | Claude (chat/notification bug hunt) | Fixed (on release/1.1.1) | 1e463bb | Answers "Invalid message" |
 | BUG-006 | Notices made by the timer runner (claim expiry, cleared Student IDs) never reached pages that were already open | Low | Claude (browser test) | Fixed (on release/1.1.1) | e441aa6 | Open pages re-check about once a minute |
+| PERF-001 | Chat lagged with long chats and bursts: 3,000-message chat = 828 KB page; 200-message burst = 9 fps on a slow phone | High | Owner (asked to ensure no lag) | Fixed | c0dbd0c | Now 27 KB page, 54 fps in the burst, 50 fps in a 500-message flood |
+| PERF-002 | Under heavy load (100 people chatting) messages took ~20 s and some never arrived; "database is locked" errors | High | Owner (asked to ensure no I/O overload) | Fixed | 0a8802a | Now median 0.18 s heavy / 8 ms realistic, all delivered, no locks |
 | BUG-002 | A damaged `claim_id` or student value crashed "Mark returned" and guard-house pickup (error 500) | Low (needs a tampered form) | Claude (form fuzzing) | Fixed (on release/1.1.1) | 115cd90 | Now 404 / clear message |
 | BUG-003 | An impossible date such as 2026-99-99 in report filters crashed /staff/reports/ and /staff/general-reports/ (error 500) | Low | Claude (address fuzzing) | Fixed (on release/1.1.1) | e221ac3 | Invalid dates are ignored, like Browse |
 
