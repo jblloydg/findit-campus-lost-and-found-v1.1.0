@@ -1,0 +1,33 @@
+{% extends "core/base.html" %}
+{% block title %}Edit profile · Find-IT{% endblock %}
+{% block content %}
+<section class="narrow-page form-page">
+  <a class="back-link" href="{% url 'my-profile' %}">← My profile</a>
+  <div class="page-heading compact-heading"><div><span class="eyebrow">Your account</span><h1>Edit profile</h1><p class="muted">Update your name, contact details, and picture.</p></div></div>
+  <form method="post" enctype="multipart/form-data" class="panel stack-form" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="profile-head">
+      {% include "core/includes/avatar.html" with person=user size="lg" %}
+      <div class="profile-head-text">
+        <label>{{ form.photo.label }}{{ form.photo }}<small class="form-help">{{ form.photo.help_text }}</small></label>
+        {% if form.photo.errors %}<div class="field-error">{{ form.photo.errors }}</div>{% endif %}
+        {% if profile.photo %}<label class="checkbox-label">{{ form.remove_photo }} {{ form.remove_photo.label }}</label>{% endif %}
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div><label>{{ form.first_name.label }}{{ form.first_name }}</label>{% if form.first_name.errors %}<div class="field-error">{{ form.first_name.errors }}</div>{% endif %}</div>
+      <div><label>{{ form.last_name.label }}{{ form.last_name }}</label>{% if form.last_name.errors %}<div class="field-error">{{ form.last_name.errors }}</div>{% endif %}</div>
+    </div>
+    <label>{{ form.email.label }}{{ form.email }}</label>{% if form.email.errors %}<div class="field-error">{{ form.email.errors }}</div>{% endif %}
+    <label>{{ form.contact_number.label }}{{ form.contact_number }}<small class="form-help">{{ form.contact_number.help_text }}</small></label>{% if form.contact_number.errors %}<div class="field-error">{{ form.contact_number.errors }}</div>{% endif %}
+    <div class="locked-fields">
+      <div><span class="eyebrow">{% if profile.student_id %}Student ID{% else %}Username{% endif %}</span><strong>{{ profile.student_id|default:user.username }}</strong></div>
+      <div><span class="eyebrow">Role</span><strong>{{ profile.get_role_display }}</strong></div>
+      <div><span class="eyebrow">Status</span><strong>{% if user.is_active %}Active{% else %}Suspended{% endif %}</strong></div>
+    </div>
+    <p class="form-help">These three details are locked. Contact an administrator if one of them is wrong.</p>
+    <div class="form-actions"><a class="button button-outline" href="{% url 'my-profile' %}">Cancel</a><button class="button button-primary" type="submit">Save changes</button></div>
+  </form>
+</section>
+{% endblock %}

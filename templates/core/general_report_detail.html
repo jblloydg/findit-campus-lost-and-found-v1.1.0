@@ -1,0 +1,40 @@
+{% extends "core/base.html" %}
+{% block title %}{{ report.reference }} · General report · Find-IT{% endblock %}
+{% block content %}
+<section class="page-wrap">
+  <a class="back-link" href="{% url 'general-reports' %}">← General reports</a>
+  <div class="page-heading"><div><span class="eyebrow">General item &amp; system report</span><h1>{{ report.reference }}</h1>
+    <div class="card-meta">{% include "core/includes/report_status.html" with status=report.status label=report.get_status_display %}<span class="subtle-chip">{{ report.get_category_display }}</span></div></div></div>
+  <div class="report-detail-layout">
+    <div class="report-detail-main">
+      <section class="panel">
+        <dl class="profile-details">
+          <div><dt>Reporter</dt><dd>{% firstof report.reporter.get_full_name report.reporter.username %} ({{ report.reporter.username }})</dd></div>
+          <div><dt>Submitted</dt><dd>{{ report.created_at|date:"M j, Y · g:i a" }}</dd></div>
+          <div><dt>Assigned reviewer</dt><dd>{% firstof report.assigned_reviewer.get_full_name report.assigned_reviewer.username "Not assigned" %}</dd></div>
+          <div><dt>Last reviewed</dt><dd>{% if report.reviewed_by %}{% firstof report.reviewed_by.get_full_name report.reviewed_by.username %} · {{ report.reviewed_at|date:"M j, Y · g:i a" }}{% else %}Not yet{% endif %}</dd></div>
+          <div><dt>Resolved / dismissed</dt><dd>{{ report.resolved_at|date:"M j, Y · g:i a"|default:"—" }}</dd></div>
+          <div><dt>Attachment</dt><dd>{% if report.attachment %}<a href="{% url 'general-report-attachment' report.pk %}" target="_blank" rel="noopener">Open attachment</a>{% else %}None{% endif %}</dd></div>
+        </dl>
+        <span class="eyebrow">Reporter's description</span>
+        <p class="report-description">{{ report.description|linebreaksbr }}</p>
+        {% if report.internal_remarks %}<div class="form-callout"><strong>Latest internal remarks</strong><span>{{ report.internal_remarks|linebreaksbr }}</span></div>{% endif %}
+      </section>
+      <section class="panel"><span class="eyebrow">Related listing</span>
+        {% if report.post %}
+          <h2><a href="{% url 'post-detail' report.post.pk %}">{{ report.post.title }}</a></h2>
+          <div class="card-meta"><span class="type-pill type-{{ report.post.post_type|lower }}">{{ report.post.get_post_type_display }}</span><span class="status-dot">{{ report.post.get_status_display }}</span><span class="category-tag">{{ report.post.get_category_display }}</span>{% if report.post.is_archived %}<span class="subtle-chip">Removed from browse</span>{% endif %}</div>
+          <p class="muted">Posted by {% firstof report.post.author.get_full_name report.post.author.username %} ({{ report.post.author.username }}) · {{ report.post.created_at|date:"M j, Y" }}{% if report.post.location %} · 📍 {{ report.post.location }}{% endif %}</p>
+          <p>{{ report.post.description|truncatechars:400 }}</p>
+          <a class="button button-soft button-small" href="{% url 'post-detail' report.post.pk %}">Open listing</a>
+          <p class="form-help">To close or remove the listing after investigating, use the listing's existing staff actions.</p>
+        {% else %}<p class="muted">No listing is attached to this report (for example, a technical issue), or the listing was permanently deleted.</p>{% endif %}
+      </section>
+    </div>
+    <div class="report-detail-side">
+      {% url 'general-reports' as back_url %}{% include "core/includes/review_form.html" with back_url=back_url %}
+      {% include "core/includes/report_history.html" %}
+    </div>
+  </div>
+</section>
+{% endblock %}

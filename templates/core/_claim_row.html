@@ -12,6 +12,7 @@
     <small>Applied {{ claim.submitted_at|date:"M j, Y" }}{% if claim.reapply_of_id %} · re-application{% endif %}</small>
   </div>
   <div class="listing-actions">
+    {% if not claim.is_lost_report %}<a class="button button-outline button-small" href="{% url 'claim-review' claim.pk %}">My answers</a>{% endif %}
     {% if claim.conversation %}<a class="button button-soft button-small" href="{% url 'chat-room' claim.conversation.pk %}">{% if claim.is_open %}Open chat{% else %}View chat{% endif %}</a>{% endif %}
     {% if claim.status == "RETURNED" %}<form method="post" action="{% url 'claimed' claim.post.pk %}">{% csrf_token %}<button class="button button-primary button-small" type="submit">Confirm received</button></form>{% endif %}
     {% if claim.status == "DECLINED" and claim.can_reapply %}

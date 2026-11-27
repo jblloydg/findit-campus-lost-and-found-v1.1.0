@@ -1,0 +1,9 @@
+<section class="panel"><span class="eyebrow">Internal</span><h2>Review history</h2>
+  <ol class="history-list">
+    {% for event in events %}
+    <li><div class="card-meta">{% if event.previous_status %}<span class="muted">{{ event.previous_status_label }}</span> →{% endif %}{% include "core/includes/report_status.html" with status=event.new_status label=event.get_new_status_display %}<time class="muted">{{ event.created_at|date:"M j, Y · g:i a" }}</time></div>
+      <small>{% if event.previous_status %}By{% else %}Submitted by{% endif %} {% firstof event.actor.get_full_name event.actor.username "system" %}</small>
+      {% if event.note %}<p>{{ event.note|linebreaksbr }}</p>{% endif %}</li>
+    {% empty %}<li class="muted">No history recorded.</li>{% endfor %}
+  </ol>
+</section>

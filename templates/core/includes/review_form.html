@@ -1,0 +1,8 @@
+<section class="panel"><span class="eyebrow">Reviewer action</span><h2>Update this report</h2>
+  <form method="post" class="stack-form review-form" novalidate>{% csrf_token %}
+    {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}<label>{{ field.label }}{{ field }}{% if field.help_text %}<small class="form-help">{{ field.help_text }}</small>{% endif %}</label>{% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}{% endfor %}
+    <p class="form-help">Nothing happens to an account or listing automatically. Record the decision you made after reviewing.</p>
+    <div class="form-actions"><a class="button button-outline" href="{{ back_url }}">Cancel</a><button class="button button-primary" type="submit">Save review</button></div>
+  </form>
+</section>

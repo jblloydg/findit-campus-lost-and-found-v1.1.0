@@ -7,9 +7,10 @@ from django.db import models, transaction
 from django.utils import timezone
 
 from .models import (
-    AbuseReport, ChatQuestion, ClaimApplication, Conversation, GuardhouseIntake, InAppNotification, ItemPost,
-    PostStatusEvent, Profile, QuestionTemplate, StaffAuditLog, StatusChangeRequest, SystemSettings, TurnInTicket,
-    VerificationQuestion,
+    CLOSED_REPORT_STATUSES, OPEN_REPORT_STATUSES, AbuseReport, ChatQuestion, ClaimApplication, Conversation,
+    GeneralReport, GuardhouseIntake, InAppNotification, ItemPost, ModeratorVerification, ModeratorVerificationEvent,
+    PostStatusEvent, Profile, QuestionTemplate, ReportStatus, ReportStatusEvent, StaffAuditLog, StatusChangeRequest,
+    SystemSettings, TurnInTicket, VerificationQuestion,
 )
 from .permissions import is_staff_or_admin
 
@@ -454,8 +455,11 @@ def process_due_actions():
         eligible = ItemPost.objects.filter(is_archived=True, archived_at__lt=cutoff)
         for post in eligible:
             has_open_report = AbuseReport.objects.filter(
-                status=AbuseReport.Status.PENDING,
+                status__in=OPEN_REPORT_STATUSES,
                 conversation__post=post,
+            ).exists() or GeneralReport.objects.filter(
+                status__in=OPEN_REPORT_STATUSES,
+                post=post,
             ).exists()
             if not has_open_report:
                 post.delete()
@@ -714,3 +718,118 @@ def reopen_lost_report(conversation, owner):
         record_status(old.post, ItemPost.Status.CLAIM_IN_PROGRESS, owner, "Owner asked to be verified again.", claim)
     notify_user(old.finder, old.post, "The owner asked to be verified again. Send new questions in the chat.", claim, priority=True)
     return claim
+
+
+# ---------------------------------------------------------------------------
+# Report review and moderator verification (session 1)
+# ---------------------------------------------------------------------------
+
+def record_report_submission(report, reporter):
+    """First history row for a newly submitted chat or general report."""
+    kwargs = {"chat_report": report} if isinstance(report, AbuseReport) else {"general_report": report}
+    ReportStatusEvent.objects.create(previous_status="", new_status=report.status, actor=reporter, **kwargs)
+
+
+@transaction.atomic
+def review_report_status(report, actor, action, remarks=""):
+    """Apply a reviewer decision to an AbuseReport or GeneralReport and record it in the history.
+
+    action is a ReportStatus value, or "NOTE" to add remarks without changing status.
+    """
+    now = timezone.now()
+    previous = report.status
+    remarks = (remarks or "").strip()
+    remarks_field = "admin_note" if isinstance(report, AbuseReport) else "internal_remarks"
+    fields = []
+    if action != "NOTE":
+        report.status = action
+        fields.append("status")
+        if action == ReportStatus.UNDER_REVIEW:
+            report.assigned_reviewer = actor
+            report.resolved_at = None
+            fields += ["assigned_reviewer", "resolved_at"]
+        if action in CLOSED_REPORT_STATUSES:
+            report.resolved_at = now
+            fields.append("resolved_at")
+            if not report.assigned_reviewer_id:
+                report.assigned_reviewer = actor
+                fields.append("assigned_reviewer")
+    if remarks:
+        setattr(report, remarks_field, remarks)
+        fields.append(remarks_field)
+    report.reviewed_by = actor
+    report.reviewed_at = now
+    fields += ["reviewed_by", "reviewed_at"]
+    report.save(update_fields=fields)
+    kwargs = {"chat_report": report} if isinstance(report, AbuseReport) else {"general_report": report}
+    ReportStatusEvent.objects.create(
+        previous_status=previous, new_status=report.status, actor=actor, note=remarks, **kwargs,
+    )
+    audit(actor, f"report_{action.lower()}", report, f"{report.reference}: {previous} → {report.status}")
+    return report
+
+
+MODERATOR_TRANSITIONS = {
+    # action: (allowed current statuses, new status). None means "no verification record yet".
+    "request": ({None, ModeratorVerification.Status.REJECTED, ModeratorVerification.Status.REVOKED},
+                ModeratorVerification.Status.PENDING),
+    "approve": ({ModeratorVerification.Status.PENDING}, ModeratorVerification.Status.VERIFIED),
+    "reject": ({ModeratorVerification.Status.PENDING}, ModeratorVerification.Status.REJECTED),
+    "revoke": ({ModeratorVerification.Status.VERIFIED, ModeratorVerification.Status.PENDING},
+               ModeratorVerification.Status.REVOKED),
+}
+
+
+class ModeratorTransitionError(Exception):
+    pass
+
+
+@transaction.atomic
+def change_moderator_verification(staff_user, actor, action, remarks=""):
+    if action not in MODERATOR_TRANSITIONS:
+        raise ModeratorTransitionError("Unknown moderator action.")
+    if staff_user.profile.role != Profile.Role.STAFF or staff_user.is_superuser:
+        raise ModeratorTransitionError("Moderator authorization can only be given to Staff accounts.")
+    verification = ModeratorVerification.objects.select_for_update().filter(staff=staff_user).first()
+    current = verification.status if verification else None
+    allowed, new_status = MODERATOR_TRANSITIONS[action]
+    if current not in allowed:
+        raise ModeratorTransitionError("That change is not allowed from the current verification status.")
+    now = timezone.now()
+    remarks = (remarks or "").strip()[:500]
+    if verification is None:
+        verification = ModeratorVerification(staff=staff_user)
+    verification.status = new_status
+    verification.remarks = remarks
+    if action == "request":
+        verification.requested_by = actor
+        verification.requested_at = now
+        verification.reviewed_by = None
+        verification.decided_at = None
+    else:
+        verification.reviewed_by = actor
+        verification.decided_at = now
+    verification.save()
+    ModeratorVerificationEvent.objects.create(
+        verification=verification, previous_status=current or "", new_status=new_status, actor=actor, remarks=remarks,
+    )
+    audit(actor, f"moderator_{action}", verification, f"{staff_user.username}: {current or 'none'} → {new_status}")
+    return verification
+
+
+def revoke_moderator_if_not_staff(user, actor):
+    """Called after a role change: only Staff accounts can keep moderator authorization."""
+    verification = ModeratorVerification.objects.filter(staff=user).first()
+    if user.profile.role == Profile.Role.STAFF or verification is None:
+        return
+    if verification.status in {ModeratorVerification.Status.VERIFIED, ModeratorVerification.Status.PENDING}:
+        previous = verification.status
+        verification.status = ModeratorVerification.Status.REVOKED
+        verification.reviewed_by = actor
+        verification.decided_at = timezone.now()
+        verification.remarks = "Automatically revoked because the account is no longer Staff."
+        verification.save()
+        ModeratorVerificationEvent.objects.create(
+            verification=verification, previous_status=previous, new_status=verification.status,
+            actor=actor, remarks=verification.remarks,
+        )

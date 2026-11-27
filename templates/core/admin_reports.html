@@ -1,33 +1,23 @@
 {% extends "core/base.html" %}
-{% block title %}Safety reports · Find-IT{% endblock %}
+{% block title %}Chat safety reports · Find-IT{% endblock %}
 {% block content %}
 <section class="page-wrap">
-  <a class="back-link" href="{% url 'staff-dashboard' %}">← Staff workspace</a>
-  <div class="page-heading"><div><span class="eyebrow">Administrator only</span><h1>Safety reports</h1><p class="muted">Review staff reports and decide whether an account should be restricted.</p></div></div>
-  <div class="report-list">
-    {% for report in reports %}
-    <article class="panel report-card">
-      <div class="card-meta"><span class="subtle-chip">{{ report.get_status_display }}</span><span class="muted">{{ report.created_at|date:"M j, Y · g:i a" }}</span></div>
-      <h2>{{ report.get_reason_display }}</h2><p>{{ report.details|default:"No additional details."|linebreaksbr }}</p>
-      <div class="report-facts"><span>Staff reporter: <strong>{{ report.reporter.first_name|default:report.reporter.username }}</strong></span><span>Account: <strong>{% if report.target_user %}{{ report.target_user.first_name|default:report.target_user.username }} ({{ report.target_user.username }}){% else %}Not selected{% endif %}</strong></span>{% if report.conversation %}<a href="{% url 'chat-room' report.conversation.pk %}">Review conversation</a>{% endif %}</div>
-      {% if report.status == "PENDING" %}
-      <form method="post" action="{% url 'review-report' report.pk %}" class="admin-review-form">{% csrf_token %}
-        <label>Decision<select name="action"><option value="resolve">Resolve with no account action</option>{% if report.target_user %}<option value="suspend">Suspend reported account</option><option value="restore">Restore account</option>{% endif %}</select></label>
-        <label>Administrator note<textarea name="admin_note" rows="2" maxlength="1500"></textarea></label>
-        <button class="button button-primary button-small" type="submit">Save review decision</button>
-      </form>
-      {% else %}<p class="fine-print">Reviewed by {{ report.reviewed_by.first_name|default:report.reviewed_by.username }} · {{ report.admin_note|default:"No note added." }}</p>{% endif %}
-    </article>
-    {% empty %}<div class="empty-state"><div class="empty-icon">✓</div><h3>No reports</h3><p>Staff-submitted safety reports will appear here.</p></div>{% endfor %}
+  <a class="back-link" href="{% if current_role == 'admin' %}{% url 'admin-dashboard' %}{% else %}{% url 'staff-dashboard' %}{% endif %}">← Back</a>
+  <div class="page-heading"><div><span class="eyebrow">Administrators and verified moderators</span><h1>Chat safety reports</h1><p class="muted">Reports about users or messages in private conversations. Opening a report or conversation is recorded.</p></div>
+    <div class="button-row"><a class="button button-outline" href="{% url 'general-reports' %}">General reports</a></div></div>
+  {% include "core/includes/report_filters.html" with search_placeholder="Reference, name, or description" %}
+  <div class="table-scroll panel report-table-panel">
+    <table class="accounts-table report-table">
+      <thead><tr><th>Reference</th><th>Category</th><th>Reporter</th><th>Reported user</th><th>Submitted</th><th>Reviewer</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for report in page_obj %}
+        <tr><td><strong>{{ report.reference }}</strong></td><td>{{ report.get_reason_display }}</td><td>{% firstof report.reporter.get_full_name report.reporter.username %}</td><td>{% firstof report.target_user.get_full_name report.target_user.username "—" %}</td><td>{{ report.created_at|date:"M j, Y · g:i a" }}</td><td>{% firstof report.assigned_reviewer.get_full_name report.assigned_reviewer.username "—" %}</td><td>{% include "core/includes/report_status.html" with status=report.status label=report.get_status_display %}</td><td><a class="button button-soft button-small" href="{% url 'review-report' report.pk %}">Review</a></td></tr>
+      {% empty %}
+        <tr><td colspan="8"><div class="empty-state compact-empty"><div class="empty-icon">✓</div><h3>No chat safety reports</h3><p>{% if filters.q or filters.category or filters.status or filters.date_from or filters.date_to %}No reports match these filters.{% else %}Reports submitted from conversations will appear here.{% endif %}</p></div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
   </div>
-  <section class="panel backup-panel">
-    <span class="eyebrow">Backups</span><h2>Daily backups</h2>
-    {% if backup_status %}
-      <p class="{% if backup_status.ok %}backup-ok{% else %}backup-failed{% endif %}"><strong>{% if backup_status.ok %}✓ Last backup succeeded{% else %}✗ Last backup failed{% endif %}</strong> · {{ backup_status.at|slice:":16"|cut:"T"|default:"" }} UTC</p>
-      <p class="muted">{{ backup_status.message }}</p>
-    {% else %}<p class="backup-failed"><strong>No backup has run yet.</strong></p>{% endif %}
-    <p class="fine-print">{{ backup_count }} backup{{ backup_count|pluralize }} kept (older than 14 days are removed). One is made each day while the timer runner (<code>process_due --loop</code>) is running. Make one now with <code>python manage.py backup_now</code>; restore with <code>python manage.py restore_backup NAME</code> (command line only, server stopped).</p>
-    {% if backups %}<ul class="backup-list">{% for b in backups %}<li><code>{{ b.name }}</code> · {{ b.reason }} · {{ b.row_count }} rows · {{ b.media_files }} photos</li>{% endfor %}</ul>{% endif %}
-  </section>
+  {% include "core/includes/pagination.html" %}
 </section>
 {% endblock %}

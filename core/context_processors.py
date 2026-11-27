@@ -14,4 +14,5 @@ def site_context(request):
             recipient=request.user, read_at__isnull=True, is_priority=True
         ).count(),
         "role_labels": dict(Profile.Role.choices),
+        "current_role_label": dict(Profile.Role.choices).get(role_of(request.user), "Student"),
     }

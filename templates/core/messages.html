@@ -9,7 +9,7 @@
       <span class="avatar">{% if conversation.initiator_id == user.pk %}{{ conversation.recipient.first_name|default:conversation.recipient.username|slice:":1"|upper }}{% else %}{{ conversation.initiator.first_name|default:conversation.initiator.username|slice:":1"|upper }}{% endif %}</span>
       <span class="conversation-details">
         <span class="conversation-title"><strong>{{ conversation.post.display_title }}</strong><small>{% if conversation.initiator_id == user.pk %}{{ conversation.recipient.first_name|default:conversation.recipient.username }}{% else %}{{ conversation.initiator.first_name|default:conversation.initiator.username }}{% endif %}</small></span>
-        {% with last_message=conversation.messages.last %}
+        {% with last_message=conversation.latest_messages.0 %}
         {% if last_message %}<span class="conversation-preview">{{ last_message.sender.first_name|default:last_message.sender.username }}: {{ last_message.text|truncatechars:90 }}</span>{% else %}<span class="conversation-preview">No messages yet. Start the conversation.</span>{% endif %}
         {% endwith %}
       </span>

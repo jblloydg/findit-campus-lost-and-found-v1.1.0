@@ -6,6 +6,7 @@ __pycache__/
 db.sqlite3
 .env
 media/
+private_media/
 staticfiles/
 .pytest_cache/
 .coverage
@@ -13,5 +14,7 @@ staticfiles/
 Thumbs.db
 Desktop.ini
 
-# Local backups (contain private data)
+# Local backups and logs (contain private data)
 backups/
+*.dump
+logs/

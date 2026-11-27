@@ -4,17 +4,28 @@
 <section class="narrow-page">
   <div class="auth-card">
     <span class="eyebrow">Student demo account</span><h1>Create your account</h1>
-    <p class="muted">This local demo checks the ID format only. It does not verify enrollment. Use fictional details for testing.</p>
-    <form method="post" class="stack-form">
+    <p class="muted">This local demo checks the Student ID format only. It does not verify enrollment. Use fictional details for testing.</p>
+    <form method="post" class="stack-form" novalidate>
       {% csrf_token %}
       {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
-      {% for field in form %}
+      <div class="form-row-2">
+        <div>
+          <label>{{ form.first_name.label }}{{ form.first_name }}</label>
+          {% if form.first_name.errors %}<div class="field-error">{{ form.first_name.errors }}</div>{% endif %}
+        </div>
+        <div>
+          <label>{{ form.last_name.label }}{{ form.last_name }}</label>
+          {% if form.last_name.errors %}<div class="field-error">{{ form.last_name.errors }}</div>{% endif %}
+        </div>
+      </div>
+      {% for field in form %}{% if field.name != "first_name" and field.name != "last_name" %}
       <label>{{ field.label }}{{ field }}{% if field.help_text %}<small class="form-help">{{ field.help_text }}</small>{% endif %}</label>
       {% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}
-      {% endfor %}
+      {% endif %}{% endfor %}
+      <p class="form-help">Every new account is a <strong>Student</strong> account. Staff accounts are created by an administrator.</p>
       <button class="button button-primary button-full" type="submit">Create account</button>
     </form>
-    <p class="fine-print center">Staff accounts are created by an administrator.</p>
+    <p class="fine-print center">Already have an account? <a href="{% url 'login' %}">Log in</a></p>
   </div>
 </section>
 {% endblock %}

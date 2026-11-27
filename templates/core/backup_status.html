@@ -1,0 +1,31 @@
+{% extends "core/base.html" %}
+{% block title %}Backups · Find-IT{% endblock %}
+{% block content %}
+<section class="page-wrap">
+  <a class="back-link" href="{% url 'admin-dashboard' %}">← Admin dashboard</a>
+  <div class="page-heading"><div><span class="eyebrow">Administrator only · read-only</span><h1>Daily backups</h1><p class="muted">Backups are never downloadable from the website, and restoring is done on the computer running Find-IT with a command.</p></div></div>
+  <div class="staff-stats stat-grid-4">
+    <div class="stat-card {% if status.ok %}stat-resolved{% else %}stat-danger{% endif %}"><span>Last backup</span><strong class="stat-small">{% if status %}{% if status.ok %}Succeeded{% else %}Failed{% endif %}{% else %}None yet{% endif %}</strong>{% if status %}<small>{{ status.at|slice:":16"|cut:"T" }} UTC</small>{% endif %}</div>
+    <div class="stat-card"><span>Backups kept</span><strong>{{ backups|length }}</strong></div>
+    <div class="stat-card"><span>Retention</span><strong class="stat-small">{{ keep_days }} days</strong><small>newest is always kept</small></div>
+    <div class="stat-card"><span>Schedule</span><strong class="stat-small">Daily</strong><small>timer runner or Task Scheduler</small></div>
+  </div>
+  {% if status and not status.ok %}<div class="form-callout warning-callout"><strong>The last backup failed</strong><span>{{ status.message }}</span></div>{% endif %}
+  {% if not backups %}<div class="form-callout warning-callout"><strong>No backup yet</strong><span>Run <code>python manage.py backup_now</code>, and keep <code>start_findit.ps1</code> running or register the daily task (<code>scripts\register_backup_task.ps1</code>).</span></div>{% endif %}
+  <section class="panel accounts-panel"><h2>Available backups</h2>
+    <div class="table-scroll"><table class="accounts-table"><thead><tr><th>Name</th><th>Reason</th><th>Rows</th><th>Photos</th><th>Report files</th><th>Size</th></tr></thead><tbody>
+      {% for b in backups %}<tr><td><code>{{ b.name }}</code></td><td>{{ b.reason }}</td><td>{{ b.row_count }}</td><td>{{ b.media_files }}</td><td>{{ b.private_files|default:0 }}</td><td>{{ b.size_bytes|filesizeformat }}</td></tr>
+      {% empty %}<tr><td colspan="6" class="muted">No backups yet.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  <section class="panel accounts-panel"><h2>How to restore</h2>
+    <ol class="restore-steps">
+      <li>Stop the website and the timer runner.</li>
+      <li>List backups: <code>python manage.py backup_now --list</code></li>
+      <li>Restore: <code>python manage.py restore_backup NAME</code> and type <strong>RESTORE</strong>. A safety backup of the current state is made first.</li>
+      <li>Start the site again.</li>
+    </ol>
+    <p class="form-help">Full procedure: <code>docs/OPERATIONS.md</code>.</p>
+  </section>
+</section>
+{% endblock %}

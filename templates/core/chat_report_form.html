@@ -1,0 +1,14 @@
+{% extends "core/base.html" %}
+{% block title %}Report a conversation · Find-IT{% endblock %}
+{% block content %}
+<section class="narrow-page form-page">
+  <a class="back-link" href="{% url 'chat-room' conversation.pk %}">← Back to conversation</a>
+  <div class="page-heading compact-heading"><div><span class="eyebrow">Chat safety</span><h1>Report this conversation</h1><p class="muted">About <strong>{{ conversation.post.title }}</strong>. Your report goes to administrators and verified moderators only. The other person is not told who reported them.</p></div></div>
+  <form method="post" class="panel stack-form" novalidate>{% csrf_token %}
+    {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}<label>{{ field.label }}{{ field }}{% if field.help_text %}<small class="form-help">{{ field.help_text }}</small>{% endif %}</label>{% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}{% endfor %}
+    <div class="form-callout"><strong>What happens next</strong><span>You get a reference number and can follow the status under My reports. No account is restricted until an authorized reviewer looks at the report. If you are in danger, contact campus security right away.</span></div>
+    <div class="form-actions"><a class="button button-outline" href="{% url 'chat-room' conversation.pk %}">Cancel</a><button class="button button-danger" type="submit">Submit report</button></div>
+  </form>
+</section>
+{% endblock %}

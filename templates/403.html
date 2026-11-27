@@ -1,0 +1,9 @@
+{% extends "core/base.html" %}
+{% block title %}Not allowed · Find-IT{% endblock %}
+{% block content %}
+<section class="narrow-page"><div class="empty-state error-page">
+  <div class="empty-icon">⛔</div><span class="eyebrow">Error 403</span><h1>You don't have access to this page</h1>
+  <p>{{ message|default:"Your account is not allowed to open this page or perform this action." }}</p>
+  <div class="button-row center-row">{% if user.is_authenticated %}<a class="button button-primary" href="{% url 'home' %}">Go to Browse</a>{% else %}<a class="button button-primary" href="{% url 'login' %}">Log in</a>{% endif %}</div>
+</div></section>
+{% endblock %}

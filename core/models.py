@@ -1,10 +1,13 @@
+import os
+import secrets
 import uuid
 
 from django.conf import settings
+from django.core.files.storage import FileSystemStorage
 from django.db import models
 from django.utils import timezone
 
-from .validators import validate_photo
+from .validators import validate_photo, validate_profile_photo
 
 
 class Profile(models.Model):
@@ -16,6 +19,10 @@ class Profile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
     role = models.CharField(max_length=16, choices=Role.choices, default=Role.STUDENT)
     student_id = models.CharField(max_length=9, unique=True, null=True, blank=True)
+    contact_number = models.CharField(max_length=20, blank=True)
+    photo = models.ImageField(
+        upload_to="profile-photos/%Y/%m/", validators=[validate_profile_photo], blank=True, null=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -57,6 +64,13 @@ class ItemPost(models.Model):
         Category, on_delete=models.PROTECT, null=True, blank=True, related_name="posts",
         help_text="Required for new posts. Older rows may be blank until edited.",
     )
+    # Session 1 location: DORMANT. Kept in the database for the future campus-map
+    # (DOrSU map cut into segments). It is not shown, collected or filtered while
+    # settings.FINDIT_LOCATION_ENABLED is False (the default).
+    location = models.CharField(
+        max_length=120, blank=True,
+        help_text="Dormant future feature (campus map segment). Not collected while FINDIT_LOCATION_ENABLED is off.",
+    )
     title = models.CharField(max_length=120, blank=True)
     description = models.TextField(max_length=1600, blank=True)
     approximate_date = models.DateField(null=True, blank=True)
@@ -91,6 +105,10 @@ class ItemPost(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["is_archived", "-created_at"], name="itempost_browse_idx"),
+            models.Index(fields=["post_type", "status"], name="itempost_type_status_idx"),
+        ]
 
     def __str__(self):
         return self.display_title
@@ -354,6 +372,7 @@ class ChatMessage(models.Model):
 
     class Meta:
         ordering = ["sent_at"]
+        indexes = [models.Index(fields=["conversation", "sent_at"], name="chatmessage_conv_time_idx")]
         constraints = [
             models.UniqueConstraint(
                 fields=["conversation", "client_id"], condition=~models.Q(client_id=""),
@@ -430,35 +449,215 @@ class InAppNotification(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [models.Index(fields=["recipient", "read_at"], name="notification_unread_idx")]
+
+
+class ReportStatus(models.TextChoices):
+    """Shared status set for chat safety reports and general reports."""
+    SUBMITTED = "SUBMITTED", "Submitted"
+    UNDER_REVIEW = "UNDER_REVIEW", "Under Review"
+    RESOLVED = "RESOLVED", "Resolved"
+    DISMISSED = "DISMISSED", "Dismissed"
+
+
+OPEN_REPORT_STATUSES = (ReportStatus.SUBMITTED, ReportStatus.UNDER_REVIEW)
+CLOSED_REPORT_STATUSES = (ReportStatus.RESOLVED, ReportStatus.DISMISSED)
+
+
+def generate_reference(model, prefix):
+    """Unique, human-readable reference such as CSR-20261127-4F9A2C."""
+    while True:
+        reference = f"{prefix}-{timezone.localdate():%Y%m%d}-{secrets.token_hex(3).upper()}"
+        if not model.objects.filter(reference=reference).exists():
+            return reference
+
+
+def private_report_storage():
+    """Report attachments live outside MEDIA_ROOT and are only served through a permission-checked view."""
+    return FileSystemStorage(location=settings.PRIVATE_MEDIA_ROOT, base_url=None)
+
+
+def general_report_attachment_path(instance, filename):
+    extension = os.path.splitext(filename)[1].lower()[:6]
+    return f"report-attachments/{timezone.now():%Y/%m}/{uuid.uuid4().hex}{extension}"
 
 
 class AbuseReport(models.Model):
-    class Status(models.TextChoices):
-        PENDING = "PENDING", "Pending review"
-        RESOLVED = "RESOLVED", "Resolved"
-        ACTION_TAKEN = "ACTION_TAKEN", "Action taken"
+    """Chat safety report about a user or messages in a private conversation."""
+
+    Status = ReportStatus
 
     class Reason(models.TextChoices):
-        HARASSMENT = "HARASSMENT", "Harassment or abusive messages"
-        THREATS = "THREATS", "Threats or unsafe contact"
-        SPAM = "SPAM", "Spam or repeated unwanted contact"
-        FRAUD = "FRAUD", "False claim or suspected fraud"
-        OTHER = "OTHER", "Other concern"
+        HARASSMENT = "HARASSMENT", "Harassment or bullying"
+        THREATS = "THREATS", "Threats or intimidation"
+        SCAM = "SCAM", "Scam or suspicious behavior"
+        INAPPROPRIATE = "INAPPROPRIATE", "Inappropriate messages"
+        SPAM = "SPAM", "Spam"
+        OTHER = "OTHER", "Other"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    reference = models.CharField(max_length=24, unique=True, editable=False)
     reporter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="submitted_reports")
     conversation = models.ForeignKey(Conversation, on_delete=models.SET_NULL, null=True, blank=True, related_name="reports")
+    reported_message = models.ForeignKey(
+        ChatMessage, on_delete=models.SET_NULL, null=True, blank=True, related_name="reports",
+    )
     target_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="reports_about")
-    reason = models.CharField(max_length=16, choices=Reason.choices)
-    details = models.TextField(max_length=1500, blank=True)
-    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
-    admin_note = models.TextField(max_length=1500, blank=True)
+    reason = models.CharField("category", max_length=16, choices=Reason.choices)
+    details = models.TextField("description", max_length=1500, blank=True)
+    status = models.CharField(max_length=16, choices=ReportStatus.choices, default=ReportStatus.SUBMITTED, db_index=True)
+    admin_note = models.TextField("internal remarks", max_length=1500, blank=True)
+    assigned_reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_chat_reports",
+    )
     reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="reviewed_reports")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        ordering = ["status", "-created_at"]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.reference
+
+    def save(self, *args, **kwargs):
+        if not self.reference:
+            self.reference = generate_reference(AbuseReport, "CSR")
+        super().save(*args, **kwargs)
+
+    @property
+    def is_open(self):
+        return self.status in OPEN_REPORT_STATUSES
+
+
+class GeneralReport(models.Model):
+    """Item listing or system issue report, kept separate from chat safety reports."""
+
+    Status = ReportStatus
+
+    class Category(models.TextChoices):
+        SUSPICIOUS_LISTING = "SUSPICIOUS_LISTING", "Suspicious or fraudulent item listing"
+        INCORRECT_INFO = "INCORRECT_INFO", "Incorrect item information"
+        DUPLICATE = "DUPLICATE", "Duplicate item listing"
+        INAPPROPRIATE = "INAPPROPRIATE", "Inappropriate item content or image"
+        SCAM = "SCAM", "Suspected scam"
+        TECHNICAL = "TECHNICAL", "Technical or system issue"
+        OTHER = "OTHER", "Other"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    reference = models.CharField(max_length=24, unique=True, editable=False)
+    reporter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="general_reports")
+    category = models.CharField(max_length=20, choices=Category.choices)
+    post = models.ForeignKey(
+        ItemPost, on_delete=models.SET_NULL, null=True, blank=True, related_name="general_reports",
+        verbose_name="related listing",
+    )
+    description = models.TextField(max_length=2000)
+    attachment = models.FileField(
+        upload_to=general_report_attachment_path, storage=private_report_storage, blank=True, null=True,
+    )
+    status = models.CharField(max_length=16, choices=ReportStatus.choices, default=ReportStatus.SUBMITTED, db_index=True)
+    internal_remarks = models.TextField(max_length=1500, blank=True)
+    assigned_reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_general_reports",
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="reviewed_general_reports",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.reference
+
+    def save(self, *args, **kwargs):
+        if not self.reference:
+            self.reference = generate_reference(GeneralReport, "GRP")
+        super().save(*args, **kwargs)
+
+    @property
+    def is_open(self):
+        return self.status in OPEN_REPORT_STATUSES
+
+
+class ReportStatusEvent(models.Model):
+    """Review history for either kind of report. Notes are internal to reviewers."""
+
+    chat_report = models.ForeignKey(AbuseReport, on_delete=models.CASCADE, null=True, blank=True, related_name="events")
+    general_report = models.ForeignKey(GeneralReport, on_delete=models.CASCADE, null=True, blank=True, related_name="events")
+    previous_status = models.CharField(max_length=16, blank=True)
+    new_status = models.CharField(max_length=16, choices=ReportStatus.choices)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="report_events")
+    note = models.TextField(max_length=1500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def previous_status_label(self):
+        return dict(ReportStatus.choices).get(self.previous_status, self.previous_status)
+
+    class Meta:
+        ordering = ["created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(chat_report__isnull=False, general_report__isnull=True)
+                    | models.Q(chat_report__isnull=True, general_report__isnull=False)
+                ),
+                name="report_event_has_exactly_one_report",
+            )
+        ]
+
+
+class ModeratorVerification(models.Model):
+    """Administrator authorization for a Staff account to use moderator functions.
+
+    This is not a separate role and does not verify university employment.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        VERIFIED = "VERIFIED", "Verified"
+        REJECTED = "REJECTED", "Rejected"
+        REVOKED = "REVOKED", "Revoked"
+
+    staff = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="moderator_verification")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING, db_index=True)
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="moderator_requests_made",
+    )
+    requested_at = models.DateTimeField(default=timezone.now)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="moderator_decisions",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    remarks = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        ordering = ["status", "staff__first_name"]
+
+    def __str__(self):
+        return f"{self.staff} — {self.get_status_display()}"
+
+
+class ModeratorVerificationEvent(models.Model):
+    verification = models.ForeignKey(ModeratorVerification, on_delete=models.CASCADE, related_name="events")
+    previous_status = models.CharField(max_length=10, blank=True)
+    new_status = models.CharField(max_length=10, choices=ModeratorVerification.Status.choices)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="moderator_events")
+    remarks = models.CharField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    @property
+    def previous_status_label(self):
+        return dict(ModeratorVerification.Status.choices).get(self.previous_status, "Not requested")
 
 
 class SystemSettings(models.Model):
@@ -491,6 +690,9 @@ class StaffAuditLog(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
+    @property
+    def action_label(self):
+        return self.action.replace("_", " ").capitalize()
 
 
 def _new_turn_in_code():

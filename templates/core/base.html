@@ -24,11 +24,27 @@
       <a href="{% url 'messages' %}" class="nav-messages">Messages{% if priority_message_count %}<span class="priority-count" title="Needs your attention">{{ priority_message_count }}</span>{% endif %}</a>
       <a href="{% url 'notifications' %}" class="nav-notice">Updates{% if unread_notification_count %}<span class="notice-count">{{ unread_notification_count }}</span>{% endif %}</a>
       {% if current_role == "staff" or current_role == "admin" %}<a href="{% url 'staff-dashboard' %}">Staff</a>{% endif %}
-      {% if current_role == "admin" %}<a href="{% url 'admin-settings' %}">Admin</a>{% endif %}
+      {% if current_role == "admin" %}<a href="{% url 'admin-dashboard' %}">Admin</a>{% endif %}
+      <a href="{% url 'my-profile' %}">My profile</a>
     </nav>
     <div class="user-menu">
-      <span class="role-chip">{{ user.first_name|default:user.username }}</span>
-      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link-button" type="submit">Log out</button></form>
+      <details class="profile-menu" data-profile-menu>
+        <summary aria-label="Account menu for {{ user.first_name|default:user.username }}">
+          {% include "core/includes/avatar.html" with person=user size="sm" %}
+          <span class="role-chip">{{ user.first_name|default:user.username }}</span>
+          <span class="profile-caret" aria-hidden="true">▾</span>
+        </summary>
+        <div class="profile-dropdown" role="menu">
+          <div class="profile-dropdown-head"><strong>{% firstof user.get_full_name user.username %}</strong><small>{{ current_role_label }} · {{ user.username }}</small></div>
+          <a role="menuitem" href="{% url 'my-profile' %}">My profile</a>
+          <a role="menuitem" href="{% url 'edit-profile' %}">Edit profile</a>
+          <a role="menuitem" href="{% url 'change-password' %}">Change password</a>
+          <a role="menuitem" href="{% url 'my-reports' %}">My reports</a>
+          <a role="menuitem" href="{% url 'general-report-create' %}">Report a problem</a>
+          {% if current_role == "admin" %}<a role="menuitem" href="{% url 'admin-dashboard' %}">Admin dashboard</a>{% endif %}
+          <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link-button" role="menuitem" type="submit">Log out</button></form>
+        </div>
+      </details>
     </div>
     {% else %}
     <a class="button button-outline topbar-login" href="{% url 'login' %}">Log in</a>
@@ -57,8 +73,8 @@
       <form method="post" action="{% url 'login' %}" class="stack-form">
         {% csrf_token %}
         <input type="hidden" name="next" id="login-next" value="{{ request.get_full_path }}">
-        <label>School ID or staff username<input name="username" autocomplete="username" placeholder="2024-0122" required></label>
-        <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+        <label>Student ID or staff username<input name="username" autocomplete="username" placeholder="2024-0122" required></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" data-password-toggle="true" required></label>
         <button class="button button-primary button-full" type="submit">Log in and return</button>
       </form>
       <p class="fine-print">New student? <a href="{% url 'signup' %}">Create a demo account</a></p>

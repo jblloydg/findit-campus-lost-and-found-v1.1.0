@@ -5,17 +5,14 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from django.utils import timezone
 
 from .models import ChatMessage, ClaimApplication, Conversation, Profile
+from .permissions import can_review_private_chats
 
 
 def _staff_user(user):
+    """Only administrators and verified moderators may open other people's chats."""
     if not user.is_authenticated:
         return False
-    if user.is_superuser:
-        return True
-    try:
-        return user.profile.role in {Profile.Role.STAFF, Profile.Role.ADMIN}
-    except Profile.DoesNotExist:
-        return False
+    return can_review_private_chats(user)
 
 
 class ConversationConsumer(AsyncWebsocketConsumer):

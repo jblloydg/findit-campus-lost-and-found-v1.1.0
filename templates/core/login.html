@@ -4,17 +4,17 @@
 <section class="narrow-page auth-page">
   <div class="auth-card">
     <span class="eyebrow">Welcome back</span><h1>Log in to Find-IT</h1>
-    <p class="muted">You’ll return to the page or action you started.</p>
-    <form method="post" class="stack-form">
+    <p class="muted">Students sign in with their Student ID. Staff and administrators use their assigned username.</p>
+    <form method="post" class="stack-form" novalidate>
       {% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
       {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
-      <label>School ID or staff username<input name="username" autocomplete="username" required autofocus></label>
+      <label>{{ form.username.label }}{{ form.username }}</label>
       {% if form.username.errors %}<div class="field-error">{{ form.username.errors }}</div>{% endif %}
-      <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+      <label>{{ form.password.label }}{{ form.password }}</label>
       {% if form.password.errors %}<div class="field-error">{{ form.password.errors }}</div>{% endif %}
-      <button class="button button-primary button-full" type="submit">Log in and return</button>
+      <button class="button button-primary button-full" type="submit">Log in</button>
     </form>
-    <p class="fine-print center">New student? <a href="{% url 'signup' %}">Create a demo account</a></p>
+    <p class="fine-print center"><a href="{% url 'password_reset' %}">Forgot your password?</a> · New student? <a href="{% url 'signup' %}">Create a demo account</a></p>
   </div>
 </section>
 {% endblock %}

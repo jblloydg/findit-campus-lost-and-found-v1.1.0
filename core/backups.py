@@ -6,6 +6,7 @@ Git ignores) named by its UTC time, e.g. ``20261127-093000``:
     data.json      every database row, in Django's portable JSON format
                    (works on SQLite now and PostgreSQL later)
     media.zip      uploaded photos
+    private_media.zip  report attachments (session 1), if any
     manifest.json  when it was made, why, row counts, database engine
 
 Restoring replaces the whole database and the media folder with a backup.
@@ -102,6 +103,14 @@ def create_backup(reason="manual"):
                     if path.is_file():
                         archive.write(path, path.relative_to(media_root).as_posix())
                         media_files += 1
+        private_root = Path(settings.PRIVATE_MEDIA_ROOT) if getattr(settings, "PRIVATE_MEDIA_ROOT", None) else None
+        private_files = 0
+        if private_root and private_root.exists():
+            with zipfile.ZipFile(folder / "private_media.zip", "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                for path in private_root.rglob("*"):
+                    if path.is_file():
+                        archive.write(path, path.relative_to(private_root).as_posix())
+                        private_files += 1
         rows = json.loads(data_path.read_text(encoding="utf-8"))
         counts = {}
         for row in rows:
@@ -112,6 +121,7 @@ def create_backup(reason="manual"):
             "database_engine": connection.vendor,
             "row_count": len(rows),
             "media_files": media_files,
+            "private_files": private_files,
             "models": counts,
             "format": 1,
         }
@@ -173,5 +183,16 @@ def restore_backup(name):
                 if not str(target).startswith(str(media_root.resolve())):
                     raise ValueError(f"Unsafe path in media.zip: {member}")
             archive.extractall(media_root)
+    private_zip = folder / "private_media.zip"
+    private_root = Path(settings.PRIVATE_MEDIA_ROOT) if getattr(settings, "PRIVATE_MEDIA_ROOT", None) else None
+    if private_zip.exists() and private_root:
+        if private_root.exists():
+            shutil.rmtree(private_root)
+        private_root.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(private_zip) as archive:
+            for member in archive.namelist():
+                if not str((private_root / member).resolve()).startswith(str(private_root.resolve())):
+                    raise ValueError(f"Unsafe path in private_media.zip: {member}")
+            archive.extractall(private_root)
     _write_status(True, f"Restored {name}. Safety copy of the previous state: {safety.name}.", name)
     return safety

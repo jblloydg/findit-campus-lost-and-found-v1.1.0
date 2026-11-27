@@ -1,0 +1,40 @@
+{% extends "core/base.html" %}
+{% block title %}Moderator verification · Find-IT{% endblock %}
+{% block content %}
+<section class="page-wrap">
+  <a class="back-link" href="{% url 'admin-dashboard' %}">← Admin dashboard</a>
+  <div class="page-heading"><div><span class="eyebrow">Administrator only</span><h1>Moderator verification</h1><p class="muted">Give selected Staff accounts permission to review chat safety and general reports and private conversations. This is an authorization inside Find-IT only. It does not verify university employment.</p></div></div>
+  <div class="staff-stats stat-grid-5">
+    <a class="stat-card{% if status_filter == 'NONE' %} is-active{% endif %}" href="?status=NONE"><span>Not requested</span><strong>{{ unrequested_count }}</strong></a>
+    {% for value,label in status_choices %}<a class="stat-card{% if status_filter == value %} is-active{% endif %}" href="?status={{ value }}"><span>{{ label }}</span><strong>{% for key,count in counts.items %}{% if key == value %}{{ count }}{% endif %}{% endfor %}</strong></a>{% endfor %}
+  </div>
+  <section class="panel">
+    <div class="result-heading"><h2>Staff accounts{% if status_filter %} · filtered{% endif %}</h2>{% if status_filter %}<a class="text-action" href="{% url 'moderator-verifications' %}">Show all staff</a>{% endif %}</div>
+    {% for staff in staff_users %}
+    {% with v=staff.moderator_verification %}
+    <article class="moderator-row">
+      <div class="moderator-who">{% include "core/includes/avatar.html" with person=staff size="sm" %}<div><strong><a href="{% url 'edit-account' staff.pk %}">{% firstof staff.get_full_name staff.username %}</a></strong><small>{{ staff.username }} · {% if staff.is_active %}Active{% else %}Inactive{% endif %}</small></div></div>
+      <div class="moderator-status">
+        {% if v %}<span class="mod-status mod-status-{{ v.status|lower }}">{{ v.get_status_display }}</span><small>{% if v.decided_at %}{{ v.get_status_display }} by {% firstof v.reviewed_by.get_full_name v.reviewed_by.username "—" %} · {{ v.decided_at|date:"M j, Y · g:i a" }}{% else %}Requested by {% firstof v.requested_by.get_full_name v.requested_by.username "—" %} · {{ v.requested_at|date:"M j, Y · g:i a" }}{% endif %}</small>{% if v.remarks %}<small class="muted">“{{ v.remarks }}”</small>{% endif %}
+        {% else %}<span class="mod-status mod-status-none">Not requested</span>{% endif %}
+      </div>
+      <form method="post" action="{% url 'moderator-verification-action' staff.pk %}" class="moderator-actions">{% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <label class="sr-only" for="remarks-{{ staff.pk }}">Remarks</label><input id="remarks-{{ staff.pk }}" name="remarks" maxlength="500" placeholder="Remarks (optional)">
+        {% if not v or v.status == "REJECTED" or v.status == "REVOKED" %}<button class="button button-soft button-small" name="action" value="request" {% if not staff.is_active %}disabled title="Activate the account first"{% endif %}>Select for verification</button>{% endif %}
+        {% if v.status == "PENDING" %}<button class="button button-primary button-small" name="action" value="approve">Approve</button><button class="button button-outline button-small" name="action" value="reject">Reject</button>{% endif %}
+        {% if v.status == "VERIFIED" %}<button class="button button-danger button-small" name="action" value="revoke">Revoke</button>{% endif %}
+      </form>
+    </article>
+    {% endwith %}
+    {% empty %}<div class="empty-state compact-empty"><div class="empty-icon">◎</div><h3>No staff accounts here</h3><p>{% if status_filter %}No staff accounts have this verification status.{% else %}Create staff accounts under Accounts first.{% endif %}</p></div>{% endfor %}
+  </section>
+  <section class="panel accounts-panel" id="history"><div class="result-heading"><h2>Verification history</h2></div>
+    <div class="table-scroll"><table class="accounts-table"><thead><tr><th>When</th><th>Staff account</th><th>Change</th><th>Decided by</th><th>Remarks</th></tr></thead><tbody>
+      {% for event in history_page %}<tr><td>{{ event.created_at|date:"M j, Y · g:i a" }}</td><td>{% firstof event.verification.staff.get_full_name event.verification.staff.username %}</td><td>{{ event.previous_status_label }} → <span class="mod-status mod-status-{{ event.new_status|lower }}">{{ event.get_new_status_display }}</span></td><td>{% firstof event.actor.get_full_name event.actor.username "system" %}</td><td class="wrap-cell">{{ event.remarks|default:"—" }}</td></tr>
+      {% empty %}<tr><td colspan="5" class="muted">No verification decisions yet.</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% include "core/includes/pagination.html" with page_obj=history_page %}
+  </section>
+</section>
+{% endblock %}

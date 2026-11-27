@@ -2,10 +2,10 @@
 {% block title %}Private claim form · Find-IT{% endblock %}
 {% block content %}
 <section class="narrow-page">
-  <a class="back-link" href="{% url 'post-detail' claim.post.pk %}">← Back to listing</a>
+  <a class="back-link" href="{% if viewer_is_claimant %}{% url 'my-claims' %}{% else %}{% url 'post-detail' claim.post.pk %}{% endif %}">← {% if viewer_is_claimant %}My claims{% else %}Back to listing{% endif %}</a>
   <div class="claim-card">
     <span class="eyebrow">Private ownership verification</span><h1>{{ claim.post.display_title }}</h1>
-    <p class="muted">Only the finder and authorized staff can view this form. Do not share answers with other claimants.</p>
+    {% if viewer_is_claimant %}<p class="muted">These are the answers you submitted. Only you, the finder, and authorized staff can view them. They cannot be edited after submission.</p>{% else %}<p class="muted">Only the claimant, the finder, and authorized staff can view this form. Do not share answers with other claimants.</p>{% endif %}
     <div class="claim-review-meta"><strong>Applicant</strong><span>{{ claim.claimant.first_name|default:claim.claimant.username }}</span><strong>Submitted</strong><span>{{ claim.submitted_at|date:"M j, Y · g:i a" }}</span><strong>Status</strong><span>{{ claim.get_status_display }}</span></div>
     {% if claim.description %}<article class="answer-card claimant-description"><span>Claimant's description</span><p>{{ claim.description|linebreaksbr }}</p></article>{% endif %}
     <div class="answer-list">

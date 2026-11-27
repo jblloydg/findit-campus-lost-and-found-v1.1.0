@@ -16,23 +16,26 @@ from django.utils import timezone
 from PIL import Image, ImageDraw
 
 from core.models import (
-    Category, ClaimAnswer, ClaimApplication, Comment, Conversation, GuardhouseIntake, ItemPost, PostPhoto,
+    Category, ClaimAnswer, ModeratorVerification, ClaimApplication, Comment, Conversation, GuardhouseIntake, ItemPost, PostPhoto,
     PostShare, PostStatusEvent, Profile, QuestionTemplate, StatusChangeRequest,
 )
 from core.services import (
-    answer_chat_question, apply_post_questions, approve_claim, ask_chat_questions, create_claim_conversation,
+    answer_chat_question, apply_post_questions, change_moderator_verification, approve_claim, ask_chat_questions, create_claim_conversation,
     create_lost_post_conversation, decline_claim, record_status, turn_over_to_guardhouse,
 )
 
 User = get_user_model()
 
+# Fictional people with reserved example.com addresses (RFC 2606), never real students.
+# (username, first name, last name, email, role, password)
 ACCOUNTS = [
-    ("2026-0001", "Alex Finder", Profile.Role.STUDENT, "DemoFindIt!2026"),
-    ("2026-0002", "Jamie Claimant", Profile.Role.STUDENT, "DemoFindIt!2026"),
-    ("2026-0003", "Sam Second", Profile.Role.STUDENT, "DemoFindIt!2026"),
-    ("2026-0004", "Riley Third", Profile.Role.STUDENT, "DemoFindIt!2026"),
-    ("security.demo", "Campus Staff", Profile.Role.STAFF, "DemoStaff!2026"),
-    ("findit-admin", "Find-IT Admin", Profile.Role.ADMIN, "DemoAdmin!2026"),
+    ("2026-0001", "Alex", "Finder", "alex.finder@example.com", Profile.Role.STUDENT, "DemoFindIt!2026"),
+    ("2026-0002", "Jamie", "Claimant", "jamie.claimant@example.com", Profile.Role.STUDENT, "DemoFindIt!2026"),
+    ("2026-0003", "Sam", "Second", "sam.second@example.com", Profile.Role.STUDENT, "DemoFindIt!2026"),
+    ("2026-0004", "Riley", "Third", "riley.third@example.com", Profile.Role.STUDENT, "DemoFindIt!2026"),
+    ("security.demo", "Campus", "Guard", "security.demo@example.com", Profile.Role.STAFF, "DemoStaff!2026"),
+    ("moderator.demo", "Mika", "Moderator", "moderator.demo@example.com", Profile.Role.STAFF, "DemoStaff!2026"),
+    ("findit-admin", "Find-IT", "Admin", "findit-admin@example.com", Profile.Role.ADMIN, "DemoAdmin!2026"),
 ]
 
 
@@ -52,8 +55,10 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         users = {}
-        for username, name, role, password in ACCOUNTS:
-            user, created = User.objects.get_or_create(username=username, defaults={"first_name": name})
+        for username, first_name, last_name, email, role, password in ACCOUNTS:
+            user, created = User.objects.get_or_create(
+                username=username, defaults={"first_name": first_name, "last_name": last_name, "email": email},
+            )
             if created:
                 user.set_password(password)
                 user.save(update_fields=["password"])
@@ -69,6 +74,11 @@ class Command(BaseCommand):
             users[username] = User.objects.select_related("profile").get(pk=user.pk)
             self.stdout.write(f"{'Created' if created else 'Ready'} demo account: {username} ({role})")
 
+        # Session 1: an administrator-verified moderator (a Staff account with moderator authorization).
+        moderator = users["moderator.demo"]
+        if not ModeratorVerification.objects.filter(staff=moderator).exists():
+            change_moderator_verification(moderator, users["findit-admin"], "request", "Demo moderator.")
+            change_moderator_verification(moderator, users["findit-admin"], "approve", "Demo moderator.")
         alex, jamie, sam, riley = (users[k] for k in ("2026-0001", "2026-0002", "2026-0003", "2026-0004"))
         staff = users["security.demo"]
         with transaction.atomic():

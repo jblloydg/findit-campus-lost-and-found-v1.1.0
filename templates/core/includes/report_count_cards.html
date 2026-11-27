@@ -1,0 +1,7 @@
+<div class="staff-stats stat-grid-5">
+  <a class="stat-card" href="{% url list_url %}"><span>Total</span><strong>{{ counts.TOTAL }}</strong></a>
+  <a class="stat-card stat-submitted" href="{% url list_url %}?status=SUBMITTED"><span>Submitted</span><strong>{{ counts.SUBMITTED }}</strong></a>
+  <a class="stat-card stat-review" href="{% url list_url %}?status=UNDER_REVIEW"><span>Under Review</span><strong>{{ counts.UNDER_REVIEW }}</strong></a>
+  <a class="stat-card stat-resolved" href="{% url list_url %}?status=RESOLVED"><span>Resolved</span><strong>{{ counts.RESOLVED }}</strong></a>
+  <a class="stat-card" href="{% url list_url %}?status=DISMISSED"><span>Dismissed</span><strong>{{ counts.DISMISSED }}</strong></a>
+</div>

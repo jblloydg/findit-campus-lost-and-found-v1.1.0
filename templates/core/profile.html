@@ -1,0 +1,32 @@
+{% extends "core/base.html" %}
+{% block title %}My profile · Find-IT{% endblock %}
+{% block content %}
+<section class="narrow-page profile-page">
+  <div class="page-heading compact-heading">
+    <div><span class="eyebrow">Your account</span><h1>My profile</h1><p class="muted">Only you and authorized administrators can see these account details.</p></div>
+  </div>
+  <div class="panel profile-card">
+    <div class="profile-head">
+      {% include "core/includes/avatar.html" with person=profile_user size="lg" %}
+      <div class="profile-head-text">
+        <h2>{% firstof profile_user.get_full_name profile_user.username %}</h2>
+        <div class="card-meta"><span class="subtle-chip role-{{ profile.role }}">{{ profile.get_role_display }}</span><span class="subtle-chip {% if profile_user.is_active %}account-active{% else %}account-suspended{% endif %}">{% if profile_user.is_active %}Active{% else %}Suspended{% endif %}</span></div>
+      </div>
+    </div>
+    <dl class="profile-details">
+      <div><dt>Full name</dt><dd>{{ profile_user.get_full_name|default:"Not set" }}</dd></div>
+      <div><dt>{% if profile.student_id %}Student ID{% else %}Username{% endif %}</dt><dd>{{ profile.student_id|default:profile_user.username }}</dd></div>
+      <div><dt>Email address</dt><dd>{{ profile_user.email|default:"Not set" }}</dd></div>
+      <div><dt>Contact number</dt><dd>{{ profile.contact_number|default:"Not set" }}</dd></div>
+      <div><dt>Role</dt><dd>{{ profile.get_role_display }}</dd></div>
+      <div><dt>Registered</dt><dd>{{ profile_user.date_joined|date:"F j, Y" }}</dd></div>
+      <div><dt>Account status</dt><dd>{% if profile_user.is_active %}Active{% else %}Suspended{% endif %}</dd></div>
+    </dl>
+    <p class="form-help">Your Student ID or username, role, and account status cannot be changed here. Contact an administrator if one of them is wrong.</p>
+    <div class="form-actions">
+      <a class="button button-outline" href="{% url 'change-password' %}">Change password</a>
+      <a class="button button-primary" href="{% url 'edit-profile' %}">Edit profile</a>
+    </div>
+  </div>
+</section>
+{% endblock %}
