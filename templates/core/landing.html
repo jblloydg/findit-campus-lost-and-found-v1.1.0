@@ -22,7 +22,7 @@
     {% if login_form.non_field_errors %}<div class="form-errors">{{ login_form.non_field_errors }}</div>{% endif %}
     <form method="post" action="{% url 'login' %}" class="stack-form">
       {% csrf_token %}
-      <label>School ID or staff username<input name="username" autocomplete="username" placeholder="2024-0122" required></label>
+      <label>School ID or staff username<input name="username" autocomplete="username" placeholder="2020-0001" required></label>
       <label>Password<input name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required></label>
       <button class="button button-primary button-full" type="submit">Log in</button>
     </form>

@@ -73,7 +73,7 @@
       <form method="post" action="{% url 'login' %}" class="stack-form">
         {% csrf_token %}
         <input type="hidden" name="next" id="login-next" value="{{ request.get_full_path }}">
-        <label>Student ID or staff username<input name="username" autocomplete="username" placeholder="2024-0122" required></label>
+        <label>Student ID or staff username<input name="username" autocomplete="username" placeholder="2020-0001" required></label>
         <label>Password<input name="password" type="password" autocomplete="current-password" data-password-toggle="true" required></label>
         <button class="button button-primary button-full" type="submit">Log in and return</button>
       </form>
