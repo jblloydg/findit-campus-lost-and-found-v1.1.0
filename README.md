@@ -1,6 +1,6 @@
 # Find-IT v1.1.1
 
-Campus lost-and-found web app for Davao Oriental State University. This project follows the Padlet 5 design and the editable [Find-IT Figma file](https://www.figma.com/design/HlBvwAA17U86RADmkm56Fk/Find-IT-Padlet-5-System-Design).
+Campus lost-and-found web app for Davao Oriental State University.
 
 The local demo uses fictional accounts and a local SQLite database. It does not verify real campus enrollment. Do not add real student information to the demo.
 
