@@ -12,8 +12,13 @@
       <div class="detail-heading">
         <div class="card-meta"><span class="type-pill type-{{ post.post_type|lower }}">{{ post.get_post_type_display }}</span><span class="status-pill status-{{ post.status|lower }}">{{ post.get_status_display }}</span></div>
         <h1>{{ post.title }}</h1>
-        <p class="detail-author">Posted by <strong>{{ post.author.first_name|default:post.author.username }}</strong>{% if post.approximate_date %} · Approx. {{ post.approximate_date|date:"M j, Y" }}{% endif %}</p>
+        <p class="detail-author">Posted by <strong>{{ post.author.first_name|default:post.author.username }}</strong> · {{ post.created_at|date:"M j, Y" }}</p>
       </div>
+      <dl class="item-facts">
+        <div><dt>Current status</dt><dd>{{ post.get_status_display }}</dd></div>
+        <div><dt>Approx. date {{ post.get_post_type_display|lower }}</dt><dd>{% if post.approximate_date %}{{ post.approximate_date|date:"M j, Y" }}{% else %}<span class="not-given">Not provided</span>{% endif %}</dd></div>
+        <div><dt>Approx. time {{ post.get_post_type_display|lower }}</dt><dd>{% if post.approximate_time %}{{ post.approximate_time|time:"g:i A" }}{% else %}<span class="not-given">Not provided</span>{% endif %}</dd></div>
+      </dl>
       <div class="description-panel"><span class="eyebrow">Broad description</span><p>{{ post.description|linebreaksbr }}</p></div>
       {% if post.status == "TURNED_OVER" %}<div class="form-callout guardhouse-callout"><strong>At the guard house</strong><span>Online claims are closed. Pickup is handled in person within school premises.</span></div>{% endif %}
       {% if post.status == "RETURNED" and user_claim and post.returned_application_id == user_claim.pk %}
@@ -89,7 +94,7 @@
         {% if can_manage %}
           <hr>
           <span class="eyebrow">Manage listing</span>
-          <a class="button button-soft button-full" href="{% url 'edit-post' post.pk %}">Edit post</a>
+          {% if can_edit %}<a class="button button-soft button-full" href="{% url 'edit-post' post.pk %}">Edit post</a>{% endif %}
           {% if post.post_type == "FOUND" and post.status != "TURNED_OVER" and post.status != "CLAIMED" and post.status != "CLOSED" %}
           <form method="post" action="{% url 'turnover' post.pk %}">{% csrf_token %}<button class="button button-outline button-full" type="submit">Turn over to guard house</button></form>
           {% endif %}

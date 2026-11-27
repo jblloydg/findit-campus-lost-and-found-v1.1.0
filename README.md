@@ -35,7 +35,6 @@ The local demo uses fictional accounts and a local SQLite database. It does not 
 5. Create the local database tables and fictional demo accounts:
 
    ~~~powershell
-   python manage.py makemigrations core
    python manage.py migrate
    python manage.py seed_demo
    ~~~
@@ -104,7 +103,7 @@ The Figma file remains the editable visual source. The repository includes the o
 - [Entity relationship diagram](docs/reference/erd.png)
 - [Padlet 5 system-design document](docs/reference/system-design.docx)
 
-The first local setup generates the initial **core** database migration. Keep that generated migration in source control; later installs and hosted releases should run **python manage.py migrate** without regenerating migrations.
+The **core** database migrations are kept in source control under **core/migrations/**. Installs and hosted releases should run **python manage.py migrate**; create a new migration only when a model changes.
 
 ## License
 

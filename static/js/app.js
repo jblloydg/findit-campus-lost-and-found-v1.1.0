@@ -84,6 +84,70 @@ document.addEventListener("DOMContentLoaded", function () {
     updateQuestions();
   }
 
+  // Item photo: preview the chosen image before submitting, and check its
+  // type and size early. The server still validates every upload.
+  var photoInput = document.querySelector("[data-photo-input]");
+  var photoPreview = document.querySelector("[data-photo-preview]");
+  var photoError = document.querySelector("[data-photo-error]");
+  var photoCurrent = document.querySelector("[data-photo-current]");
+  var removePhoto = document.querySelector("input[name='remove_photo']");
+  var previewUrl = null;
+  var allowedPhotoTypes = ["image/jpeg", "image/png", "image/webp"];
+  var maxPhotoBytes = 5 * 1024 * 1024;
+
+  function showPhotoError(text) {
+    if (!photoError) return;
+    photoError.textContent = text || "";
+    photoError.hidden = !text;
+  }
+  function clearPreview() {
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+    if (photoPreview) photoPreview.hidden = true;
+    if (photoCurrent) photoCurrent.classList.remove("is-replaced");
+  }
+  if (photoInput && photoPreview) {
+    var previewImage = photoPreview.querySelector("img");
+    var previewName = photoPreview.querySelector("[data-photo-name]");
+    photoInput.addEventListener("change", function () {
+      clearPreview();
+      showPhotoError("");
+      var file = photoInput.files && photoInput.files[0];
+      if (!file) return;
+      if (file.type && allowedPhotoTypes.indexOf(file.type) === -1) {
+        showPhotoError("Upload a JPG, PNG, or WebP exterior photo.");
+        photoInput.value = "";
+        return;
+      }
+      if (file.size > maxPhotoBytes) {
+        showPhotoError("Choose an image smaller than 5 MB.");
+        photoInput.value = "";
+        return;
+      }
+      previewUrl = URL.createObjectURL(file);
+      previewImage.src = previewUrl;
+      if (previewName) previewName.textContent = file.name;
+      photoPreview.hidden = false;
+      if (photoCurrent) photoCurrent.classList.add("is-replaced");
+      if (removePhoto) removePhoto.checked = false;
+    });
+    var clearButton = photoPreview.querySelector("[data-photo-clear]");
+    if (clearButton) {
+      clearButton.addEventListener("click", function () {
+        photoInput.value = "";
+        clearPreview();
+      });
+    }
+  }
+  if (removePhoto && photoCurrent) {
+    removePhoto.addEventListener("change", function () {
+      photoCurrent.classList.toggle("is-removed", removePhoto.checked);
+      if (removePhoto.checked && photoInput && photoInput.value) {
+        photoInput.value = "";
+        clearPreview();
+      }
+    });
+  }
+
   var params = new URLSearchParams(window.location.search);
   if (params.get("resume") === "claim") {
     var claim = document.getElementById("claim-form");

@@ -6,16 +6,55 @@
   <div class="page-heading compact-heading"><div><span class="eyebrow">Share with campus</span><h1>{% if editing %}Edit your post{% else %}Create a post{% endif %}</h1><p class="muted">Broad details help people recognize the item without revealing private identifiers.</p></div></div>
   <form method="post" enctype="multipart/form-data" class="panel stack-form post-editor">
     {% csrf_token %}
-    {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
-    <label>Post type{{ form.post_type }}<small class="form-help">Choose Lost if you are looking for an item, or Found if you have an item.</small></label>
-    {% if form.post_type.errors %}<div class="field-error">{{ form.post_type.errors }}</div>{% endif %}
-    <label>Broad title{{ form.title }}</label>{% if form.title.errors %}<div class="field-error">{{ form.title.errors }}</div>{% endif %}
-    <label>Description{{ form.description }}<small class="form-help">Avoid exact serial numbers, hidden markings, or personal details.</small></label>{% if form.description.errors %}<div class="field-error">{{ form.description.errors }}</div>{% endif %}
-    <label>Approximate date{{ form.approximate_date }}</label>{% if form.approximate_date.errors %}<div class="field-error">{{ form.approximate_date.errors }}</div>{% endif %}
-    <label>Optional exterior photo{{ form.photo }}<small class="form-help">JPG, PNG, or WebP; up to 5 MB. Photograph the outside only.</small></label>{% if form.photo.errors %}<div class="field-error">{{ form.photo.errors }}</div>{% endif %}
+    {% if form.errors %}<div class="form-errors" role="alert"><strong>Please check the highlighted fields.</strong>{{ form.non_field_errors }}</div>{% endif %}
+
+    <fieldset class="form-section">
+      <legend class="form-section-title">Post type</legend>
+      <label>Post type{{ form.post_type }}<small class="form-help">Choose Lost if you are looking for an item, or Found if you have an item.</small></label>
+      {% if form.post_type.errors %}<div class="field-error">{{ form.post_type.errors }}</div>{% endif %}
+    </fieldset>
+
+    <fieldset class="form-section">
+      <legend class="form-section-title">Item information</legend>
+      <label>Broad title{{ form.title }}</label>{% if form.title.errors %}<div class="field-error">{{ form.title.errors }}</div>{% endif %}
+      <label>Description{{ form.description }}<small class="form-help">Avoid exact serial numbers, hidden markings, or personal details.</small></label>{% if form.description.errors %}<div class="field-error">{{ form.description.errors }}</div>{% endif %}
+      <div class="form-row-2">
+        <div>
+          <label>{{ form.approximate_date.label }}{{ form.approximate_date }}</label>
+          {% if form.approximate_date.errors %}<div class="field-error">{{ form.approximate_date.errors }}</div>{% endif %}
+        </div>
+        <div>
+          <label>{{ form.approximate_time.label }}{{ form.approximate_time }}<small class="form-help">{{ form.approximate_time.help_text }}</small></label>
+          {% if form.approximate_time.errors %}<div class="field-error">{{ form.approximate_time.errors }}</div>{% endif %}
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="form-section">
+      <legend class="form-section-title">Item photo</legend>
+      <p class="form-help photo-encourage">Adding a photo is optional, but highly encouraged to help identify the item.</p>
+      {% if editing and post.photo %}
+      <div class="photo-current" data-photo-current>
+        <img src="{{ post.photo.url }}" alt="Current photo of {{ post.title }}">
+        <div>
+          <strong>Current photo</strong>
+          <label class="checkbox-label">{{ form.remove_photo }} {{ form.remove_photo.label }}</label>
+          <small class="form-help">{{ form.remove_photo.help_text }}</small>
+        </div>
+      </div>
+      {% endif %}
+      <label>{% if editing and post.photo %}Replace photo{% else %}{{ form.photo.label }}{% endif %}{{ form.photo }}<small class="form-help">JPG, PNG, or WebP; up to 5 MB. Photograph the outside only.</small></label>
+      <div class="field-error" data-photo-error hidden></div>
+      {% if form.photo.errors %}<div class="field-error">{{ form.photo.errors }}</div>{% endif %}
+      <div class="photo-preview" data-photo-preview hidden>
+        <img alt="Preview of the selected photo">
+        <div><strong>Selected photo</strong><small class="form-help" data-photo-name></small><button class="text-action" type="button" data-photo-clear>Remove selection</button></div>
+      </div>
+    </fieldset>
+
     <div id="verification-questions" class="question-editor">
       <div><span class="eyebrow">Private ownership check</span><h2>Write five questions</h2><p class="muted">These questions are hidden from the public. Avoid clues already visible in the post or photo.</p></div>
-      {% for field in form %}{% if "question_" in field.name %}<label>{{ field.label }}{{ field }}</label>{% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}{% endif %}{% endfor %}
+      {% for field in form %}{% if "question_" in field.name %}<label>{{ field.label }}{{ field }}{% if field.help_text %}<small class="form-help">{{ field.help_text }}</small>{% endif %}</label>{% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}{% endif %}{% endfor %}
     </div>
     <div class="form-callout"><strong>Meet-up reminder</strong><span>Arrange any hand-off only within school premises.</span></div>
     <div class="form-actions"><a class="button button-outline" href="{% if post %}{% url 'post-detail' post.pk %}{% else %}{% url 'home' %}{% endif %}">Cancel</a><button class="button button-primary" type="submit">{% if editing %}Save changes{% else %}Publish post{% endif %}</button></div>

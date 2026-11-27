@@ -143,6 +143,10 @@ def post_detail(request, post_id):
         request.user.pk == post.author_id or is_staff_or_admin(request.user)
     )
     can_moderate = request.user.is_authenticated and is_staff_or_admin(request.user)
+    # Matches the rule in edit_post: only the author or an administrator.
+    can_edit = request.user.is_authenticated and (
+        request.user.pk == post.author_id or is_admin(request.user)
+    )
     can_interact = (
         not post.is_archived
         and post.status not in {
@@ -162,6 +166,7 @@ def post_detail(request, post_id):
         "claim_form": claim_form,
         "user_claim": user_claim,
         "can_manage": can_manage,
+        "can_edit": can_edit,
         "can_moderate": can_moderate,
         "can_interact": can_interact,
         "applications": applications,

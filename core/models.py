@@ -41,6 +41,12 @@ class ItemPost(models.Model):
     title = models.CharField(max_length=120)
     description = models.TextField(max_length=1600)
     approximate_date = models.DateField(null=True, blank=True)
+    # Optional like approximate_date, so posts made before this field existed
+    # stay valid. The create/edit form asks for it.
+    approximate_time = models.TimeField(
+        "approximate time lost/found", null=True, blank=True,
+        help_text="Enter the estimated time when the item was lost or found.",
+    )
     photo = models.ImageField(upload_to="item-photos/%Y/%m/", validators=[validate_photo], blank=True, null=True)
     status = models.CharField(max_length=24, choices=Status.choices, default=Status.OPEN)
     returned_application = models.ForeignKey(
@@ -73,6 +79,10 @@ class ItemPost(models.Model):
             and self.status in {self.Status.OPEN, self.Status.CLAIM_IN_PROGRESS}
             and not self.is_archived
         )
+
+    @property
+    def has_approximate_when(self):
+        return bool(self.approximate_date or self.approximate_time)
 
     @property
     def author_name(self):

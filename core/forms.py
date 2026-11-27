@@ -4,6 +4,8 @@ from django import forms
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.forms import AuthenticationForm, SetPasswordForm
 from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.utils import timezone
 
 from .models import ItemPost, SystemSettings, AbuseReport, Profile
 from .validators import validate_photo
@@ -104,17 +106,38 @@ class ItemPostForm(forms.ModelForm):
     question_3 = forms.CharField(max_length=240, required=False, label="Private question 3")
     question_4 = forms.CharField(max_length=240, required=False, label="Private question 4")
     question_5 = forms.CharField(max_length=240, required=False, label="Private question 5")
+    remove_photo = forms.BooleanField(
+        required=False,
+        label="Remove the current photo",
+        help_text="Leave unchecked to keep it. Choosing a new photo replaces it.",
+    )
 
     class Meta:
         model = ItemPost
-        fields = ["post_type", "title", "description", "approximate_date", "photo"]
+        fields = ["post_type", "title", "description", "approximate_date", "approximate_time", "photo"]
+        labels = {
+            "approximate_date": "Approximate date lost/found",
+            "approximate_time": "Approximate time lost/found",
+            "photo": "Item photo (optional)",
+        }
+        help_texts = {
+            "approximate_time": "Enter the estimated time when the item was lost or found.",
+        }
         widgets = {
             "post_type": forms.Select(attrs={"data-post-type": "true"}),
             "title": forms.TextInput(attrs={"placeholder": "A broad name, such as blue water bottle"}),
             "description": forms.Textarea(attrs={"rows": 4, "placeholder": "Describe visible details without revealing private identifiers."}),
             "approximate_date": forms.DateInput(attrs={"type": "date"}),
-            "photo": forms.ClearableFileInput(attrs={"accept": "image/jpeg,image/png,image/webp"}),
+            # format="%H:%M" so the browser time picker shows the saved value when editing.
+            "approximate_time": forms.TimeInput(attrs={"type": "time"}, format="%H:%M"),
+            # The template shows the current photo and the remove_photo checkbox,
+            # so the plain file input replaces Django's built-in "Clear" control.
+            "photo": forms.FileInput(attrs={"accept": "image/jpeg,image/png,image/webp", "data-photo-input": "true"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._original_photo_name = self.instance.photo.name if self.instance.pk and self.instance.photo else ""
 
     def clean_photo(self):
         photo = self.cleaned_data.get("photo")
@@ -124,6 +147,11 @@ class ItemPostForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        self._clean_approximate_when(cleaned)
+        new_upload = "photo" in self.files and not self.has_error("photo")
+        if cleaned.get("remove_photo") and not new_upload:
+            # False tells the model's FileField to clear its value.
+            cleaned["photo"] = False
         if cleaned.get("post_type") == ItemPost.Type.FOUND:
             questions = [cleaned.get(f"question_{n}", "").strip() for n in range(1, 6)]
             if any(not question for question in questions):
@@ -131,6 +159,36 @@ class ItemPostForm(forms.ModelForm):
             if len({q.casefold() for q in questions}) != 5:
                 raise ValidationError("Use five different private questions.")
         return cleaned
+
+    def _clean_approximate_when(self, cleaned):
+        date = cleaned.get("approximate_date")
+        time = cleaned.get("approximate_time")
+        if time and not date and not self.has_error("approximate_date"):
+            self.add_error("approximate_date", "Add the approximate date as well, so the time has a day to go with it.")
+            return
+        if not date:
+            return
+        now = timezone.localtime()
+        if date > now.date():
+            self.add_error("approximate_date", "The approximate date cannot be in the future.")
+        elif time and date == now.date() and time.replace(second=0, microsecond=0) > now.time().replace(second=0, microsecond=0):
+            self.add_error("approximate_time", "The approximate time cannot be later than now.")
+
+    def save(self, commit=True):
+        post = super().save(commit=commit)
+        old_name = self._original_photo_name
+        if commit and old_name and post.photo.name != old_name:
+            self._delete_replaced_photo(old_name)
+        return post
+
+    def _delete_replaced_photo(self, old_name):
+        storage = ItemPost._meta.get_field("photo").storage
+
+        def delete_file():
+            if not ItemPost.objects.filter(photo=old_name).exists():
+                storage.delete(old_name)
+
+        transaction.on_commit(delete_file)
 
     def question_texts(self):
         return [self.cleaned_data[f"question_{n}"].strip() for n in range(1, 6)]
