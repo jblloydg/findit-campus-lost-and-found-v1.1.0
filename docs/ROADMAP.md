@@ -15,7 +15,7 @@ The V2 list was written before v1.1.0. The four sessions already built most of i
 | V2-G | Guard-house intake form | ✅ Done (no condition notes) | Session 4 | Records received-by, time, method, handed-over-by. Condition notes left out by the owner's choice. |
 | V2-H | Daily backups and restore | ✅ Done | Sessions 4 + 1 | Session 4 engine; session 1 admin page, scheduler scripts, OPERATIONS.md. |
 | V2-I | School account verification | ❌ **Not done** | — | Only the `YYYY-NNNN` format is checked. Needs a decision on how DOrSU can confirm enrollment/employment (registrar list, school email, ID upload + staff check…). |
-| V2-J | Performance and uptime evidence | 🟡 Partly | Sessions 1 + 4 | Session 1 measured 15–181 ms medians locally on 3,000 posts (see `docs/handoffs/session-1.md` §D). `/health/` exists. Real proof needs hosting + an uptime monitor. |
+| V2-J | Performance and uptime evidence (→ v3.0.0) | 🟡 Partly | Sessions 1 + 4 | Session 1 measured 15–181 ms medians locally on 3,000 posts (see `docs/handoffs/session-1.md` §D). `/health/` exists. Real proof needs hosting + an uptime monitor. |
 
 **So the real remaining V2 work is V2-I and the hosted half of V2-J**, plus anything new the owner adds.
 
@@ -24,17 +24,17 @@ The V2 list was written before v1.1.0. The four sessions already built most of i
 | Version | Goal | Status |
 | --- | --- | --- |
 | **v1.1.0** | Sessions 1–4 integrated. Covers most V1 and V2 goals. | Released (`main`) |
-| **v1.1.1** | The rest of the V2 goals + bug fixes. | In progress on `release/1.1.1` |
+| **v1.1.1** | V2-I school account verification + bug fixes. | In progress on `release/1.1.1` |
 | **v2.0.0** | Interface overhaul. Lead: *(to be named)* | Planned |
 | **v2.1.0** | Fix bugs found in 2.0.0. | Planned |
-| **v3.0.0** | Online hosting: put the app on the internet, move SQLite → PostgreSQL. | Planned |
+| **v3.0.0** | Online hosting: put the app on the internet, move SQLite → PostgreSQL, all of V2-J (2.5-second and uptime evidence). | Planned |
 
 ### What v1.1.1 contains
 - **V2-I school account verification** (method still to be decided by the owner; must work locally, e.g. with the console email backend).
-- **V2-J, local half only:** repeatable 2.5-second measurements on Windows with the team's data. The uptime half moves to v3.0.0.
 - **Bug fixes** from testing v1.1.0 (`docs/BUG_REPORTS.md`).
 
 ### Moved to v3.0.0 (hosting)
+All of V2-J: 2.5-second performance measurements and uptime evidence, done on the hosted app.
 PostgreSQL testing and switch, hosting provider, HTTPS, real email (SMTP) for password resets and verification, Redis for live chat across processes, uptime monitor (rest of V2-J), scheduled backups on the server.
 
 ### Not scheduled yet
