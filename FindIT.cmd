@@ -9,11 +9,16 @@ setlocal
 title Find-IT v1.1.0
 cd /d "%~dp0"
 
-rem --- Find Python 3.12+ ----------------------------------------------------
+rem --- Find Python: prefer 3.13 / 3.14 (tested, officially supported by Django 5.2),
+rem     then any Python 3.12 or newer -------------------------------------------
 set "SYSPY="
-where py >nul 2>nul && py -3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)" >nul 2>nul && set "SYSPY=py -3"
+where py >nul 2>nul || goto :trypython
+for %%V in (3.13 3.14 3.12) do if not defined SYSPY py -%%V -c "import sys" >nul 2>nul && set "SYSPY=py -%%V"
+if not defined SYSPY py -3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)" >nul 2>nul && set "SYSPY=py -3"
+:trypython
 if not defined SYSPY where python >nul 2>nul && python -c "import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)" >nul 2>nul && set "SYSPY=python"
 if not defined SYSPY goto :nopython
+for /f "delims=" %%P in ('%SYSPY% -c "import sys; print(sys.version.split()[0])"') do echo Using Python %%P
 
 rem --- Virtual environment ---------------------------------------------------
 set "PY=%~dp0.venv\Scripts\python.exe"
