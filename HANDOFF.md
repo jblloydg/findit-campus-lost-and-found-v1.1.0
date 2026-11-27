@@ -8,6 +8,20 @@ All accounts, names and photos in the demo are fictional. The repository contain
 
 ---
 
+## Changes in 2.0.0 (branch `release/2.0.0`)
+
+Interface overhaul from the owner's 7 design pictures and the v2 doc. Full list:
+`docs/CHANGES_v2.0.0.md`; tests and speed: `docs/TEST_REPORT_v2.0.0.md`; how to build pages:
+`docs/design/V2_DESIGN_SYSTEM.md`.
+
+- New stylesheet `static/css/v2.css` + fonts in `static/vendor/fonts/`; `base.html` is now the sidebar
+  shell (signed in) or dark public header/footer (signed out). DES-001 monument photo behind pages.
+- Redone from the pictures: landing, log in, dashboard (/home/), post page, staff workspace, admin
+  dashboard, accounts (with "Deactivate this account?" pop-up). Every other page uses the new parts.
+- No migrations, no new packages, no field/id/data- attribute renamed.
+- Run exactly as before (HANDOFF §6). Check: sign in as `alex.finder@example.com` and `findit-admin`,
+  shrink the window below ~1000 px to see the ☰ menu.
+
 ## Changes in 1.1.1
 
 **Goal:** the last V2 item, **V2-I school account verification**, plus bug fixes and an easier way to run the app. Everything runs on one PC without hosting: emails are printed in the Find-IT window and copied to a **Test inbox** page instead of being sent.

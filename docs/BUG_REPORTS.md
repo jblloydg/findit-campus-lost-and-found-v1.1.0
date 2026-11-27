@@ -45,5 +45,11 @@ For a change request (CHG), replace Expected/Actual with **What to change** and 
 | BUG-007 | Chat media files stayed on disk after a chat/post was permanently deleted | Low | Claude (code check) | Fixed before release | fc5650d | |
 | BUG-002 | A damaged `claim_id` or student value crashed "Mark returned" and guard-house pickup (error 500) | Low (needs a tampered form) | Claude (form fuzzing) | Fixed (on release/1.1.1) | 115cd90 | Now 404 / clear message |
 | BUG-003 | An impossible date such as 2026-99-99 in report filters crashed /staff/reports/ and /staff/general-reports/ (error 500) | Low | Claude (address fuzzing) | Fixed (on release/1.1.1) | e221ac3 | Invalid dates are ignored, like Browse |
+| DES-002 | v2.0.0 interface overhaul: design system, sidebar shell, landing, log in, dashboard, admin dashboard, staff workspace, confirm pop-up | High (v2.0.0 goal) | Owner (7 design pictures + v2 doc) | Fixed (on release/2.0.0) | 90d1b66 | See docs/CHANGES_v2.0.0.md |
+| DES-003 | v2.0.0 polish: chat, create post, accounts, report pages | Medium | Owner | Fixed (on release/2.0.0) | d78f94d | |
+| BUG-v2-01 | Leftover merge text `@@ -186,6 …` inside app.css broke the CSS rule after it | Low | Claude (code review) | Fixed (on release/2.0.0) | 4f7f3c4 | |
+| BUG-v2-02 | Browse page showed a `<<<<<<< HEAD` merge marker as text on every card | Medium | Claude (code review) | Fixed (on release/2.0.0) | 90d1b66 | |
+| BUG-v2-03 | Post page: empty round category link (`get_category_display` on a ForeignKey, linked by name) and location shown while dormant | Medium | Claude (owner's screenshot) | Fixed (on release/2.0.0) | 90d1b66 | Now "More in <category>"; location only with FINDIT_LOCATION_ENABLED=1 |
+| BUG-v2-04 | "Jump to latest" always visible in chats: CSS display rule beat the `hidden` attribute | Low | Claude (browser test) | Fixed (on release/2.0.0) | d78f94d | `[hidden]` now always hides |
 
 Status values: Open → Confirmed → Fixed (on release/1.1.1) → Verified by tester → Released in v1.1.1.
