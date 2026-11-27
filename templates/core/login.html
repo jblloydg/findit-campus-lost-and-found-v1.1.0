@@ -2,8 +2,7 @@
 {% block bg_variant %}campus-bg--hero{% endblock %}
 {% block title %}Log in · Find-IT{% endblock %}
 {% block content %}
-<section class="narrow-page auth-page">
-  <div class="auth-card">
+<section class="auth-page"><div class="auth-shell">{% include "core/includes/auth_banner.html" %}<div class="auth-body">
     <span class="eyebrow">Welcome back</span><h1>Log in to Find-IT</h1>
     <p class="muted">Students sign in with their <strong>email address</strong> (or their Student ID once it is ✔ Verified). Staff and administrators use their assigned username.</p>
     <form method="post" class="stack-form" novalidate>
@@ -17,5 +16,5 @@
     </form>
     <p class="fine-print center"><a href="{% url 'password_reset' %}">Forgot your password?</a> · New student? <a href="{% url 'signup' %}">Create a demo account</a></p>
   </div>
-</section>
+</div></section>
 {% endblock %}

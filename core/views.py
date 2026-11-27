@@ -249,7 +249,17 @@ def home(request):
         if date_to:
             posts = posts.filter(item_date__lte=date_to)
     page_obj = _paginate(request, posts, 24)  # session 1: pagination
+    # v2.0.0 dashboard tiles (read-only counts for the signed-in person).
+    dashboard = {
+        "active_posts": ItemPost.objects.filter(author=request.user, is_archived=False).exclude(
+            status__in=[ItemPost.Status.CLOSED, ItemPost.Status.CLAIMED, ItemPost.Status.RETURNED]
+        ).count(),
+        "open_claims": ClaimApplication.objects.filter(
+            claimant=request.user, status__in=[ClaimApplication.Status.SUBMITTED, ClaimApplication.Status.APPROVED]
+        ).count(),
+    }
     return render(request, "core/home.html", {
+        "dashboard": dashboard,
         "posts": page_obj,
         "page_obj": page_obj,
         "querystring": _querystring_without_page(request),
@@ -448,7 +458,10 @@ def _posting_rate_limited(user):
 
 @login_required
 def create_post(request):
-    form = ItemPostForm(request.POST or None, request.FILES or None)
+    # v2.0.0: "Report lost item" / "Report found item" open the form with the type already chosen.
+    preset_type = request.GET.get("type", "")
+    initial = {"post_type": preset_type} if preset_type in {ItemPost.Type.LOST, ItemPost.Type.FOUND} else None
+    form = ItemPostForm(request.POST or None, request.FILES or None, initial=initial)
     if request.method == "POST":
         daily_limit = posting_limit_message(request.user)
         if daily_limit:

@@ -1,30 +1,57 @@
 {% extends "core/base.html" %}
-{% block title %}Browse items · Find-IT{% endblock %}
+{% block title %}{% if selected_type == "LOST" %}Lost items{% elif selected_type == "FOUND" %}Found items{% else %}Dashboard{% endif %} · Find-IT{% endblock %}
 {% block content %}
-<section class="page-wrap page-heading">
-  <div>
-    <span class="eyebrow">Campus item board</span>
-    <h1>Find what’s missing.</h1>
-    <p class="muted">Keep descriptions broad. Verify ownership privately.</p>
-  </div>
-  <a class="button button-primary" href="{% url 'create-post' %}">＋ Create post</a>
-</section>
-<section class="page-wrap">
-  <form class="search-panel" method="get" action="{% url 'home' %}">
+<div class="page-wrap">
+  {% if selected_type == "LOST" or selected_type == "FOUND" %}
+  <section class="page-heading">
+    <div>
+      <span class="eyebrow">Campus item board</span>
+      <h1>{% if selected_type == "LOST" %}Lost <em>items</em>{% else %}Found <em>items</em>{% endif %}</h1>
+      <p>{% if selected_type == "LOST" %}Things people are looking for. If you found one, open it and help verify the owner privately.{% else %}Things people have found on campus. If one is yours, open it and answer the private ownership questions.{% endif %}</p>
+    </div>
+    <a class="button button-primary" href="{% url 'create-post' %}?type={{ selected_type }}">{% include "core/includes/icon.html" with name="plus-circle" %}Report {{ selected_type|lower }} item</a>
+  </section>
+  {% else %}
+  <section class="dash-banner">
+    <span class="eyebrow">{% if current_is_admin %}Administrator{% elif current_is_staff %}Staff{% else %}Student{% endif %} dashboard</span>
+    <h1>Hello, {{ user.first_name|default:user.username }}.</h1>
+    <p>Lost something or found something? Post it here, then verify ownership privately and hand it over on campus.</p>
+    <div class="button-row">
+      <a class="button button-light" href="{% url 'create-post' %}?type=LOST">{% include "core/includes/icon.html" with name="plus-circle" %}Report lost item</a>
+      <a class="button button-ghost-light" href="{% url 'create-post' %}?type=FOUND">{% include "core/includes/icon.html" with name="file-plus" %}Report found item</a>
+    </div>
+  </section>
+
+  <section class="stat-tiles" aria-label="Your activity">
+    <a class="stat-tile" href="{% url 'my-posts' %}"><span class="stat-tile-icon">{% include "core/includes/icon.html" with name="folder" %}</span><span><strong>{{ dashboard.active_posts }}</strong><span>Active posts</span></span></a>
+    <a class="stat-tile" href="{% url 'my-claims' %}"><span class="stat-tile-icon">{% include "core/includes/icon.html" with name="clipboard" %}</span><span><strong>{{ dashboard.open_claims }}</strong><span>Open claims</span></span></a>
+    <a class="stat-tile" href="{% url 'messages' %}"><span class="stat-tile-icon is-alert">{% include "core/includes/icon.html" with name="message" %}</span><span><strong>{{ priority_message_count }}</strong><span>Messages need you</span></span></a>
+    <a class="stat-tile" href="{% url 'notifications' %}"><span class="stat-tile-icon is-alert">{% include "core/includes/icon.html" with name="bell" %}</span><span><strong>{{ unread_notification_count }}</strong><span>Unread updates</span></span></a>
+  </section>
+  {% endif %}
+
+  <nav class="segmented" aria-label="Show posts">
+    <a href="{% url 'home' %}" class="{% if not selected_type %}is-active{% endif %}"{% if not selected_type %} aria-current="page"{% endif %}>All posts</a>
+    <a href="{% url 'home' %}?type=LOST" class="{% if selected_type == 'LOST' %}is-active{% endif %}"{% if selected_type == 'LOST' %} aria-current="page"{% endif %}>Lost</a>
+    <a href="{% url 'home' %}?type=FOUND" class="{% if selected_type == 'FOUND' %}is-active{% endif %}"{% if selected_type == 'FOUND' %} aria-current="page"{% endif %}>Found</a>
+  </nav>
+
+  <form class="search-panel{% if location_enabled %} has-location{% endif %}" method="get" action="{% url 'home' %}">
     <label class="search-field"><span aria-hidden="true">⌕</span><input type="search" name="q" value="{{ q }}" placeholder="Search by title, description or category" aria-label="Search listings"></label>
     <label class="select-field"><span class="sr-only">Type</span><select name="type"><option value="">All posts</option><option value="LOST" {% if selected_type == "LOST" %}selected{% endif %}>Lost</option><option value="FOUND" {% if selected_type == "FOUND" %}selected{% endif %}>Found</option></select></label>
     <label class="select-field"><span class="sr-only">Category</span><select name="category"><option value="">All categories</option>{% for category in categories %}<option value="{{ category.pk }}" {% if selected_category == category.pk|stringformat:"d" %}selected{% endif %}>{{ category.name }}</option>{% endfor %}</select></label>
     <label class="select-field"><span class="sr-only">Status</span><select name="status"><option value="">Any status</option>{% for value,label in status_choices %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
     {% if location_enabled %}<label class="select-field location-field"><span class="sr-only">Location</span><input type="text" name="location" value="{{ location }}" maxlength="120" placeholder="Any location" aria-label="Filter by location"></label>{% endif %}
-    <button class="button button-outline" type="submit">Search</button>
+    <button class="button button-primary" type="submit">{% include "core/includes/icon.html" with name="search" %}Search</button>
     <div class="filter-row">
       <span class="filter-label">Item date</span>
       <label class="date-field"><span>From</span><input type="date" name="date_from" value="{{ date_from }}" aria-label="Item date from"></label>
       <label class="date-field"><span>To</span><input type="date" name="date_to" value="{{ date_to }}" aria-label="Item date to"></label>
-      <small class="muted filter-hint">For one day, use the same date in both.</small>
+      <small class="filter-hint">For one day, use the same date in both.</small>
       {% if filters_active %}<a class="text-action filter-clear" href="{% url 'home' %}">Clear filters</a>{% endif %}
     </div>
   </form>
+
   <div class="result-heading"><h2>Recent listings</h2><span class="muted">{{ page_obj.paginator.count }} found</span></div>
   <div class="post-grid">
     {% for post in posts %}
@@ -33,11 +60,13 @@
         {% with cover=post.cover_photo %}{% if cover %}<img class="post-photo" src="{{ cover.preview_url }}" alt="Photo of {{ post.display_title }}" loading="lazy" decoding="async">{% else %}<div class="post-photo photo-placeholder"><span aria-hidden="true">◈</span><small>No photo added</small></div>{% endif %}{% endwith %}
         {% if post.photos.all|length > 1 %}<span class="photo-count-badge">{{ post.photos.all|length }} photos</span>{% endif %}
         <div class="post-card-body">
-          <div class="card-meta"><span class="type-pill type-{{ post.post_type|lower }}">{{ post.get_post_type_display }}</span>{% if post.category %}<span class="subtle-chip">{{ post.category.name }}</span>{% endif %}<span class="status-dot">{{ post.get_status_display }}</span></div>
+          <div class="card-meta"><span class="type-pill type-{{ post.post_type|lower }}">{{ post.get_post_type_display }}</span><span class="status-dot status-{{ post.status|lower }}">{{ post.get_status_display }}</span></div>
           <h3>{{ post.display_title }}</h3>
           {% if location_enabled and post.location %}<p class="item-tags"><span class="location-tag">📍 {{ post.location }}</span></p>{% endif %}
-          <p class="clamp-3">{{ post.description }}</p>
-          <div class="post-card-foot"><span>{{ post.author.first_name|default:post.author.username }}</span>{% if post.has_approximate_when %}<span>{% if post.approximate_date %}{{ post.approximate_date|date:"M j, Y" }}{% endif %}{% if post.approximate_date and post.approximate_time %} · {% endif %}{% if post.approximate_time %}{{ post.approximate_time|time:"g:i A" }}{% endif %}</span>{% endif %}</div>
+          {% if post.description %}<p class="clamp-2">{{ post.description }}</p>{% endif %}
+          {% if post.category %}<p class="item-tags card-category"><span class="subtle-chip">{{ post.category.name }}</span></p>{% endif %}
+          <span class="card-spacer"></span>
+          <div class="post-card-foot"><span>{{ post.author.first_name|default:post.author.username }}</span>{% if post.has_approximate_when %}<span>{% if post.approximate_date %}{{ post.approximate_date|date:"M j, Y" }}{% endif %}{% if post.approximate_date and post.approximate_time %} · {% endif %}{% if post.approximate_time %}{{ post.approximate_time|time:"g:i A" }}{% endif %}</span>{% else %}<span>{{ post.created_at|date:"M j, Y" }}</span>{% endif %}</div>
         </div>
       </a>
     </article>
@@ -50,5 +79,5 @@
     {% endfor %}
   </div>
   {% include "core/includes/pagination.html" %}
-</section>
+</div>
 {% endblock %}

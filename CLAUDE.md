@@ -70,6 +70,6 @@ Demo sign-ins: students by email, e.g. `alex.finder@example.com` (or verified ID
 - `docs/CHANGES_v1.1.1.md`, `docs/TEST_REPORT_v1.1.1.md`, `tools/testing/` (bug-hunt and performance scripts)
 - `core/verification.py` (v1.1.1 verification, Student IDs, ID reviews, limits, report & block), `core/auth.py` (sign-in rules), `core/mail.py` (Test inbox)
 - `core/matching.py` (LOST↔FOUND matches), `core/backups.py`, `core/idempotency.py` (duplicate-submit protection), `core/security.py` (sign-in lockout)
-- `templates/core/`, `static/css/app.css`, `static/js/app.js`, `chat.js`, `scan.js`
+- `templates/core/` (shell: `base.html`, `includes/sidebar.html`, `includes/icon.html`), `static/css/findit.css` (v2.0.0 look, replaced `app.css`), `static/css/campus-bg.css` (monument background), `static/js/app.js`, `chat.js`, `scan.js`
 - `core/tests/` (sessions 1–4 tests), `docs/handoffs/session-N.md` (each session's original handoff), `docs/OPERATIONS.md`
 - Figma: https://www.figma.com/design/HlBvwAA17U86RADmkm56Fk — Starter plan (3 pages max); new screens live in the "New Features (Nov 2026)" section on page "01 — Screens & Overview".

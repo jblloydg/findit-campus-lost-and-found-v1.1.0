@@ -1,0 +1,64 @@
+{% with nav=request.resolver_match.url_name kind=request.GET.type %}
+<aside class="sidebar" id="app-sidebar" aria-label="Main menu">
+  <div class="sidebar-head">
+    <a class="brand" href="{% url 'home' %}">
+      <span class="brand-mark" aria-hidden="true">F</span>
+      <span><strong>Find-<em>IT</em></strong><small>DOrSU lost &amp; found</small></span>
+    </a>
+    <button type="button" class="icon-button sidebar-close" data-drawer-close aria-label="Close menu">{% include "core/includes/icon.html" with name="x" %}</button>
+  </div>
+  <nav class="sidebar-nav">
+    <p class="nav-section">Overview</p>
+    <a class="nav-link{% if nav == 'home' and not kind %} is-active{% endif %}" href="{% url 'home' %}"{% if nav == 'home' and not kind %} aria-current="page"{% endif %}>{% include "core/includes/icon.html" with name="dashboard" %}Dashboard</a>
+    <a class="nav-link{% if nav == 'home' and kind == 'LOST' %} is-active{% endif %}" href="{% url 'home' %}?type=LOST"{% if nav == 'home' and kind == 'LOST' %} aria-current="page"{% endif %}>{% include "core/includes/icon.html" with name="lost" %}Lost items</a>
+    <a class="nav-link{% if nav == 'home' and kind == 'FOUND' %} is-active{% endif %}" href="{% url 'home' %}?type=FOUND"{% if nav == 'home' and kind == 'FOUND' %} aria-current="page"{% endif %}>{% include "core/includes/icon.html" with name="found" %}Found items</a>
+
+    <p class="nav-section">Report an item</p>
+    <a class="nav-link{% if nav == 'create-post' and kind == 'LOST' %} is-active{% endif %}" href="{% url 'create-post' %}?type=LOST">{% include "core/includes/icon.html" with name="plus-circle" %}Report lost item</a>
+    <a class="nav-link{% if nav == 'create-post' and kind != 'LOST' %} is-active{% endif %}" href="{% url 'create-post' %}?type=FOUND">{% include "core/includes/icon.html" with name="file-plus" %}Report found item</a>
+
+    <p class="nav-section">My activity</p>
+    <a class="nav-link{% if nav == 'my-posts' %} is-active{% endif %}" href="{% url 'my-posts' %}">{% include "core/includes/icon.html" with name="folder" %}My posts</a>
+    <a class="nav-link{% if nav == 'my-claims' %} is-active{% endif %}" href="{% url 'my-claims' %}">{% include "core/includes/icon.html" with name="clipboard" %}My claims</a>
+    <a class="nav-link nav-messages{% if nav == 'messages' or nav == 'chat-room' %} is-active{% endif %}" href="{% url 'messages' %}">{% include "core/includes/icon.html" with name="message" %}Messages{% if priority_message_count %}<span class="priority-count" title="Needs your attention">{{ priority_message_count }}</span>{% endif %}</a>
+    <a class="nav-link nav-notice{% if nav == 'notifications' %} is-active{% endif %}" href="{% url 'notifications' %}">{% include "core/includes/icon.html" with name="bell" %}Notifications{% if unread_notification_count %}<span class="notice-count">{{ unread_notification_count }}</span>{% endif %}</a>
+    <a class="nav-link{% if nav == 'my-reports' or nav == 'general-report-create' %} is-active{% endif %}" href="{% url 'my-reports' %}">{% include "core/includes/icon.html" with name="flag" %}My reports</a>
+
+    {% if current_is_staff %}
+    <p class="nav-section">Staff</p>
+    <a class="nav-link{% if nav == 'staff-dashboard' %} is-active{% endif %}" href="{% url 'staff-dashboard' %}">{% include "core/includes/icon.html" with name="shield" %}Staff workspace</a>
+    <a class="nav-link{% if nav == 'staff-scan' %} is-active{% endif %}" href="{% url 'staff-scan' %}">{% include "core/includes/icon.html" with name="scan" %}Scan turn-in QR</a>
+    <a class="nav-link{% if nav == 'walk-in' %} is-active{% endif %}" href="{% url 'walk-in' %}">{% include "core/includes/icon.html" with name="walk-in" %}Walk-in item</a>
+    {% if current_can_review %}
+    <a class="nav-link{% if nav == 'admin-reports' %} is-active{% endif %}" href="{% url 'admin-reports' %}">{% include "core/includes/icon.html" with name="alert" %}Chat &amp; item reports</a>
+    <a class="nav-link{% if nav == 'general-reports' %} is-active{% endif %}" href="{% url 'general-reports' %}">{% include "core/includes/icon.html" with name="report" %}System reports</a>
+    <a class="nav-link{% if nav == 'id-reviews' %} is-active{% endif %}" href="{% url 'id-reviews' %}">{% include "core/includes/icon.html" with name="id-card" %}ID reviews</a>
+    {% endif %}
+    {% endif %}
+
+    {% if current_is_admin %}
+    <p class="nav-section">Administrator</p>
+    <a class="nav-link{% if nav == 'admin-dashboard' %} is-active{% endif %}" href="{% url 'admin-dashboard' %}">{% include "core/includes/icon.html" with name="dashboard" %}Admin dashboard</a>
+    <a class="nav-link{% if nav == 'staff-accounts' %} is-active{% endif %}" href="{% url 'staff-accounts' %}">{% include "core/includes/icon.html" with name="users" %}Accounts</a>
+    <a class="nav-link{% if nav == 'moderator-verifications' %} is-active{% endif %}" href="{% url 'moderator-verifications' %}">{% include "core/includes/icon.html" with name="user-check" %}Moderator verification</a>
+    <a class="nav-link{% if nav == 'admin-categories' %} is-active{% endif %}" href="{% url 'admin-categories' %}">{% include "core/includes/icon.html" with name="tag" %}Categories</a>
+    <a class="nav-link{% if nav == 'admin-questions' or nav == 'admin-question-new' %} is-active{% endif %}" href="{% url 'admin-questions' %}">{% include "core/includes/icon.html" with name="help" %}Question bank</a>
+    <a class="nav-link{% if nav == 'admin-settings' %} is-active{% endif %}" href="{% url 'admin-settings' %}">{% include "core/includes/icon.html" with name="settings" %}System settings</a>
+    <a class="nav-link{% if nav == 'backup-status' %} is-active{% endif %}" href="{% url 'backup-status' %}">{% include "core/includes/icon.html" with name="database" %}Backups</a>
+    {% endif %}
+
+    {% if test_inbox_enabled %}
+    <p class="nav-section">Local testing</p>
+    <a class="nav-link{% if nav == 'test-inbox' %} is-active{% endif %}" href="{% url 'test-inbox' %}" title="Emails Find-IT printed instead of sending (local test only)">{% include "core/includes/icon.html" with name="mail" %}Test inbox</a>
+    {% endif %}
+  </nav>
+  <div class="sidebar-foot">
+    <a class="sidebar-user" href="{% url 'my-profile' %}">
+      {% include "core/includes/avatar.html" with person=user size="sm" %}
+      <span><strong>{% firstof user.get_full_name user.username %}</strong><small>{{ current_role_label }}</small></span>
+    </a>
+    <p class="sidebar-note">{% include "core/includes/icon.html" with name="pin" %}<span>Hand-offs happen on school premises only.</span></p>
+  </div>
+</aside>
+<div class="drawer-scrim" data-drawer-close></div>
+{% endwith %}

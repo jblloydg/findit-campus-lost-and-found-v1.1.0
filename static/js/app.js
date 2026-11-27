@@ -72,15 +72,18 @@ document.addEventListener("DOMContentLoaded", function () {
       seen[id] = true;
       try { window.sessionStorage.setItem(seenKey, JSON.stringify(Object.keys(seen).slice(-200))); } catch (e) {}
     };
+    // v2.0.0: the same count can show in the sidebar and in the top bar, so update every copy.
     var setBadge = function (selector, navSelector, count) {
-      var badge = document.querySelector(selector);
-      var nav = document.querySelector(navSelector);
-      if (!badge && nav && count > 0) {
-        badge = document.createElement("span");
-        badge.className = selector.slice(1);
-        nav.appendChild(badge);
+      var navs = document.querySelectorAll(navSelector);
+      for (var n = 0; n < navs.length; n++) {
+        if (!navs[n].querySelector(selector) && count > 0) {
+          var made = document.createElement("span");
+          made.className = selector.slice(1);
+          navs[n].appendChild(made);
+        }
       }
-      if (badge) { badge.textContent = String(count); badge.hidden = count <= 0; }
+      var badges = document.querySelectorAll(selector);
+      for (var b = 0; b < badges.length; b++) { badges[b].textContent = String(count); badges[b].hidden = count <= 0; }
     };
     var currentCount = function (selector) {
       var badge = document.querySelector(selector);
@@ -403,6 +406,24 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     wrap.appendChild(button);
   });
+
+  // v2.0.0: on phones and tablets the sidebar is a drawer opened by the menu button.
+  var drawerOpen = document.querySelector("[data-drawer-open]");
+  var setDrawer = function (open) {
+    document.body.classList.toggle("drawer-open", open);
+    if (drawerOpen) drawerOpen.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) { var first = document.querySelector("#app-sidebar .nav-link"); if (first) first.focus(); }
+    else if (drawerOpen && drawerOpen.offsetParent !== null) drawerOpen.focus();
+  };
+  if (drawerOpen) {
+    drawerOpen.addEventListener("click", function () { setDrawer(true); });
+    document.querySelectorAll("[data-drawer-close]").forEach(function (el) {
+      el.addEventListener("click", function () { setDrawer(false); });
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && document.body.classList.contains("drawer-open")) setDrawer(false);
+    });
+  }
 
   // Close the profile dropdown when clicking elsewhere or pressing Escape.
   var menu = document.querySelector("[data-profile-menu]");

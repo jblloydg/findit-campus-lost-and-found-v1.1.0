@@ -2,8 +2,7 @@
 {% block bg_variant %}campus-bg--hero{% endblock %}
 {% block title %}Create account · Find-IT{% endblock %}
 {% block content %}
-<section class="narrow-page">
-  <div class="auth-card">
+<section class="auth-page"><div class="auth-shell wide">{% include "core/includes/auth_banner.html" %}<div class="auth-body">
     <span class="eyebrow">Student demo account</span><h1>Create your account</h1>
     <p class="muted">You will sign in with your <strong>email address</strong>. After signing up you can verify your email (optional) to get ✔ Verified. Enrollment is not checked yet. Use fictional details for testing.</p>
     <form method="post" class="stack-form" novalidate>
@@ -29,5 +28,5 @@
     </form>
     <p class="fine-print center">Already have an account? <a href="{% url 'login' %}">Log in</a></p>
   </div>
-</section>
+</div></section>
 {% endblock %}

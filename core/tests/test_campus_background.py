@@ -12,7 +12,7 @@ from django.contrib.auth.models import AnonymousUser
 from .base import FindItTestCase
 
 HERO_PAGES = ["/", "/login/", "/signup/", "/password-reset/", "/password-reset/sent/", "/password-reset/complete/"]
-BODY_CLASS = re.compile(r'<body class="campus-bg (campus-bg--hero|campus-bg--app)"')
+BODY_CLASS = re.compile(r'<body class="campus-bg (campus-bg--hero|campus-bg--app)[" ]')
 
 
 class CampusBackgroundTests(FindItTestCase):
@@ -21,12 +21,13 @@ class CampusBackgroundTests(FindItTestCase):
         match = BODY_CLASS.search(html)
         self.assertIsNotNone(match, "page has no campus-bg body class")
         self.assertIn("css/campus-bg.css", html)
-        self.assertIn("css/campus-bg-pages.css", html)
+        self.assertIn("css/findit.css", html)
         return match.group(1)
 
     def test_photo_and_stylesheets_exist(self):
         for path in ["img/campus/dorsu-monument.jpg", "img/campus/dorsu-monument.webp",
-                     "css/campus-bg.css", "css/campus-bg-pages.css"]:
+                     "css/campus-bg.css", "css/findit.css", "fonts/geist-latin-var.woff2",
+                     "fonts/instrument-serif-latin-italic.woff2", "fonts/geist-mono-latin-400.woff2"]:
             self.assertIsNotNone(finders.find(path), path)
 
     def test_public_pages_use_the_green_hero_look(self):

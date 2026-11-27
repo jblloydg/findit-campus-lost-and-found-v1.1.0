@@ -97,6 +97,10 @@ Inputs, selects, textareas and tables are forced to a solid white background ins
 - **Bug found and fixed in the demo:** at 320–360 px, the table and grid pushed the page wider than the screen. The fix: give grid children `min-width: 0`, and let tables scroll inside their own box (`.table-wrap`, table `min-width: 32rem`). Use the same pattern in real pages.
 - **Not tested:** real Safari on iPhone, and the real Django pages (they don't exist yet in v2.0.0).
 
+## DES-003 update (branch `design/v2-interface`)
+
+The v2.0.0 interface replaced `app.css` with `static/css/findit.css`. The bridge file `campus-bg-pages.css` from DES-002 below is **no longer used and was removed**; its readable-colour rules are part of `findit.css` now. `campus-bg.css` and the photo are unchanged. Public pages use the hero look, signed-in pages the app look; the dashboard and log-in banners show the photo clearly (same WebP file, downloaded once).
+
 ## DES-002: switched on for every existing page
 
 **What changed (additions only; no page layout, spacing or structure was changed):**
