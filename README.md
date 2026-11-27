@@ -1,4 +1,4 @@
-# Find-IT
+# Find-IT v1.1.0
 
 Campus lost-and-found web app for Davao Oriental State University. This project follows the Padlet 5 design and the editable [Find-IT Figma file](https://www.figma.com/design/HlBvwAA17U86RADmkm56Fk/Find-IT-Padlet-5-System-Design).
 
@@ -16,7 +16,7 @@ The local demo uses fictional accounts and a local SQLite database. It does not 
 - Student, staff, and administrator workflows, status history, notifications, staff chat review, and administrator reports.
 - Responsive pages styled to match the navy and teal Padlet wireframes.
 
-See **HANDOFF.md** for what changed from the starter, setup steps, and how to try each feature.
+Version 1.1.0 combines four development sessions; see **HANDOFF.md** for what came from each, the decisions taken where they differed, setup steps and quick checks.
 
 ## Run locally on Windows
 
@@ -67,7 +67,8 @@ Stop the website with Ctrl+C; the local timer process stops with it.
 | Student / claimant | 2026-0002 | DemoFindIt!2026 |
 | Student / second claimant | 2026-0003 | DemoFindIt!2026 |
 | Student / declined claimant | 2026-0004 | DemoFindIt!2026 |
-| Staff | security.demo | DemoStaff!2026 |
+| Staff (security guard) | security.demo | DemoStaff!2026 |
+| Staff (verified moderator) | moderator.demo | DemoStaff!2026 |
 | Administrator | findit-admin | DemoAdmin!2026 |
 
 These accounts are created only when you run **seed_demo**. Their passwords are public demo credentials. Never run the demo seeder on a real or hosted site.
