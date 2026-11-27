@@ -428,3 +428,8 @@ class BugFixTests(FindItTestCase):
         staff = self.client_for(self.staff)
         self.assertEqual(staff.post(f"/posts/{post.pk}/claimed/", {"claim_id": "bad"}).status_code, 404)
         self.assertEqual(staff.post(f"/posts/{post.pk}/claimed/", {"recipient_id": "abc"}).status_code, 302)
+
+    def test_bug_003_impossible_report_dates_do_not_crash(self):
+        client = self.client_for(self.admin)
+        for url in ("/staff/reports/", "/staff/general-reports/"):
+            self.assertEqual(client.get(url, {"date_from": "2026-99-99", "date_to": "abc"}).status_code, 200)

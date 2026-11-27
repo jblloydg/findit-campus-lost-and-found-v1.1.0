@@ -1401,7 +1401,7 @@ def _filtered_reports(request, queryset, category_field, category_choices, searc
     else:
         filters["status"] = ""
     for key, lookup in (("date_from", "created_at__date__gte"), ("date_to", "created_at__date__lte")):
-        parsed = parse_date(filters[key]) if filters[key] else None
+        parsed = _parse_filter_date(filters[key])  # BUG-003: "2026-99-99" used to crash the page
         if parsed:
             queryset = queryset.filter(**{lookup: parsed})
         else:
