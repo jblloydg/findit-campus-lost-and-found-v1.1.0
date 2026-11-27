@@ -19,10 +19,26 @@ The V2 list was written before v1.1.0. The four sessions already built most of i
 
 **So the real remaining V2 work is V2-I and the hosted half of V2-J**, plus anything new the owner adds.
 
-## Planned next
+## Version plan (set by the owner)
 
-- **v1.1.1** — bug fixes, reports from testers, interface changes. Branch `release/1.1.1`. Log in `docs/BUG_REPORTS.md`.
-- **v2 (maybe)** — after 1.1.1 is stable. Candidates: V2-I, hosting + V2-J evidence, the dormant campus-map location (DOrSU map in segments), finishing PostgreSQL testing, Redis for multi-process chat.
+| Version | Goal | Status |
+| --- | --- | --- |
+| **v1.1.0** | Sessions 1–4 integrated. Covers most V1 and V2 goals. | Released (`main`) |
+| **v1.1.1** | The rest of the V2 goals + bug fixes. | In progress on `release/1.1.1` |
+| **v2.0.0** | Interface overhaul. Lead: *(to be named)* | Planned |
+| **v2.1.0** | Fix bugs found in 2.0.0. | Planned |
+| **v3.0.0** | Online hosting: put the app on the internet, move SQLite → PostgreSQL. | Planned |
+
+### What v1.1.1 contains
+- **V2-I school account verification** (method still to be decided by the owner; must work locally, e.g. with the console email backend).
+- **V2-J, local half only:** repeatable 2.5-second measurements on Windows with the team's data. The uptime half moves to v3.0.0.
+- **Bug fixes** from testing v1.1.0 (`docs/BUG_REPORTS.md`).
+
+### Moved to v3.0.0 (hosting)
+PostgreSQL testing and switch, hosting provider, HTTPS, real email (SMTP) for password resets and verification, Redis for live chat across processes, uptime monitor (rest of V2-J), scheduled backups on the server.
+
+### Not scheduled yet
+The dormant campus-map location (DOrSU map in segments).
 
 ## Known open items carried into 1.1.1
 

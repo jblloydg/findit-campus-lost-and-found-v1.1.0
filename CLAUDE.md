@@ -20,6 +20,7 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 - `main` = the stable released version. Tag **`v1.1.0`** is the rollback point.
 - Work for the next version happens on **`release/1.1.1`** (branched from `v1.1.0`).
 - One bug or change = one commit (message starts with its ID, e.g. `BUG-003: …`), so any fix can be reverted alone.
+- **Version plan:** v1.1.1 = rest of V2 (V2-I school verification, local performance evidence) + bug fixes → v2.0.0 interface overhaul → v2.1.0 its bug fixes → v3.0.0 online hosting + PostgreSQL. Don't start hosting/PostgreSQL/Redis/SMTP work before v3.0.0 unless asked; keep the code PostgreSQL-compatible meanwhile. Details in `docs/ROADMAP.md`.
 - When the owner approves 1.1.1: merge `release/1.1.1` into `main`, tag `v1.1.1`. Never rewrite or delete history.
 - Log every fix in `docs/BUG_REPORTS.md` and add a "Changes in 1.1.1" section to `HANDOFF.md`.
 
