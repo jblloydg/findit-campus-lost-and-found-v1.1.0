@@ -13,6 +13,13 @@
 // * At most MAX_ON_SCREEN messages stay on screen; the far end is dropped and loads again
 //   when you scroll back. New live messages are drawn in one batch per screen frame.
 // * Search finds messages in this chat (after you pause typing) and jumps to them.
+//
+// Photos and videos (CHG-006)
+// * Picked files wait in an upload queue saved on this device (IndexedDB, survives a reload)
+//   and are uploaded one at a time with a progress bar, then show "Processing…" while the
+//   server re-encodes them. A lost connection just pauses the queue; it continues by itself.
+// * In the chat, photos show their small preview first and videos load only when played,
+//   so media never holds up the text.
 document.addEventListener("DOMContentLoaded", function () {
   var panel = document.getElementById("chat-messages");
   var form = document.getElementById("chat-form");
@@ -100,9 +107,32 @@ document.addEventListener("DOMContentLoaded", function () {
     article.appendChild(box);
     return article;
   }
+  function attachmentNode(a) {
+    if (!a) return null;
+    if (a.kind === "PHOTO") {
+      var link = document.createElement("a");
+      link.className = "chat-media"; link.href = a.url; link.target = "_blank"; link.rel = "noopener";
+      var img = document.createElement("img");
+      img.src = a.preview_url || a.url; img.alt = "Photo sent in the chat";
+      img.loading = "lazy"; img.decoding = "async";
+      if (a.width) { img.width = a.width; img.height = a.height; }
+      link.appendChild(img);
+      return link;
+    }
+    var video = document.createElement("video");
+    video.className = "chat-media"; video.controls = true; video.preload = "none";
+    video.setAttribute("playsinline", "");
+    if (a.preview_url) video.poster = a.preview_url;
+    if (a.width) { video.width = a.width; video.height = a.height; }
+    video.src = a.url;
+    return video;
+  }
   function messageNode(message) {
     var article = bubble(message.sender, formatTime(message.sent_at), message.text, String(message.sender_id) === userId);
     article.setAttribute("data-message-id", message.id);
+    if (!message.text) { var p = article.querySelector("p"); if (p) p.remove(); }
+    var media = attachmentNode(message.attachment);
+    if (media) article.querySelector(".message-bubble").appendChild(media);
     return article;
   }
   function dropEmpty() { var empty = panel.querySelector(".chat-empty"); if (empty) empty.remove(); }
@@ -306,6 +336,186 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  // ---- photos and videos: upload queue saved on this device ----
+  var uploadForm = form && form.getAttribute("data-upload-url") ? form : null;
+  var fileInput = document.getElementById("chat-file");
+  var uploads = {};            // client id -> {item, node, state}
+  var uploading = false;
+  var DB_NAME = "findit-chat-uploads", STORE = "uploads";
+  function openDb() {
+    return new Promise(function (resolve, reject) {
+      if (!window.indexedDB) { reject(new Error("no indexedDB")); return; }
+      var request = window.indexedDB.open(DB_NAME, 1);
+      request.onupgradeneeded = function () { request.result.createObjectStore(STORE, { keyPath: "id" }); };
+      request.onsuccess = function () { resolve(request.result); };
+      request.onerror = function () { reject(request.error); };
+    });
+  }
+  function dbDo(mode, work) {
+    return openDb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(STORE, mode);
+        var result = work(tx.objectStore(STORE));
+        tx.oncomplete = function () { resolve(result && result.result !== undefined ? result.result : result); db.close(); };
+        tx.onerror = function () { reject(tx.error); db.close(); };
+      });
+    }).catch(function () { return null; });   // private mode etc.: queue only in memory
+  }
+  function dbSave(item) { return dbDo("readwrite", function (s) { return s.put(item); }); }
+  function dbDelete(id) { return dbDo("readwrite", function (s) { return s.delete(id); }); }
+  function dbMine() {
+    return dbDo("readonly", function (s) { return s.getAll(); }).then(function (all) {
+      return (all || []).filter(function (item) { return item.conversation === conversationId && item.user === userId; });
+    });
+  }
+  function csrfToken() {
+    var field = form && form.querySelector("input[name=csrfmiddlewaretoken]");
+    return field ? field.value : "";
+  }
+  function mediaBubble(item) {
+    var node = bubble("You", item.isVideo ? "Video · waiting to send…" : "Photo · waiting to send…", item.name, true);
+    node.classList.add("is-pending");
+    node.setAttribute("data-client-id", "att-" + item.id);
+    var box = node.querySelector(".message-bubble");
+    if (!item.isVideo && window.URL && item.blob) {
+      var img = document.createElement("img");
+      img.className = "chat-local-preview"; img.alt = ""; img.src = URL.createObjectURL(item.blob);
+      box.appendChild(img);
+    }
+    var bar = document.createElement("span");
+    bar.className = "chat-upload-progress";
+    bar.appendChild(document.createElement("span"));
+    box.appendChild(bar);
+    panel.insertBefore(node, jumpButton && jumpButton.parentNode === panel ? jumpButton : null);
+    panel.scrollTop = panel.scrollHeight;
+    return node;
+  }
+  function uploadNote(entry, text, failed) {
+    var time = entry.node.querySelector("time");
+    if (time) time.textContent = text;
+    if (failed) {
+      entry.node.classList.add("is-failed");
+      var bar = entry.node.querySelector(".chat-upload-progress");
+      if (bar) bar.remove();
+      if (!entry.node.querySelector(".chat-upload-dismiss")) {
+        var dismiss = document.createElement("button");
+        dismiss.type = "button"; dismiss.className = "link-button chat-upload-dismiss"; dismiss.textContent = "Remove";
+        dismiss.addEventListener("click", function () { entry.node.remove(); });
+        entry.node.querySelector(".message-bubble").appendChild(dismiss);
+      }
+    }
+  }
+  function finishUpload(id, failedText) {
+    var entry = uploads[id];
+    dbDelete(id);
+    if (!entry) return;
+    delete uploads[id];
+    if (failedText) uploadNote(entry, failedText, true);
+  }
+  function queueFiles(files) {
+    if (!uploadForm) return;
+    var photoMb = parseFloat(uploadForm.getAttribute("data-photo-mb") || "5");
+    var videoMb = parseFloat(uploadForm.getAttribute("data-video-mb") || "20");
+    var leftAttr = uploadForm.getAttribute("data-media-left");
+    var left = leftAttr === null ? Infinity : parseInt(leftAttr, 10) - Object.keys(uploads).length;
+    Array.prototype.forEach.call(files, function (file) {
+      var isVideo = /^video\//.test(file.type) || /\.(mp4|mov|webm|3gp|mkv|m4v)$/i.test(file.name);
+      var isPhoto = /^image\/(jpeg|png|webp)$/.test(file.type) || /\.(jpe?g|png|webp)$/i.test(file.name);
+      if (!isVideo && !isPhoto) { setStatus(file.name + ": only photos (JPG, PNG, WebP) and videos can be sent."); return; }
+      var limitMb = isVideo ? videoMb : photoMb;
+      if (file.size > limitMb * 1024 * 1024) { setStatus(file.name + ": " + (isVideo ? "videos" : "photos") + " can be up to " + limitMb + " MB."); return; }
+      if (left <= 0) { setStatus("Unverified accounts can send 3 photos or videos per chat. Verify your email to send more."); return; }
+      left -= 1;
+      var item = { id: newId(), conversation: conversationId, user: userId, name: file.name, type: file.type, isVideo: isVideo, blob: file };
+      uploads[item.id] = { item: item, node: mediaBubble(item), state: "queued" };
+      dbSave(item);
+    });
+    pumpUploads();
+  }
+  function pumpUploads() {
+    if (uploading || !uploadForm) return;
+    var nextId = Object.keys(uploads).filter(function (id) { return uploads[id].state === "queued"; })[0];
+    if (!nextId) return;
+    var entry = uploads[nextId];
+    uploading = true;
+    entry.state = "uploading";
+    var data = new FormData();
+    data.append("file", entry.item.blob, entry.item.name);
+    data.append("client_id", entry.item.id);
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", uploadForm.getAttribute("data-upload-url"));
+    xhr.setRequestHeader("X-CSRFToken", csrfToken());
+    xhr.upload.onprogress = function (event) {
+      if (!event.lengthComputable) return;
+      var fill = entry.node.querySelector(".chat-upload-progress span");
+      if (fill) fill.style.width = Math.round(event.loaded / event.total * 100) + "%";
+      uploadNote(entry, "Uploading " + Math.round(event.loaded / event.total * 100) + "%");
+    };
+    xhr.onload = function () {
+      uploading = false;
+      var reply = {};
+      try { reply = JSON.parse(xhr.responseText || "{}"); } catch (e) {}
+      if (xhr.status >= 500 || xhr.status === 0) { entry.state = "queued"; retryUploadsLater(); return; }
+      if (xhr.status >= 400) { finishUpload(nextId, reply.error || "Could not be sent."); pumpUploads(); return; }
+      applyUploadStatus(reply);
+      pumpUploads();
+    };
+    xhr.onerror = function () {   // offline or the server is down: keep it and try again later
+      uploading = false;
+      entry.state = "queued";
+      uploadNote(entry, "Waiting for the connection…");
+      retryUploadsLater();
+    };
+    xhr.send(data);
+  }
+  var uploadRetryTimer = null;
+  function retryUploadsLater() {
+    if (uploadRetryTimer) return;
+    uploadRetryTimer = window.setTimeout(function () { uploadRetryTimer = null; pumpUploads(); }, 5000);
+  }
+  function applyUploadStatus(reply) {
+    var entry = uploads[reply.client_id];
+    if (!entry) return;
+    if (reply.status === "FAILED") { finishUpload(reply.client_id, reply.error || "Could not be sent."); return; }
+    if (reply.status === "READY") {
+      entry.state = "done";
+      dbDelete(reply.client_id);
+      delete uploads[reply.client_id];
+      if (!known[reply.message_id]) catchUp();   // the live push may have been missed
+      return;
+    }
+    entry.state = "processing";
+    var bar = entry.node.querySelector(".chat-upload-progress");
+    if (bar) bar.remove();
+    uploadNote(entry, (entry.item.isVideo ? "Video" : "Photo") + " · processing…");
+  }
+  // Fallback check for uploads still processing (in case a live update was missed).
+  window.setInterval(function () {
+    if (!uploadForm || !window.fetch) return;
+    var ids = Object.keys(uploads).filter(function (id) { return uploads[id].state === "processing"; });
+    if (!ids.length) return;
+    getJson(uploadForm.getAttribute("data-status-url") + "?ids=" + ids.join(",")).then(function (data) {
+      (data.uploads || []).forEach(applyUploadStatus);
+    }).catch(function () {});
+  }, 4000);
+  if (fileInput) {
+    fileInput.addEventListener("change", function () {
+      if (!atLatest) jumpToLatest();
+      queueFiles(fileInput.files);
+      fileInput.value = "";
+    });
+  }
+  // Uploads left from an earlier visit (reload, closed tab) continue by themselves.
+  if (uploadForm) {
+    dbMine().then(function (items) {
+      (items || []).forEach(function (item) {
+        if (uploads[item.id]) return;
+        uploads[item.id] = { item: item, node: mediaBubble(item), state: "queued" };
+      });
+      pumpUploads();
+    });
+  }
+
   // ---- sending ----
   function showPending(item) {
     if (panel.querySelector('[data-client-id="' + item.id + '"]')) return;
@@ -338,6 +548,7 @@ document.addEventListener("DOMContentLoaded", function () {
       setStatus(loadQueue().length ? "Connected. Sending your waiting messages…" : "");
       if (everConnected) catchUp();
       everConnected = true;
+      if (typeof pumpUploads === "function") pumpUploads();
     });
     socket.addEventListener("message", function (event) {
       var data;
@@ -359,6 +570,9 @@ document.addEventListener("DOMContentLoaded", function () {
         addMessage(data);
       }
       if (data.type === "event" && data.event === "question") refreshQuestions();
+      if (data.type === "event" && data.event === "attachment_failed" && String(data.uploader_id) === userId) {
+        finishUpload(data.client_id, data.error || "Could not be sent.");
+      }
       if (data.type === "error") {
         setStatus(data.message);
         if (data.client_id) {

@@ -10,7 +10,7 @@
       <span class="conversation-details">
         <span class="conversation-title"><strong>{{ conversation.post.display_title }}</strong><small>{% if conversation.initiator_id == user.pk %}{{ conversation.recipient.first_name|default:conversation.recipient.username }}{% else %}{{ conversation.initiator.first_name|default:conversation.initiator.username }}{% endif %}</small></span>
         {% with last_message=conversation.latest_messages.0 %}
-        {% if last_message %}<span class="conversation-preview">{{ last_message.sender.first_name|default:last_message.sender.username }}: {{ last_message.text|truncatechars:90 }}</span>{% else %}<span class="conversation-preview">No messages yet. Start the conversation.</span>{% endif %}
+        {% if last_message %}<span class="conversation-preview">{{ last_message.sender.first_name|default:last_message.sender.username }}: {% if last_message.text %}{{ last_message.text|truncatechars:90 }}{% elif last_message.attachment.kind == "VIDEO" %}🎬 Video{% else %}📷 Photo{% endif %}</span>{% else %}<span class="conversation-preview">No messages yet. Start the conversation.</span>{% endif %}
         {% endwith %}
       </span>
       <span class="conversation-tail">{% if conversation.is_paused %}<span class="subtle-chip">Paused</span>{% elif conversation.is_closed %}<span class="subtle-chip">Read-only</span>{% else %}<span class="live-chip">Open</span>{% endif %}<small>{{ conversation.updated_at|date:"M j" }}</small></span>

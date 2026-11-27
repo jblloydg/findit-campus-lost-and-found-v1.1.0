@@ -48,7 +48,7 @@
       <p class="chat-history-status" data-history-status>{% if has_older_messages %}Scroll up for older messages{% elif chat_messages %}Start of the conversation{% endif %}</p>
       {% for message in chat_messages %}
       <article class="chat-message {% if message.sender_id == user.pk %}mine{% endif %}" data-message-id="{{ message.pk }}">
-        <div class="message-bubble"><div class="message-meta"><strong>{{ message.sender.first_name|default:message.sender.username }}</strong><time>{{ message.sent_at|date:"M j · g:i a" }}</time></div><p>{{ message.text|linebreaksbr }}</p></div>
+        <div class="message-bubble"><div class="message-meta"><strong>{{ message.sender.first_name|default:message.sender.username }}</strong><time>{{ message.sent_at|date:"M j · g:i a" }}</time></div>{% if message.text %}<p>{{ message.text|linebreaksbr }}</p>{% endif %}{% include "core/includes/chat_attachment.html" %}</div>
       </article>
       {% empty %}{% if not questions %}<div class="chat-empty"><span>✦</span><p>Start with a helpful message. Keep private details in the verification form and meet only within school premises.</p></div>{% endif %}{% endfor %}
     </div>
@@ -81,8 +81,9 @@
     </details>
     {% endif %}
     {% if can_send %}
-    <form class="chat-composer" id="chat-form"><label for="chat-input" class="sr-only">Message</label><textarea id="chat-input" rows="2" maxlength="{{ chat_char_limit }}" placeholder="Write a message…" required></textarea><button class="button button-primary" type="submit">Send</button></form>
+    <form class="chat-composer" id="chat-form" data-upload-url="{% url 'chat-upload' conversation.pk %}" data-status-url="{% url 'chat-upload-status' conversation.pk %}" data-photo-mb="{{ media_limits.photo_mb }}" data-video-mb="{{ media_limits.video_mb }}" data-video-seconds="{{ media_limits.video_seconds }}"{% if media_limits.left is not None %} data-media-left="{{ media_limits.left }}"{% endif %}>{% csrf_token %}<label class="button button-soft chat-attach" title="Send a photo or video">📎<span class="sr-only">Send a photo or video</span><input type="file" id="chat-file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,video/3gpp,video/x-matroska,.mkv,.m4v" multiple hidden></label><label for="chat-input" class="sr-only">Message</label><textarea id="chat-input" rows="2" maxlength="{{ chat_char_limit }}" placeholder="Write a message…" required></textarea><button class="button button-primary" type="submit">Send</button></form>
     <p class="chat-status" id="chat-status" role="status" aria-live="polite"></p>
+    <p class="fine-print">Photos up to {{ media_limits.photo_mb }} MB, videos up to {{ media_limits.video_mb }} MB and {{ media_limits.video_seconds }} seconds. Files are compressed before sending.{% if media_limits.left is not None %} Unverified accounts: {{ media_limits.left }} of 3 photos/videos left in this chat.{% endif %}</p>
     {% if is_unverified_sender %}<p class="fine-print">Unverified accounts: up to {{ chat_char_limit }} characters per message and a limited number of messages every few minutes. <a href="{% url 'verify-email' %}">Verify your email</a> to remove these limits.</p>{% endif %}
     <p class="chat-privacy">Messages are private to the participants. Administrators and verified moderators can review chats for safety.</p>
     {% else %}<div class="chat-readonly">This conversation is read-only. Its history remains until the post is permanently removed.</div>{% endif %}

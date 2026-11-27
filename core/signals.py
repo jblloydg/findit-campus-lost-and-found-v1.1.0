@@ -3,7 +3,7 @@ from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
-from .models import ItemPost, PostPhoto, Profile, TurnInTicket
+from .models import ChatAttachment, ItemPost, PostPhoto, Profile, TurnInTicket
 
 User = get_user_model()
 
@@ -32,6 +32,23 @@ def remove_photo_files(sender, instance, **kwargs):
     if not names:
         return
     storage = instance.image.storage
+
+    def delete_files():
+        for name in names:
+            try:
+                storage.delete(name)
+            except Exception:
+                pass
+    transaction.on_commit(delete_files)
+
+
+@receiver(post_delete, sender=ChatAttachment)
+def remove_chat_media_files(sender, instance, **kwargs):
+    """When a chat (or its post) is permanently deleted, delete its photo/video files too."""
+    names = [f.name for f in (instance.upload, instance.file, instance.preview) if f]
+    if not names:
+        return
+    storage = ChatAttachment._meta.get_field("file").storage
 
     def delete_files():
         for name in names:

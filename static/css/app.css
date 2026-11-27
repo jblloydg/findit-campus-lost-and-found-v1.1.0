@@ -742,3 +742,11 @@ body:has(.unverified-warning) .site-footer { padding-bottom: 70px; }
 .chat-search-results .chat-search-note { padding: 10px 12px; color: #6b8293; font-size: .8rem; }
 .chat-message.is-found .message-bubble { outline: 3px solid #f2c94c; }
 .chat-jump { display: block; margin: 6px auto; }
+/* CHG-006: photos and videos in chats. Space is reserved from width/height, so text never jumps. */
+.chat-media { display: block; margin-top: 6px; max-width: min(100%, 320px); }
+.chat-media img, video.chat-media { display: block; width: 100%; height: auto; max-height: 360px; object-fit: contain; border-radius: 10px; background: #e9f0f4; }
+.chat-attach { cursor: pointer; padding-inline: 12px; align-self: stretch; display: inline-flex; align-items: center; }
+.chat-upload-progress { display: block; height: 4px; margin-top: 6px; border-radius: 4px; background: #d8e3ea; overflow: hidden; }
+.chat-upload-progress span { display: block; height: 100%; width: 0; background: #1f9e8e; transition: width .2s; }
+.chat-message.is-failed .message-bubble { border-color: #c62828; }
+.chat-local-preview { display: block; max-width: 200px; max-height: 200px; border-radius: 8px; margin-top: 6px; opacity: .8; }

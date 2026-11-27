@@ -464,6 +464,8 @@ def process_due_actions():
         reopen_if_no_active_claims(claim.post, None)
 
     clear_expired_id_conflicts()
+    from .chat_media import fail_stuck_uploads
+    fail_stuck_uploads()
 
     if settings_row.guardhouse_grace_days:
         cutoff = now - timedelta(days=settings_row.guardhouse_grace_days)

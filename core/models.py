@@ -967,3 +967,68 @@ class UserBlock(models.Model):
     class Meta:
         ordering = ["-created_at"]
         constraints = [models.UniqueConstraint(fields=["blocker", "blocked"], name="unique_user_block")]
+
+
+def chat_media_storage():
+    """Chat photos and videos are private: kept outside MEDIA_ROOT and only served through a
+    permission-checked view (participants and authorized reviewers)."""
+    return FileSystemStorage(location=settings.PRIVATE_MEDIA_ROOT, base_url=None)
+
+
+def chat_media_path(instance, filename):
+    extension = os.path.splitext(filename)[1].lower()[:6]
+    return f"chat-media/{timezone.now():%Y/%m}/{uuid.uuid4().hex}{extension}"
+
+
+class ChatAttachment(models.Model):
+    """A photo or video sent in a chat (v1.1.1, CHG-006).
+
+    Only the re-encoded copy is kept: a photo becomes a JPEG, a video an H.264 MP4. A file
+    that cannot be re-encoded as a real photo or video is refused, so hidden payloads
+    ("trojan" files) never reach the other person.
+    """
+
+    class Kind(models.TextChoices):
+        PHOTO = "PHOTO", "Photo"
+        VIDEO = "VIDEO", "Video"
+
+    class Status(models.TextChoices):
+        PROCESSING = "PROCESSING", "Processing"
+        READY = "READY", "Ready"
+        FAILED = "FAILED", "Could not be sent"
+
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name="attachments")
+    message = models.OneToOneField(
+        ChatMessage, on_delete=models.CASCADE, null=True, blank=True, related_name="attachment",
+    )
+    uploader = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="chat_attachments")
+    client_id = models.CharField(max_length=64, help_text="Browser-generated id so a resent upload is saved once.")
+    kind = models.CharField(max_length=5, choices=Kind.choices)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PROCESSING, db_index=True)
+    upload = models.FileField(
+        upload_to=chat_media_path, storage=chat_media_storage, blank=True,
+        help_text="The received file, waiting to be re-encoded. Deleted as soon as processing ends.",
+    )
+    file = models.FileField(upload_to=chat_media_path, storage=chat_media_storage, blank=True)
+    preview = models.FileField(upload_to=chat_media_path, storage=chat_media_storage, blank=True)
+    width = models.PositiveIntegerField(default=0)
+    height = models.PositiveIntegerField(default=0)
+    duration_seconds = models.FloatField(default=0)
+    uploaded_bytes = models.PositiveIntegerField(default=0)
+    stored_bytes = models.PositiveIntegerField(default=0)
+    not_before = models.DateTimeField(
+        default=timezone.now, help_text="Heavy-load slow-down: not processed before this time.",
+    )
+    error = models.CharField(max_length=240, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    ready_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["conversation", "client_id"], name="unique_chat_attachment_client_id"),
+        ]
+        indexes = [models.Index(fields=["status", "not_before"], name="chatattachment_queue_idx")]
+
+    def __str__(self):
+        return f"{self.get_kind_display()} in {self.conversation_id}"

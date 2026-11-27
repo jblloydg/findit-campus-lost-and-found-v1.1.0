@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from datetime import timedelta
 
 from django.conf import settings
@@ -13,7 +14,7 @@ from django.core.paginator import Paginator
 from django.db.models import Count, Prefetch, Q
 from django.db.models.functions import Coalesce, TruncDate
 from django.utils.dateparse import parse_date
-from django.http import FileResponse, Http404, HttpResponseForbidden, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -34,7 +35,7 @@ from .models import (
     Conversation, GeneralReport, GuardhouseIntake, InAppNotification, ItemPost, ModeratorVerification,
     ModeratorVerificationEvent, PostShare, PostStatusEvent, Profile, QuestionTemplate, ReportStatus, StaffAuditLog,
     StatusChangeRequest, SystemSettings, TurnInTicket, VerificationQuestion,
-    IdReviewCase, StudentIdRecord, TestEmail, UserBlock,
+    IdReviewCase, StudentIdRecord, TestEmail, UserBlock, ChatAttachment,
 )
 from .mail import test_inbox_enabled
 from .verification import (
@@ -370,7 +371,7 @@ def post_detail(request, post_id):
     viewer_is_student_other = request.user.is_authenticated and request.user.pk != post.author_id
     from .chat_history import latest_page
     panel_history = (
-        latest_page(panel_conversation.messages.select_related("sender"), budget=4 * 1024)
+        latest_page(panel_conversation.messages.select_related("sender", "attachment"), budget=4 * 1024)
         if panel_conversation else ([], False)
     )
     context = {
@@ -935,11 +936,140 @@ def remove_post_view(request, post_id):
 
 
 def _message_json(message):
+    from .chat_media import attachment_json
     return {
         "id": message.pk, "sender": message.sender.first_name or message.sender.username,
         "sender_id": message.sender_id, "text": message.text, "sent_at": message.sent_at.isoformat(),
         "client_id": message.client_id,
+        "attachment": attachment_json(getattr(message, "attachment", None)) if _has_attachment(message) else None,
     }
+
+
+def _media_limits(user, conversation):
+    from . import chat_media
+    limits = chat_media.limits_for(user)
+    left = None
+    if limits["per_chat"] is not None:
+        used = ChatAttachment.objects.filter(conversation=conversation, uploader=user).exclude(
+            status=ChatAttachment.Status.FAILED).count()
+        left = max(0, limits["per_chat"] - used)
+    return {"photo_mb": limits["photo_bytes"] // chat_media.MB, "video_mb": limits["video_bytes"] // chat_media.MB,
+            "video_seconds": limits["video_seconds"], "left": left}
+
+
+def _has_attachment(message):
+    try:
+        return message.attachment is not None
+    except ChatAttachment.DoesNotExist:
+        return False
+
+
+def _chat_reader(request, conversation):
+    return conversation.includes(request.user) or can_review_private_chats(request.user)
+
+
+@login_required
+@require_POST
+def chat_upload(request, conversation_id):
+    """CHG-006: receive one photo or video for a chat. Re-encoded before anyone sees it."""
+    from . import chat_media
+    conversation = get_object_or_404(Conversation, pk=conversation_id)
+    if not conversation.includes(request.user):
+        return JsonResponse({"error": "Only the people in this chat can send files."}, status=403)
+    limits = chat_media.limits_for(request.user)
+    biggest = max(limits["photo_bytes"], limits["video_bytes"])
+    try:
+        length = int(request.META.get("CONTENT_LENGTH") or 0)
+    except ValueError:
+        length = 0
+    if length > biggest + 512 * 1024:
+        return JsonResponse({"error": f"Files can be up to {biggest // chat_media.MB} MB."}, status=413)
+    uploaded = request.FILES.get("file")
+    if uploaded is None:
+        return JsonResponse({"error": "Choose a photo or video."}, status=400)
+    try:
+        attachment = chat_media.accept_upload(conversation, request.user, uploaded, request.POST.get("client_id", ""))
+    except chat_media.MediaRefused as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+    return JsonResponse(_attachment_status(attachment))
+
+
+def _attachment_status(attachment):
+    from .chat_media import attachment_json
+    return {
+        "client_id": attachment.client_id, "status": attachment.status, "error": attachment.error,
+        "message_id": attachment.message_id, "attachment": attachment_json(attachment),
+    }
+
+
+@never_cache
+@login_required
+def chat_upload_status(request, conversation_id):
+    """Status of my uploads in this chat: ?ids=a,b,c (used after a reload or when the live push was missed)."""
+    conversation = get_object_or_404(Conversation, pk=conversation_id)
+    if not conversation.includes(request.user):
+        return JsonResponse({"error": "Not your chat."}, status=403)
+    ids = [i[:64] for i in request.GET.get("ids", "").split(",") if i][:20]
+    rows = ChatAttachment.objects.filter(conversation=conversation, uploader=request.user, client_id__in=ids)
+    return JsonResponse({"uploads": [_attachment_status(a) for a in rows]})
+
+
+def chat_media_file(request, attachment_id, part):
+    """Private chat photo/video. Only for the two people in the chat and authorized reviewers.
+    Supports byte ranges so videos can be skipped forward without downloading everything."""
+    if not request.user.is_authenticated:
+        raise Http404
+    attachment = get_object_or_404(ChatAttachment.objects.select_related("conversation"), pk=attachment_id)
+    if not _chat_reader(request, attachment.conversation) or attachment.status != ChatAttachment.Status.READY:
+        raise Http404
+    field = attachment.preview if part == "preview" else attachment.file
+    if not field:
+        raise Http404
+    content_type = "image/jpeg" if (part == "preview" or attachment.kind == ChatAttachment.Kind.PHOTO) else "video/mp4"
+    try:
+        size = field.size
+        handle = field.open("rb")
+    except (FileNotFoundError, OSError):
+        raise Http404
+    status, start, end = 200, 0, size - 1
+    match = re.match(r"bytes=(\d*)-(\d*)$", request.headers.get("Range", ""))
+    if match and size:
+        if match.group(1):
+            start = int(match.group(1))
+            end = int(match.group(2)) if match.group(2) else size - 1
+        elif match.group(2):
+            start = max(0, size - int(match.group(2)))
+        end = min(end, size - 1)
+        if start > end:
+            handle.close()
+            response = HttpResponse(status=416)
+            response["Content-Range"] = f"bytes */{size}"
+            return response
+        status = 206
+    handle.seek(start)
+    length = end - start + 1
+
+    def stream(remaining=length, chunk=64 * 1024):
+        try:
+            while remaining > 0:
+                data = handle.read(min(chunk, remaining))
+                if not data:
+                    break
+                remaining -= len(data)
+                yield data
+        finally:
+            handle.close()
+
+    response = StreamingHttpResponse(stream(), status=status, content_type=content_type)
+    response["Content-Length"] = str(length)
+    response["Accept-Ranges"] = "bytes"
+    if status == 206:
+        response["Content-Range"] = f"bytes {start}-{end}/{size}"
+    response["Content-Disposition"] = "inline"
+    response["X-Content-Type-Options"] = "nosniff"
+    response["Cache-Control"] = "private, max-age=86400"
+    response["Content-Security-Policy"] = "default-src 'none'; sandbox"
+    return response
 
 
 @never_cache
@@ -951,7 +1081,7 @@ def chat_messages_json(request, conversation_id):
     conversation = get_object_or_404(Conversation, pk=conversation_id)
     if not (conversation.includes(request.user) or can_review_private_chats(request.user)):
         return HttpResponseForbidden("This conversation is private to its participants and authorized reviewers.")
-    rows = conversation.messages.select_related("sender")
+    rows = conversation.messages.select_related("sender", "attachment")
     get = request.GET
     if "q" in get:
         if chat_history.over_rate_limit(request.user, "search", chat_history.SEARCHES_PER_MINUTE):
@@ -1000,7 +1130,7 @@ def chat_room(request, conversation_id):
     # PERF-001 / CHG-005: only the newest ~8 KB of messages are put in the page;
     # older ones load by themselves when the reader scrolls up.
     from .chat_history import latest_page
-    messages_qs, has_older = latest_page(conversation.messages.select_related("sender"))
+    messages_qs, has_older = latest_page(conversation.messages.select_related("sender", "attachment"))
     asker, answerer = chat_roles(conversation)
     claim = conversation.claim
     questions = list(conversation.questions.all())
@@ -1032,6 +1162,7 @@ def chat_room(request, conversation_id):
         ),
         "is_unverified_sender": is_unverified_student(request.user),
         "chat_char_limit": SystemSettings.current().unverified_chat_max_chars if is_unverified_student(request.user) else 2000,
+        "media_limits": _media_limits(request.user, conversation),
         "lost_ticket": lost_ticket,
         "lost_ticket_qr": _qr_svg(request, lost_ticket) if lost_ticket else "",
         "conversation": conversation,
@@ -1157,7 +1288,7 @@ def messages_inbox(request):
     ).select_related("post", "initiator", "recipient").prefetch_related(
         Prefetch(
             "messages",
-            queryset=ChatMessage.objects.select_related("sender").order_by("-sent_at")[:1],
+            queryset=ChatMessage.objects.select_related("sender", "attachment").order_by("-sent_at")[:1],
             to_attr="latest_messages",
         )
     )

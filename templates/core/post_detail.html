@@ -268,7 +268,7 @@
     <div class="chat-messages panel-messages" id="chat-messages" data-conversation="{{ panel_conversation.pk }}" data-can-send="{{ panel_can_send|yesno:'true,false' }}" data-has-older="{{ panel_has_older|yesno:'true,false' }}">
       <p class="chat-history-status" data-history-status>{% if panel_has_older %}Scroll up for older messages{% endif %}</p>
       {% for message in panel_messages %}
-      <article class="chat-message {% if message.sender_id == user.pk %}mine{% endif %}" data-message-id="{{ message.pk }}"><div class="message-bubble"><div class="message-meta"><strong>{{ message.sender.first_name|default:message.sender.username }}</strong><time>{{ message.sent_at|date:"M j · g:i a" }}</time></div><p>{{ message.text|linebreaksbr }}</p></div></article>
+      <article class="chat-message {% if message.sender_id == user.pk %}mine{% endif %}" data-message-id="{{ message.pk }}"><div class="message-bubble"><div class="message-meta"><strong>{{ message.sender.first_name|default:message.sender.username }}</strong><time>{{ message.sent_at|date:"M j · g:i a" }}</time></div>{% if message.text %}<p>{{ message.text|linebreaksbr }}</p>{% endif %}{% include "core/includes/chat_attachment.html" %}</div></article>
       {% empty %}<div class="chat-empty"><p>No messages yet. Questions and answers appear in the full chat.</p></div>{% endfor %}
     </div>
     <button type="button" class="button button-soft button-small chat-jump" data-chat-jump hidden>↓ Jump to latest</button>

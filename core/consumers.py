@@ -33,6 +33,9 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         await database_sync_to_async(self._load_sender, thread_sensitive=self.DB_THREAD_SENSITIVE)()
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
+        # Resume any photo/video still waiting to be processed (e.g. after a restart).
+        from .chat_media import start_worker
+        start_worker()
         await self.send(text_data=json.dumps({
             "type": "connection",
             "can_send": self.can_send,
@@ -91,6 +94,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             "text": event["text"],
             "sent_at": event["sent_at"],
             "client_id": event.get("client_id", ""),
+            "attachment": event.get("attachment"),
         }))
 
     async def chat_event(self, event):

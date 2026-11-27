@@ -764,3 +764,172 @@ class ChatHistoryTests(FindItTestCase):
     def test_bad_values_do_not_crash(self):
         for params in ({"before": "abc"}, {"after": "-1"}, {"around": "99999999"}, {"q": "x" * 5000}, {}):
             self.assertIn(self.client_a.get(self.url, params).status_code, {200, 404})
+
+
+import tempfile as _tempfile
+
+PRIVATE_DIR = _tempfile.mkdtemp(prefix="findit-test-private-")
+
+
+def _ffmpeg_exe():
+    from core.chat_media import _ffmpeg
+    return _ffmpeg()
+
+
+def make_video(seconds=3, size="640x360", audio=True):
+    import subprocess, os
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    path = os.path.join(_tempfile.mkdtemp(), "clip.mp4")
+    cmd = [_ffmpeg_exe(), "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", f"testsrc=size={size}:rate=24:duration={seconds}"]
+    if audio:
+        cmd += ["-f", "lavfi", "-i", f"sine=frequency=440:duration={seconds}"]
+    cmd += ["-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p"] + (["-c:a", "aac"] if audio else []) + ["-shortest", path]
+    subprocess.run(cmd, check=True, capture_output=True)
+    with open(path, "rb") as handle:
+        return SimpleUploadedFile("clip.mp4", handle.read(), content_type="video/mp4")
+
+
+@override_settings(PRIVATE_MEDIA_ROOT=PRIVATE_DIR)
+class ChatMediaTests(FindItTestCase):
+    """CHG-006: photos/videos in chats are re-encoded, private, limited and duplicate-safe."""
+
+    def setUp(self):
+        super().setUp()
+        post = self.create_post(self.finder)
+        self.claim(post, self.alice)
+        self.conversation = Conversation.objects.get(claim__claimant=self.alice)
+        self.upload_url = f"/conversations/{self.conversation.pk}/attachments/"
+
+    def send(self, user, upload, client_id="c1"):
+        return self.client_for(user).post(self.upload_url, {"file": upload, "client_id": client_id})
+
+    def jpeg_with_hidden_payload(self, size=(1200, 900)):
+        import io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        buffer = io.BytesIO()
+        Image.effect_noise(size, 50).convert("RGB").save(buffer, "JPEG", quality=90)
+        payload = b"PK\x03\x04TROJAN-PAYLOAD-" + b"X" * 2000  # a zip hidden after the picture
+        return SimpleUploadedFile("photo.jpg", buffer.getvalue() + payload, content_type="image/jpeg")
+
+    def test_photo_is_reencoded_private_and_payload_removed(self):
+        from core.models import ChatAttachment
+        reply = self.send(self.alice, self.jpeg_with_hidden_payload()).json()
+        self.assertEqual(reply["status"], "READY")
+        attachment = ChatAttachment.objects.get()
+        self.assertFalse(attachment.upload)                      # received file deleted
+        with attachment.file.open("rb") as handle:
+            data = handle.read()
+        self.assertNotIn(b"TROJAN-PAYLOAD", data)
+        self.assertTrue(data.startswith(b"\xff\xd8"))            # a real JPEG
+        self.assertTrue(attachment.message_id)
+        url = reply["attachment"]["url"]
+        ok = self.client_for(self.finder).get(url)
+        self.assertEqual(ok.status_code, 200)
+        self.assertEqual(ok["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(self.client_for(self.bob).get(url).status_code, 404)   # strangers: nothing
+        self.client.logout()
+        self.assertEqual(self.client.get(url).status_code, 404)
+        history = self.client_for(self.finder).get(f"/conversations/{self.conversation.pk}/messages/", {"latest": "1"}).json()
+        self.assertEqual(history["messages"][-1]["attachment"]["kind"], "PHOTO")
+
+    def test_same_upload_twice_is_saved_once(self):
+        from core.models import ChatAttachment, ChatMessage
+        self.send(self.alice, self.jpeg_with_hidden_payload(), "same")
+        self.send(self.alice, self.jpeg_with_hidden_payload(), "same")
+        self.assertEqual(ChatAttachment.objects.count(), 1)
+        self.assertEqual(ChatMessage.objects.filter(client_id="att-same").count(), 1)
+
+    def test_video_is_compressed_to_mp4_with_ranges(self):
+        from core.chat_media import run_pending
+        from core.models import ChatAttachment
+        reply = self.send(self.alice, make_video()).json()
+        self.assertEqual(reply["status"], "PROCESSING")
+        run_pending()
+        attachment = ChatAttachment.objects.get()
+        self.assertEqual(attachment.status, "READY", attachment.error)
+        self.assertLessEqual(max(attachment.width, attachment.height), 1280)
+        self.assertTrue(attachment.preview)
+        self.assertAlmostEqual(attachment.duration_seconds, 3, delta=0.6)
+        url = f"/chat-media/{attachment.pk}/file/"
+        part = self.client_for(self.finder).get(url, HTTP_RANGE="bytes=0-99")
+        self.assertEqual(part.status_code, 206)
+        self.assertEqual(len(b"".join(part.streaming_content)), 100)
+        self.assertEqual(part["Content-Type"], "video/mp4")
+
+    def test_fake_files_are_refused(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from core.chat_media import run_pending
+        from core.models import ChatAttachment
+        fake_photo = SimpleUploadedFile("evil.jpg", b"MZ\x90\x00 this is a program, not a photo", content_type="image/jpeg")
+        self.assertEqual(self.send(self.alice, fake_photo, "p").json()["status"], "FAILED")
+        fake_video = SimpleUploadedFile("evil.mp4", b"#!/bin/sh\necho not a video\n" * 50, content_type="video/mp4")
+        self.send(self.alice, fake_video, "v")
+        run_pending()
+        self.assertEqual(ChatAttachment.objects.get(client_id="v").status, "FAILED")
+        exe = SimpleUploadedFile("setup.exe", b"MZ", content_type="application/octet-stream")
+        self.assertEqual(self.send(self.alice, exe, "e").status_code, 400)
+        self.assertFalse(ChatAttachment.objects.filter(client_id="e").exists())
+        self.assertFalse(any(a.file for a in ChatAttachment.objects.all()))
+
+    def test_unverified_limits(self):
+        from core.models import ChatAttachment
+        casey = self.make_user("2026-0005", verified=False)
+        post = self.create_post(self.finder)
+        self.claim(post, casey)
+        conversation = Conversation.objects.get(claim__claimant=casey)
+        url = f"/conversations/{conversation.pk}/attachments/"
+        client = self.client_for(casey)
+        big = self.jpeg_with_hidden_payload(size=(3000, 2200))
+        self.assertGreater(big.size, 2 * 1024 * 1024)
+        self.assertEqual(client.post(url, {"file": big, "client_id": "big"}).status_code, 400)
+        for i in range(3):
+            self.assertEqual(client.post(url, {"file": self.jpeg_with_hidden_payload(), "client_id": f"ok{i}"}).status_code, 200)
+        refused = client.post(url, {"file": self.jpeg_with_hidden_payload(), "client_id": "fourth"})
+        self.assertEqual(refused.status_code, 400)
+        self.assertIn("3 photos or videos per chat", refused.json()["error"])
+        self.assertEqual(ChatAttachment.objects.filter(uploader=casey).count(), 3)
+
+    def test_unverified_video_length_limit(self):
+        from core.chat_media import run_pending
+        from core.models import ChatAttachment
+        casey = self.make_user("2026-0005", verified=False)
+        post = self.create_post(self.finder)
+        self.claim(post, casey)
+        conversation = Conversation.objects.get(claim__claimant=casey)
+        self.client_for(casey).post(f"/conversations/{conversation.pk}/attachments/",
+                                    {"file": make_video(seconds=22, size="320x240", audio=False), "client_id": "long"})
+        run_pending()
+        attachment = ChatAttachment.objects.get(client_id="long")
+        self.assertEqual(attachment.status, "FAILED")
+        self.assertIn("20 seconds", attachment.error)
+
+    def test_heavy_flood_is_quietly_slowed_not_refused(self):
+        from core.models import ChatAttachment
+        for i in range(12):
+            ChatAttachment.objects.create(conversation=self.conversation, uploader=self.alice, client_id=f"old{i}",
+                                          kind="VIDEO", status="READY", uploaded_bytes=10 * 1024 * 1024)
+        reply = self.send(self.alice, self.jpeg_with_hidden_payload(), "heavy")
+        self.assertEqual(reply.status_code, 200)
+        self.assertEqual(reply.json()["status"], "PROCESSING")            # looks like it is just slow
+        attachment = ChatAttachment.objects.get(client_id="heavy")
+        self.assertGreater(attachment.not_before, timezone.now())
+        from core.chat_media import next_job
+        self.assertIsNone(next_job())                                      # not processed yet
+
+    def test_files_deleted_with_the_post(self):
+        import os
+        from core.models import ChatAttachment
+        self.send(self.alice, self.jpeg_with_hidden_payload(), "gone")
+        attachment = ChatAttachment.objects.get(client_id="gone")
+        paths = [attachment.file.path, attachment.preview.path]
+        self.assertTrue(all(os.path.exists(p) for p in paths))
+        with self.captureOnCommitCallbacks(execute=True):
+            self.conversation.post.delete()
+        self.assertFalse(any(os.path.exists(p) for p in paths))
+
+    def test_closed_or_blocked_chat_refuses_uploads(self):
+        self.conversation.is_closed = True
+        self.conversation.save()
+        self.assertEqual(self.send(self.alice, self.jpeg_with_hidden_payload()).status_code, 400)
+        self.assertEqual(self.send(self.bob, self.jpeg_with_hidden_payload(), "x").status_code, 403)

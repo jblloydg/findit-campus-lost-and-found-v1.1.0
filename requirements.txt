@@ -3,3 +3,4 @@ channels[daphne]>=4.2,<5.0
 Pillow>=11,<13
 segno>=1.6,<2.0
 django-simple-captcha>=0.6,<1.0
+imageio-ffmpeg>=0.5  # v1.1.1: video converter (ffmpeg) for chat videos, works offline
