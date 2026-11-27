@@ -1,0 +1,9 @@
+{% extends "core/base.html" %}
+{% block title %}Form expired · Find-IT{% endblock %}
+{% block content %}
+<section class="narrow-page"><div class="empty-state error-page">
+  <div class="empty-icon">↻</div><span class="eyebrow">Error 403</span><h1>This form expired</h1>
+  <p>For your security, the form could not be accepted. Go back, refresh the page, and submit it again.</p>
+  <div class="button-row center-row"><a class="button button-primary" href="javascript:history.back()">Go back</a></div>
+</div></section>
+{% endblock %}

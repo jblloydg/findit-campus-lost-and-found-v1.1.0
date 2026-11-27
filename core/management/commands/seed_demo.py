@@ -11,16 +11,17 @@ class Command(BaseCommand):
     help = "Create fictional local demo accounts. Do not use these credentials online."
 
     def handle(self, *args, **options):
+        # Fictional people with reserved example.com addresses (RFC 2606) — never real students.
         accounts = [
-            ("2026-0001", "Alex Finder", Profile.Role.STUDENT, "DemoFindIt!2026"),
-            ("2026-0002", "Jamie Claimant", Profile.Role.STUDENT, "DemoFindIt!2026"),
-            ("security.demo", "Campus Staff", Profile.Role.STAFF, "DemoStaff!2026"),
-            ("findit-admin", "Find-IT Admin", Profile.Role.ADMIN, "DemoAdmin!2026"),
+            ("2026-0001", "Alex", "Finder", "alex.finder@example.com", Profile.Role.STUDENT, "DemoFindIt!2026"),
+            ("2026-0002", "Jamie", "Claimant", "jamie.claimant@example.com", Profile.Role.STUDENT, "DemoFindIt!2026"),
+            ("security.demo", "Campus", "Staff", "security.demo@example.com", Profile.Role.STAFF, "DemoStaff!2026"),
+            ("findit-admin", "Find-IT", "Admin", "findit-admin@example.com", Profile.Role.ADMIN, "DemoAdmin!2026"),
         ]
-        for username, name, role, password in accounts:
+        for username, first_name, last_name, email, role, password in accounts:
             user, created = User.objects.get_or_create(
                 username=username,
-                defaults={"first_name": name},
+                defaults={"first_name": first_name, "last_name": last_name, "email": email},
             )
             if created:
                 user.set_password(password)
@@ -41,6 +42,8 @@ class Command(BaseCommand):
             title="Blue insulated bottle",
             defaults={
                 "post_type": ItemPost.Type.FOUND,
+                "category": ItemPost.Category.BOTTLE,
+                "location": "Library 2nd floor",
                 "description": "Reusable bottle with a matte blue exterior and a silver-colored lid. The owner should know a few details not shown in this broad description.",
                 "approximate_date": timezone.localdate(),
             },
@@ -67,6 +70,8 @@ class Command(BaseCommand):
             title="Black folding umbrella",
             defaults={
                 "post_type": ItemPost.Type.LOST,
+                "category": ItemPost.Category.UMBRELLA,
+                "location": "Canteen",
                 "description": "Compact black folding umbrella with a curved handle. If you found something similar, message the poster privately.",
                 "approximate_date": timezone.localdate(),
             },

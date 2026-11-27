@@ -2,76 +2,155 @@ import re
 
 from django import forms
 from django.contrib.auth import authenticate, get_user_model
-from django.contrib.auth.forms import AuthenticationForm, SetPasswordForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm, SetPasswordForm
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
 
-from .models import ItemPost, SystemSettings, AbuseReport, Profile
-from .validators import validate_photo
+from .models import (
+    CLOSED_REPORT_STATUSES, AbuseReport, GeneralReport, ItemPost, Profile, ReportStatus, SystemSettings,
+)
+from .validators import validate_photo, validate_profile_photo, validate_report_attachment
 
 User = get_user_model()
 STUDENT_ID_PATTERN = re.compile(r"^\d{4}-\d{4}$")
 
 
+PHONE_PATTERN = re.compile(r"^\+?[0-9][0-9 -]{5,18}[0-9]$")
+
+
+def email_in_use(email, exclude_user=None):
+    """Email addresses are unique across all accounts, ignoring letter case."""
+    users = User.objects.filter(email__iexact=email)
+    if exclude_user is not None:
+        users = users.exclude(pk=exclude_user.pk)
+    return users.exists()
+
+
+def _check_password_strength(form, field, password, candidate):
+    try:
+        validate_password(password, candidate)
+    except ValidationError as exc:
+        form.add_error(field, exc)
+
+
 class FindItLoginForm(AuthenticationForm):
+    """Students sign in with their Student ID; staff and administrators use their assigned username."""
+
+    error_messages = {
+        **AuthenticationForm.error_messages,
+        "invalid_login": (
+            "Incorrect Student ID / username or password. Passwords are case-sensitive. "
+            "If your account was suspended, contact a Find-IT administrator."
+        ),
+    }
+
     username = forms.CharField(
-        label="School ID or staff username",
-        widget=forms.TextInput(attrs={"autocomplete": "username", "placeholder": "2024-0122"}),
+        label="Student ID or staff username",
+        widget=forms.TextInput(attrs={"autocomplete": "username", "placeholder": "2024-0122", "autofocus": True}),
     )
     password = forms.CharField(
         label="Password",
         strip=False,
-        widget=forms.PasswordInput(attrs={"autocomplete": "current-password", "placeholder": "Your password"}),
+        widget=forms.PasswordInput(attrs={"autocomplete": "current-password", "placeholder": "Your password", "data-password-toggle": "true"}),
     )
+
+    def clean_username(self):
+        return self.cleaned_data["username"].strip()
 
 
 class SignupForm(forms.Form):
-    display_name = forms.CharField(max_length=80, label="Name")
-    student_id = forms.CharField(max_length=9, label="School ID", help_text="Format: YYYY-NNNN")
-    password1 = forms.CharField(label="Create password", widget=forms.PasswordInput)
-    password2 = forms.CharField(label="Confirm password", widget=forms.PasswordInput)
+    """Student self-registration. The role is always Student and cannot be chosen."""
+
+    first_name = forms.CharField(max_length=60, label="First name", widget=forms.TextInput(attrs={"autocomplete": "given-name"}))
+    last_name = forms.CharField(max_length=60, label="Last name", widget=forms.TextInput(attrs={"autocomplete": "family-name"}))
+    student_id = forms.CharField(
+        max_length=9, label="Student ID", help_text="Format: YYYY-NNNN, such as 2024-0122. Only the format is checked.",
+        widget=forms.TextInput(attrs={"placeholder": "2024-0122", "autocomplete": "username"}),
+    )
+    email = forms.EmailField(max_length=254, label="Email address", widget=forms.EmailInput(attrs={"autocomplete": "email"}))
+    password1 = forms.CharField(
+        label="Password", strip=False,
+        help_text="At least 8 characters. Avoid common passwords, passwords that are only numbers, or anything close to your name or ID.",
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password", "data-password-toggle": "true"}),
+    )
+    password2 = forms.CharField(
+        label="Confirm password", strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password", "data-password-toggle": "true"}),
+    )
+
+    def clean_first_name(self):
+        return self.cleaned_data["first_name"].strip()
+
+    def clean_last_name(self):
+        return self.cleaned_data["last_name"].strip()
 
     def clean_student_id(self):
         value = self.cleaned_data["student_id"].strip()
         if not STUDENT_ID_PATTERN.fullmatch(value):
-            raise ValidationError("Use the school ID format YYYY-NNNN.")
-        if User.objects.filter(username=value).exists():
-            raise ValidationError("That school ID already has an account.")
-        if Profile.objects.filter(student_id=value).exists():
-            raise ValidationError("That school ID already has an account.")
+            raise ValidationError("Use the Student ID format YYYY-NNNN, such as 2024-0122.")
+        if User.objects.filter(username__iexact=value).exists() or Profile.objects.filter(student_id=value).exists():
+            raise ValidationError("That Student ID already has an account.")
+        return value
+
+    def clean_email(self):
+        value = self.cleaned_data["email"].strip().lower()
+        if email_in_use(value):
+            raise ValidationError("That email address is already used by another account.")
         return value
 
     def clean(self):
         cleaned = super().clean()
-        if cleaned.get("password1") and cleaned.get("password2"):
-            if cleaned["password1"] != cleaned["password2"]:
+        password1, password2 = cleaned.get("password1"), cleaned.get("password2")
+        if password1 and password2:
+            if password1 != password2:
                 self.add_error("password2", "The passwords do not match.")
             else:
-                candidate = User(username=cleaned.get("student_id", ""), first_name=cleaned.get("display_name", ""))
-                try:
-                    from django.contrib.auth.password_validation import validate_password
-                    validate_password(cleaned["password1"], candidate)
-                except ValidationError as exc:
-                    self.add_error("password1", exc)
+                candidate = User(
+                    username=cleaned.get("student_id", ""), email=cleaned.get("email", ""),
+                    first_name=cleaned.get("first_name", ""), last_name=cleaned.get("last_name", ""),
+                )
+                _check_password_strength(self, "password1", password1, candidate)
         return cleaned
 
+    @transaction.atomic
     def save(self):
         user = User.objects.create_user(
             username=self.cleaned_data["student_id"],
-            first_name=self.cleaned_data["display_name"].strip(),
+            email=self.cleaned_data["email"],
+            first_name=self.cleaned_data["first_name"],
+            last_name=self.cleaned_data["last_name"],
             password=self.cleaned_data["password1"],
         )
+        # Role is assigned here, never taken from the submitted form.
+        user.profile.role = Profile.Role.STUDENT
         user.profile.student_id = self.cleaned_data["student_id"]
-        user.profile.save(update_fields=["student_id"])
+        user.profile.save(update_fields=["role", "student_id"])
         return user
 
 
 class StaffAccountForm(forms.Form):
-    display_name = forms.CharField(max_length=80)
+    """Administrator-only form. Always creates a Staff role account."""
+
+    first_name = forms.CharField(max_length=60, label="First name")
+    last_name = forms.CharField(max_length=60, label="Last name", required=False)
     username = forms.RegexField(
-        regex=r"^[A-Za-z0-9._-]{3,32}$",
-        help_text="Use a staff username, not a student ID.",
+        regex=r"^[A-Za-z][A-Za-z0-9._-]{2,31}$",
+        label="Staff username",
+        help_text="3–32 letters, numbers, dots, dashes, or underscores, starting with a letter. Not a student ID.",
+        error_messages={"invalid": "Use 3–32 letters, numbers, dots, dashes, or underscores, starting with a letter."},
     )
-    password = forms.CharField(widget=forms.PasswordInput, min_length=10)
+    email = forms.EmailField(max_length=254, label="Email address", required=False)
+    password = forms.CharField(
+        label="Temporary password", strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password", "data-password-toggle": "true"}),
+    )
+    password_confirm = forms.CharField(
+        label="Confirm temporary password", strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password", "data-password-toggle": "true"}),
+    )
 
     def clean_username(self):
         value = self.cleaned_data["username"].strip()
@@ -79,23 +158,156 @@ class StaffAccountForm(forms.Form):
             raise ValidationError("That username is already in use.")
         return value
 
-    def clean_password(self):
-        password = self.cleaned_data["password"]
-        candidate = User(username=self.cleaned_data.get("username", ""), first_name=self.cleaned_data.get("display_name", ""))
-        from django.contrib.auth.password_validation import validate_password
-        validate_password(password, candidate)
-        return password
+    def clean_email(self):
+        value = self.cleaned_data.get("email", "").strip().lower()
+        if value and email_in_use(value):
+            raise ValidationError("That email address is already used by another account.")
+        return value
 
+    def clean(self):
+        cleaned = super().clean()
+        password, confirm = cleaned.get("password"), cleaned.get("password_confirm")
+        if password and confirm:
+            if password != confirm:
+                self.add_error("password_confirm", "The passwords do not match.")
+            else:
+                candidate = User(
+                    username=cleaned.get("username", ""), email=cleaned.get("email", ""),
+                    first_name=cleaned.get("first_name", ""), last_name=cleaned.get("last_name", ""),
+                )
+                _check_password_strength(self, "password", password, candidate)
+        return cleaned
+
+    @transaction.atomic
     def save(self):
         user = User.objects.create_user(
             username=self.cleaned_data["username"],
-            first_name=self.cleaned_data["display_name"].strip(),
+            email=self.cleaned_data.get("email", ""),
+            first_name=self.cleaned_data["first_name"].strip(),
+            last_name=self.cleaned_data.get("last_name", "").strip(),
             password=self.cleaned_data["password"],
         )
         user.profile.role = Profile.Role.STAFF
         user.profile.student_id = None
         user.profile.save(update_fields=["role", "student_id"])
         return user
+
+
+class ProfileForm(forms.Form):
+    """Fields a signed-in user may change on their own profile.
+
+    Student ID, username, role, and account status are deliberately absent.
+    """
+
+    first_name = forms.CharField(max_length=60, label="First name", widget=forms.TextInput(attrs={"autocomplete": "given-name"}))
+    last_name = forms.CharField(max_length=60, label="Last name", required=False, widget=forms.TextInput(attrs={"autocomplete": "family-name"}))
+    email = forms.EmailField(max_length=254, label="Email address", widget=forms.EmailInput(attrs={"autocomplete": "email"}))
+    contact_number = forms.CharField(
+        max_length=20, label="Contact number", required=False,
+        help_text="Optional. Digits, spaces, or dashes, such as 0917 123 4567 or +63 917 123 4567.",
+        widget=forms.TextInput(attrs={"autocomplete": "tel", "inputmode": "tel"}),
+    )
+    photo = forms.ImageField(
+        label="Profile picture", required=False,
+        help_text="Optional. JPG, PNG, or WebP; up to 2 MB.",
+        widget=forms.FileInput(attrs={"accept": "image/jpeg,image/png,image/webp"}),
+    )
+    remove_photo = forms.BooleanField(label="Remove my current profile picture", required=False)
+
+    def __init__(self, *args, user, **kwargs):
+        self.user = user
+        profile = user.profile
+        kwargs.setdefault("initial", {
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "contact_number": profile.contact_number,
+        })
+        super().__init__(*args, **kwargs)
+
+    def clean_first_name(self):
+        value = self.cleaned_data["first_name"].strip()
+        if not value:
+            raise ValidationError("Enter your first name.")
+        return value
+
+    def clean_last_name(self):
+        return self.cleaned_data.get("last_name", "").strip()
+
+    def clean_email(self):
+        value = self.cleaned_data["email"].strip().lower()
+        if email_in_use(value, exclude_user=self.user):
+            raise ValidationError("That email address is already used by another account.")
+        return value
+
+    def clean_contact_number(self):
+        value = " ".join(self.cleaned_data.get("contact_number", "").split())
+        if not value:
+            return ""
+        digits = re.sub(r"\D", "", value)
+        if not PHONE_PATTERN.fullmatch(value) or not 7 <= len(digits) <= 15:
+            raise ValidationError("Enter a valid contact number using digits, spaces, or dashes.")
+        return value
+
+    def clean_photo(self):
+        photo = self.cleaned_data.get("photo")
+        if photo:
+            validate_profile_photo(photo)
+        return photo
+
+    @transaction.atomic
+    def save(self):
+        user, profile = self.user, self.user.profile
+        user.first_name = self.cleaned_data["first_name"]
+        user.last_name = self.cleaned_data["last_name"]
+        user.email = self.cleaned_data["email"]
+        user.save(update_fields=["first_name", "last_name", "email"])
+        profile.contact_number = self.cleaned_data["contact_number"]
+        old_photo_name = profile.photo.name if profile.photo else ""
+        new_photo = self.cleaned_data.get("photo")
+        if new_photo:
+            profile.photo = new_photo
+        elif self.cleaned_data.get("remove_photo"):
+            profile.photo = None
+        profile.save(update_fields=["contact_number", "photo"])
+        if old_photo_name and old_photo_name != (profile.photo.name if profile.photo else ""):
+            storage = Profile._meta.get_field("photo").storage
+            transaction.on_commit(lambda: storage.delete(old_photo_name))
+        return user
+
+
+class FindItSetPasswordForm(SetPasswordForm):
+    """Used by the emailed password-reset link."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["new_password1"].label = "New password"
+        self.fields["new_password2"].label = "Confirm new password"
+        for name in ("new_password1", "new_password2"):
+            self.fields[name].widget.attrs["data-password-toggle"] = "true"
+        self.fields["new_password1"].help_text = (
+            "At least 8 characters. Avoid common passwords, passwords that are only numbers, "
+            "or anything close to your name, ID, or email."
+        )
+
+
+class FindItPasswordChangeForm(PasswordChangeForm):
+    """Django's secure password change form with Find-IT labels and show/hide toggles."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        labels = {
+            "old_password": "Current password",
+            "new_password1": "New password",
+            "new_password2": "Confirm new password",
+        }
+        for name, label in labels.items():
+            self.fields[name].label = label
+            self.fields[name].widget.attrs["data-password-toggle"] = "true"
+        self.fields["new_password1"].help_text = (
+            "At least 8 characters. Avoid common passwords, passwords that are only numbers, "
+            "or anything close to your name, ID, or email."
+        )
 
 
 class ItemPostForm(forms.ModelForm):
@@ -107,9 +319,10 @@ class ItemPostForm(forms.ModelForm):
 
     class Meta:
         model = ItemPost
-        fields = ["post_type", "title", "description", "approximate_date", "photo"]
+        fields = ["post_type", "category", "title", "description", "location", "approximate_date", "photo"]
         widgets = {
             "post_type": forms.Select(attrs={"data-post-type": "true"}),
+            "location": forms.TextInput(attrs={"placeholder": "A broad area, such as Library 2nd floor or Canteen"}),
             "title": forms.TextInput(attrs={"placeholder": "A broad name, such as blue water bottle"}),
             "description": forms.Textarea(attrs={"rows": 4, "placeholder": "Describe visible details without revealing private identifiers."}),
             "approximate_date": forms.DateInput(attrs={"type": "date"}),
@@ -155,10 +368,218 @@ class ClaimAnswerForm(forms.Form):
 
 
 class ReportForm(forms.ModelForm):
+    """Chat safety report submitted from a conversation by a participant or an authorized reviewer."""
+
+    target_user = forms.TypedChoiceField(label="Account being reported", coerce=int, empty_value=None)
+    reported_message = forms.TypedChoiceField(
+        label="Specific message (optional)", coerce=int, empty_value=None, required=False,
+    )
+
     class Meta:
         model = AbuseReport
         fields = ["reason", "details"]
-        widgets = {"details": forms.Textarea(attrs={"rows": 4})}
+        labels = {"reason": "Category", "details": "What happened?"}
+        widgets = {"details": forms.Textarea(attrs={"rows": 4, "maxlength": 1500})}
+
+    def __init__(self, *args, conversation, reporter, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.conversation = conversation
+        self.reporter = reporter
+        participants = [conversation.initiator, conversation.recipient]
+        choices = [(u.pk, u.get_full_name() or u.username) for u in participants if u.pk != reporter.pk]
+        self.fields["target_user"].choices = [("", "Choose account")] + choices
+        if len(choices) == 1:
+            self.fields["target_user"].initial = choices[0][0]
+        recent = conversation.messages.exclude(sender=reporter).select_related("sender").order_by("-sent_at")[:30]
+        self.fields["reported_message"].choices = [("", "Not a specific message")] + [
+            (m.pk, f"{m.sender.first_name or m.sender.username}, {timezone.localtime(m.sent_at):%b %d %H:%M}: {m.text[:60]}")
+            for m in recent
+        ]
+        self.fields["details"].required = True
+        self.fields["reason"].choices = [("", "Choose a category")] + list(AbuseReport.Reason.choices)
+
+    def clean_details(self):
+        value = self.cleaned_data["details"].strip()
+        if len(value) < 10:
+            raise ValidationError("Describe what happened in at least 10 characters.")
+        return value
+
+    def clean_target_user(self):
+        value = self.cleaned_data["target_user"]
+        if value not in {self.conversation.initiator_id, self.conversation.recipient_id} or value == self.reporter.pk:
+            raise ValidationError("Choose the other participant in this conversation.")
+        return value
+
+    def clean_reported_message(self):
+        value = self.cleaned_data.get("reported_message")
+        if value and not self.conversation.messages.filter(pk=value).exclude(sender=self.reporter).exists():
+            raise ValidationError("Choose a message from this conversation.")
+        return value
+
+
+class GeneralReportForm(forms.ModelForm):
+    class Meta:
+        model = GeneralReport
+        fields = ["category", "description", "attachment"]
+        labels = {"description": "Describe the issue", "attachment": "Screenshot or attachment (optional)"}
+        help_texts = {"attachment": "JPG, PNG, WebP, or PDF; up to 5 MB. Only you and authorized reviewers can open it."}
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 5, "maxlength": 2000}),
+            "attachment": forms.ClearableFileInput(attrs={"accept": "image/jpeg,image/png,image/webp,application/pdf"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["category"].choices = [("", "Choose a category")] + list(GeneralReport.Category.choices)
+
+    def clean_description(self):
+        value = self.cleaned_data["description"].strip()
+        if len(value) < 10:
+            raise ValidationError("Describe the issue in at least 10 characters.")
+        return value
+
+    def clean_attachment(self):
+        attachment = self.cleaned_data.get("attachment")
+        if attachment and hasattr(attachment, "content_type"):
+            validate_report_attachment(attachment)
+        return attachment
+
+
+class ReportReviewForm(forms.Form):
+    """Reviewer action on a chat safety report or general report."""
+
+    ACTION_NOTE = "NOTE"
+    action = forms.ChoiceField(label="Action", choices=[
+        (ACTION_NOTE, "Add remarks only (keep status)"),
+        (ReportStatus.UNDER_REVIEW, "Mark as Under Review"),
+        (ReportStatus.RESOLVED, "Resolve"),
+        (ReportStatus.DISMISSED, "Dismiss (no action needed)"),
+    ])
+    remarks = forms.CharField(
+        label="Internal remarks", max_length=1500, required=False,
+        help_text="Only administrators and verified moderators can see these remarks.",
+        widget=forms.Textarea(attrs={"rows": 3, "maxlength": 1500}),
+    )
+    account_action = forms.ChoiceField(label="Account decision (administrators only)", required=False, choices=[
+        ("", "No account change"),
+        ("suspend", "Suspend the reported account"),
+        ("restore", "Restore the reported account"),
+    ])
+
+    def __init__(self, *args, report, allow_account_action=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.report = report
+        if not allow_account_action:
+            del self.fields["account_action"]
+
+    def clean(self):
+        cleaned = super().clean()
+        action = cleaned.get("action")
+        status = self.report.status
+        if action == self.ACTION_NOTE and not cleaned.get("remarks", "").strip():
+            self.add_error("remarks", "Write the remarks to add.")
+        if action == ReportStatus.UNDER_REVIEW and status != ReportStatus.SUBMITTED and status not in CLOSED_REPORT_STATUSES:
+            self.add_error("action", "This report is already under review.")
+        if action in CLOSED_REPORT_STATUSES and status in CLOSED_REPORT_STATUSES:
+            self.add_error("action", "This report is already closed. Reopen it as Under Review first.")
+        if action == ReportStatus.DISMISSED and cleaned.get("account_action"):
+            self.add_error("account_action", "A dismissed report cannot change an account.")
+        if cleaned.get("account_action") and action != ReportStatus.RESOLVED:
+            self.add_error("account_action", "Account decisions are recorded when resolving a report.")
+        return cleaned
+
+
+class AdminAccountForm(forms.Form):
+    """Administrator edit of another account's details, role, and status."""
+
+    first_name = forms.CharField(max_length=60, label="First name")
+    last_name = forms.CharField(max_length=60, label="Last name", required=False)
+    email = forms.EmailField(max_length=254, label="Email address", required=False)
+    contact_number = forms.CharField(max_length=20, label="Contact number", required=False)
+    role = forms.ChoiceField(label="Role", choices=Profile.Role.choices)
+    is_active = forms.TypedChoiceField(
+        label="Account status", coerce=lambda v: v == "1", choices=[("1", "Active"), ("0", "Inactive (suspended)")],
+    )
+
+    def __init__(self, *args, account, acting_admin, **kwargs):
+        self.account = account
+        self.acting_admin = acting_admin
+        kwargs.setdefault("initial", {
+            "first_name": account.first_name, "last_name": account.last_name, "email": account.email,
+            "contact_number": account.profile.contact_number, "role": account.profile.role,
+            "is_active": "1" if account.is_active else "0",
+        })
+        super().__init__(*args, **kwargs)
+        self.locked_reason = ""
+        if account.pk == acting_admin.pk:
+            self.locked_reason = "You cannot change your own role or status. Another administrator must do it."
+        elif account.is_superuser:
+            self.locked_reason = "This is a Django superuser. Change its role or status in Django administration."
+        if self.locked_reason:
+            for name in ("role", "is_active"):
+                self.fields[name].disabled = True
+        if not account.profile.student_id:
+            self.fields["role"].help_text = "Student role needs a Student ID, so it is only available for accounts that registered as students."
+
+    def clean_first_name(self):
+        value = self.cleaned_data["first_name"].strip()
+        if not value:
+            raise ValidationError("Enter a first name.")
+        return value
+
+    def clean_last_name(self):
+        return self.cleaned_data.get("last_name", "").strip()
+
+    def clean_email(self):
+        value = self.cleaned_data.get("email", "").strip().lower()
+        if value and email_in_use(value, exclude_user=self.account):
+            raise ValidationError("That email address is already used by another account.")
+        return value
+
+    clean_contact_number = ProfileForm.clean_contact_number
+
+    def clean(self):
+        cleaned = super().clean()
+        role, active = cleaned.get("role"), cleaned.get("is_active")
+        if role == Profile.Role.STUDENT and not self.account.profile.student_id:
+            self.add_error("role", "This account has no Student ID, so it cannot become a Student.")
+        currently_admin = self.account.profile.role == Profile.Role.ADMIN and self.account.is_active
+        if currently_admin and (role != Profile.Role.ADMIN or active is False):
+            other_admins = User.objects.filter(is_active=True).filter(
+                Q(profile__role=Profile.Role.ADMIN) | Q(is_superuser=True)
+            ).exclude(pk=self.account.pk)
+            if not other_admins.exists():
+                raise ValidationError("At least one active administrator must remain.")
+        return cleaned
+
+    @transaction.atomic
+    def save(self):
+        account, profile = self.account, self.account.profile
+        changes = []
+        old_role, old_active = profile.role, account.is_active
+        account.first_name = self.cleaned_data["first_name"]
+        account.last_name = self.cleaned_data["last_name"]
+        account.email = self.cleaned_data["email"]
+        account.is_active = self.cleaned_data["is_active"]
+        account.save(update_fields=["first_name", "last_name", "email", "is_active"])
+        profile.contact_number = self.cleaned_data["contact_number"]
+        profile.role = self.cleaned_data["role"]
+        profile.save(update_fields=["contact_number", "role"])
+        if old_role != profile.role:
+            changes.append(f"role {old_role} → {profile.role}")
+        if old_active != account.is_active:
+            changes.append("activated" if account.is_active else "deactivated")
+        return changes
+
+
+class ModeratorDecisionForm(forms.Form):
+    action = forms.ChoiceField(choices=[
+        ("request", "Select for moderator verification"),
+        ("approve", "Approve (Verified)"),
+        ("reject", "Reject"),
+        ("revoke", "Revoke authorization"),
+    ])
+    remarks = forms.CharField(max_length=500, required=False, widget=forms.Textarea(attrs={"rows": 2, "maxlength": 500}))
 
 
 class SystemSettingsForm(forms.ModelForm):
@@ -183,15 +604,6 @@ class SystemSettingsForm(forms.ModelForm):
         if value is not None and value > 3650:
             raise ValidationError("Choose a value of 3650 days or less.")
         return value
-
-
-class AdminReviewForm(forms.Form):
-    action = forms.ChoiceField(choices=[
-        ("resolve", "Resolve with no account action"),
-        ("suspend", "Suspend reported account"),
-        ("restore", "Restore account"),
-    ])
-    admin_note = forms.CharField(max_length=1500, required=False, widget=forms.Textarea(attrs={"rows": 3}))
 
 
 class CloseReasonForm(forms.Form):

@@ -9,8 +9,10 @@
     {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
     <label>Post type{{ form.post_type }}<small class="form-help">Choose Lost if you are looking for an item, or Found if you have an item.</small></label>
     {% if form.post_type.errors %}<div class="field-error">{{ form.post_type.errors }}</div>{% endif %}
+    <label>Category{{ form.category }}<small class="form-help">Pick the closest kind of item so others can filter for it.</small></label>{% if form.category.errors %}<div class="field-error">{{ form.category.errors }}</div>{% endif %}
     <label>Broad title{{ form.title }}</label>{% if form.title.errors %}<div class="field-error">{{ form.title.errors }}</div>{% endif %}
     <label>Description{{ form.description }}<small class="form-help">Avoid exact serial numbers, hidden markings, or personal details.</small></label>{% if form.description.errors %}<div class="field-error">{{ form.description.errors }}</div>{% endif %}
+    <label>Campus location (optional){{ form.location }}<small class="form-help">Where it was lost or found. Keep it broad, such as a building or area.</small></label>{% if form.location.errors %}<div class="field-error">{{ form.location.errors }}</div>{% endif %}
     <label>Approximate date{{ form.approximate_date }}</label>{% if form.approximate_date.errors %}<div class="field-error">{{ form.approximate_date.errors }}</div>{% endif %}
     <label>Optional exterior photo{{ form.photo }}<small class="form-help">JPG, PNG, or WebP; up to 5 MB. Photograph the outside only.</small></label>{% if form.photo.errors %}<div class="field-error">{{ form.photo.errors }}</div>{% endif %}
     <div id="verification-questions" class="question-editor">

@@ -1,0 +1,23 @@
+{% extends "core/base.html" %}
+{% block title %}General reports · Find-IT{% endblock %}
+{% block content %}
+<section class="page-wrap">
+  <a class="back-link" href="{% if current_role == 'admin' %}{% url 'admin-dashboard' %}{% else %}{% url 'staff-dashboard' %}{% endif %}">← Back</a>
+  <div class="page-heading"><div><span class="eyebrow">Administrators and verified moderators</span><h1>General item &amp; system reports</h1><p class="muted">Reports about listings and technical problems. Nothing is hidden or deleted until a reviewer decides.</p></div>
+    <div class="button-row"><a class="button button-outline" href="{% url 'admin-reports' %}">Chat safety reports</a></div></div>
+  {% include "core/includes/report_filters.html" with search_placeholder="Reference, name, listing, or description" %}
+  <div class="table-scroll panel report-table-panel">
+    <table class="accounts-table report-table">
+      <thead><tr><th>Reference</th><th>Category</th><th>Reporter</th><th>Related listing</th><th>Submitted</th><th>Reviewer</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for report in page_obj %}
+        <tr><td><strong>{{ report.reference }}</strong></td><td>{{ report.get_category_display }}{% if report.attachment %} <span title="Has attachment">📎</span>{% endif %}</td><td>{% firstof report.reporter.get_full_name report.reporter.username %}</td><td>{% if report.post %}{{ report.post.title|truncatechars:40 }}{% else %}—{% endif %}</td><td>{{ report.created_at|date:"M j, Y · g:i a" }}</td><td>{% firstof report.assigned_reviewer.get_full_name report.assigned_reviewer.username "—" %}</td><td>{% include "core/includes/report_status.html" with status=report.status label=report.get_status_display %}</td><td><a class="button button-soft button-small" href="{% url 'general-report-detail' report.pk %}">Review</a></td></tr>
+      {% empty %}
+        <tr><td colspan="8"><div class="empty-state compact-empty"><div class="empty-icon">✓</div><h3>No general reports</h3><p>{% if filters.q or filters.category or filters.status or filters.date_from or filters.date_to %}No reports match these filters.{% else %}Listing and system reports will appear here.{% endif %}</p></div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "core/includes/pagination.html" %}
+</section>
+{% endblock %}

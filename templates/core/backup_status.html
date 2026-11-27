@@ -1,0 +1,41 @@
+{% extends "core/base.html" %}
+{% block title %}Backups · Find-IT{% endblock %}
+{% block content %}
+<section class="page-wrap">
+  <a class="back-link" href="{% url 'admin-dashboard' %}">← Admin dashboard</a>
+  <div class="page-heading"><div><span class="eyebrow">Administrator only · read-only</span><h1>Database backups</h1><p class="muted">Status from the backup folder and its log. Backup files are never downloadable from the website, and restoring is done on the server with a command.</p></div></div>
+  {% if info.error %}
+    <div class="form-callout warning-callout"><strong>Backup information is unavailable</strong><span>{{ info.error }}</span></div>
+  {% else %}
+  <div class="staff-stats stat-grid-4">
+    <div class="stat-card {% if info.last_success %}stat-resolved{% else %}stat-danger{% endif %}"><span>Last successful backup</span><strong class="stat-small">{% if info.last_success %}{{ info.last_success.when|date:"M j, Y · g:i a" }}{% else %}None yet{% endif %}</strong></div>
+    <div class="stat-card {% if info.last_attempt.status == 'failed' %}stat-danger{% endif %}"><span>Last attempt</span><strong class="stat-small">{% if info.last_attempt %}{{ info.last_attempt.status|title }}{% else %}None yet{% endif %}</strong>{% if info.last_attempt %}<small>{{ info.last_attempt.when|date:"M j, Y · g:i a" }}</small>{% endif %}</div>
+    <div class="stat-card"><span>Intact backup files</span><strong>{{ info.intact_count }}</strong></div>
+    <div class="stat-card"><span>Retention</span><strong class="stat-small">{{ info.retention_days }} days</strong><small>always keep newest {{ info.min_keep }}</small></div>
+  </div>
+  {% if info.last_attempt.status == "failed" %}<div class="form-callout warning-callout"><strong>The last backup failed</strong><span>{{ info.last_attempt.message }}</span></div>{% endif %}
+  {% if not info.last_success %}<div class="form-callout warning-callout"><strong>No successful backup recorded</strong><span>Run <code>python manage.py backup_db</code> on the server and set up the daily scheduled task.</span></div>{% endif %}
+  <section class="panel accounts-panel"><h2>Available backups</h2>
+    <div class="table-scroll"><table class="accounts-table"><thead><tr><th>File</th><th>Type</th><th>Created</th><th>Size</th><th>Checksum</th></tr></thead><tbody>
+      {% for item in info.backups %}<tr><td><code>{{ item.name }}</code></td><td>{{ item.kind|title }}</td><td>{{ item.created|date:"M j, Y · g:i a" }}</td><td>{{ item.size|filesizeformat }}</td><td>{% if item.checksum_ok %}<span class="report-status report-status-resolved">OK</span>{% elif item.checksum_ok == False %}<span class="mod-status mod-status-revoked">Mismatch</span>{% else %}<span class="report-status report-status-dismissed">None</span>{% endif %}</td></tr>
+      {% empty %}<tr><td colspan="5"><div class="empty-state compact-empty"><div class="empty-icon">◎</div><h3>No backups yet</h3><p>Backups appear here after <code>backup_db</code> runs.</p></div></td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  <section class="panel accounts-panel"><h2>Recent backup log</h2>
+    <div class="table-scroll"><table class="accounts-table"><thead><tr><th>Time</th><th>Action</th><th>Status</th><th>File</th><th>Message</th></tr></thead><tbody>
+      {% for entry in info.recent_log %}<tr><td>{{ entry.when|date:"M j, Y · g:i:s a" }}</td><td>{{ entry.action|title }}</td><td>{% if entry.status == "success" %}<span class="report-status report-status-resolved">Success</span>{% else %}<span class="mod-status mod-status-revoked">Failed</span>{% endif %}</td><td><code>{{ entry.file|default:"—" }}</code></td><td class="wrap-cell">{{ entry.message }}</td></tr>
+      {% empty %}<tr><td colspan="5" class="muted">No backup activity recorded.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  <section class="panel accounts-panel"><h2>How to restore</h2>
+    <ol class="restore-steps">
+      <li>Stop the website and the timer runner.</li>
+      <li>On the server, in the <code>Find-IT</code> folder with the virtual environment active, check the file: <code>python manage.py restore_db FILE_NAME --check-only</code></li>
+      <li>Restore it: <code>python manage.py restore_db FILE_NAME</code> and type <strong>RESTORE</strong> when asked. The current database is backed up first as a <em>pre-restore</em> file.</li>
+      <li>Run <code>python manage.py migrate</code>, then start the site again.</li>
+    </ol>
+    <p class="form-help">Database engine: {{ info.engine }}. Full procedure: <code>docs/OPERATIONS.md</code>.</p>
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

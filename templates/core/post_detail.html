@@ -13,6 +13,8 @@
         <div class="card-meta"><span class="type-pill type-{{ post.post_type|lower }}">{{ post.get_post_type_display }}</span><span class="status-pill status-{{ post.status|lower }}">{{ post.get_status_display }}</span></div>
         <h1>{{ post.title }}</h1>
         <p class="detail-author">Posted by <strong>{{ post.author.first_name|default:post.author.username }}</strong>{% if post.approximate_date %} · Approx. {{ post.approximate_date|date:"M j, Y" }}{% endif %}</p>
+        <p class="item-tags"><a class="category-tag" href="{% url 'home' %}?category={{ post.category }}">{{ post.get_category_display }}</a>{% if post.location %}<span class="location-tag">📍 {{ post.location }}</span>{% endif %}</p>
+        {% if user.is_authenticated and user.pk != post.author_id %}<a class="text-action report-listing-link" href="{% url 'general-report-create' %}?post={{ post.pk }}">⚑ Report this listing</a>{% endif %}
       </div>
       <div class="description-panel"><span class="eyebrow">Broad description</span><p>{{ post.description|linebreaksbr }}</p></div>
       {% if post.status == "TURNED_OVER" %}<div class="form-callout guardhouse-callout"><strong>At the guard house</strong><span>Online claims are closed. Pickup is handled in person within school premises.</span></div>{% endif %}

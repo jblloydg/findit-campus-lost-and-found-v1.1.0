@@ -20,18 +20,14 @@
     </div>
     {% if can_send %}
     <form class="chat-composer" id="chat-form"><label for="chat-input" class="sr-only">Message</label><textarea id="chat-input" rows="2" maxlength="2000" placeholder="Write a message…" required></textarea><button class="button button-primary" type="submit">Send</button></form>
-    <p class="chat-privacy">Messages are private to the participants. Authorized staff can review chats for safety.</p>
+    <p class="chat-privacy">Messages are private to the participants. Administrators and verified moderators can review chats for safety.</p>
     {% else %}<div class="chat-readonly">This conversation is read-only. Its history remains until the post is permanently removed.</div>{% endif %}
-    {% if current_role == "staff" or current_role == "admin" %}
-    <details class="moderation-tools"><summary>Staff review tools</summary>
+    {% if can_report %}<p class="chat-report-link"><a class="text-action" href="{% url 'report-chat' conversation.pk %}">⚑ Report this conversation</a> <span class="muted">for harassment, threats, scams, or other unsafe behavior.</span></p>{% endif %}
+    {% if is_reviewer %}
+    <details class="moderation-tools"><summary>Reviewer tools</summary>
       {% if not conversation.is_paused %}<form method="post" action="{% url 'pause-chat' conversation.pk %}">{% csrf_token %}<label>Reason for pausing<input name="reason" maxlength="240" placeholder="Safety review"></label><button class="button button-outline button-small" type="submit">Pause chat</button></form>{% endif %}
       {% if conversation.is_paused and not conversation.is_closed and current_role == "admin" %}<form method="post" action="{% url 'unpause-chat' conversation.pk %}">{% csrf_token %}<button class="button button-soft button-small" type="submit">Restore messaging</button></form>{% endif %}
-      <form method="post" action="{% url 'report-chat' conversation.pk %}" class="report-form">{% csrf_token %}
-        <label>Report reason<select name="reason" required><option value="">Choose a reason</option><option value="HARASSMENT">Harassment or abusive messages</option><option value="THREATS">Threats or unsafe contact</option><option value="SPAM">Spam or repeated unwanted contact</option><option value="FRAUD">False claim or suspected fraud</option><option value="OTHER">Other concern</option></select></label>
-        <label>Account involved<select name="target_user_id"><option value="">Choose account</option><option value="{{ conversation.initiator.pk }}">{{ conversation.initiator.first_name|default:conversation.initiator.username }}</option><option value="{{ conversation.recipient.pk }}">{{ conversation.recipient.first_name|default:conversation.recipient.username }}</option></select></label>
-        <label>Details<textarea name="details" rows="3" maxlength="1500"></textarea></label>
-        <button class="button button-danger button-small" type="submit">Send report to administrator</button>
-      </form>
+      <a class="button button-outline button-small" href="{% url 'admin-reports' %}">Chat safety reports</a>
     </details>
     {% endif %}
   </div>

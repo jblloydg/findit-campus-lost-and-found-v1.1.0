@@ -14,9 +14,12 @@
     <label class="search-field"><span aria-hidden="true">⌕</span><input type="search" name="q" value="{{ q }}" placeholder="Search by broad item details" aria-label="Search listings"></label>
     <label class="select-field"><span class="sr-only">Type</span><select name="type"><option value="">All posts</option><option value="LOST" {% if selected_type == "LOST" %}selected{% endif %}>Lost</option><option value="FOUND" {% if selected_type == "FOUND" %}selected{% endif %}>Found</option></select></label>
     <label class="select-field"><span class="sr-only">Status</span><select name="status"><option value="">Any status</option>{% for value,label in status_choices %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label class="select-field"><span class="sr-only">Category</span><select name="category"><option value="">All categories</option>{% for value,label in category_choices %}<option value="{{ value }}" {% if selected_category == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label class="select-field location-field"><span class="sr-only">Location</span><input type="text" name="location" value="{{ location }}" maxlength="120" placeholder="Any location" aria-label="Filter by location"></label>
     <button class="button button-outline" type="submit">Search</button>
   </form>
-  <div class="result-heading"><h2>Recent listings</h2><span class="muted">{{ posts|length }} shown</span></div>
+  {% if q or selected_type or selected_status or selected_category or location %}<p class="filter-clear"><a href="{% url 'home' %}">Clear all filters</a></p>{% endif %}
+  <div class="result-heading"><h2>Recent listings</h2><span class="muted">{{ page_obj.paginator.count }} found</span></div>
   <div class="post-grid">
     {% for post in posts %}
     <article class="post-card">
@@ -25,6 +28,7 @@
         <div class="post-card-body">
           <div class="card-meta"><span class="type-pill type-{{ post.post_type|lower }}">{{ post.get_post_type_display }}</span><span class="status-dot">{{ post.get_status_display }}</span></div>
           <h3>{{ post.title }}</h3>
+          <p class="item-tags"><span class="category-tag">{{ post.get_category_display }}</span>{% if post.location %}<span class="location-tag">📍 {{ post.location }}</span>{% endif %}</p>
           <p class="clamp-3">{{ post.description }}</p>
           <div class="post-card-foot"><span>{{ post.author.first_name|default:post.author.username }}</span>{% if post.approximate_date %}<span>{{ post.approximate_date|date:"M j, Y" }}</span>{% endif %}</div>
         </div>
@@ -38,5 +42,6 @@
     </div>
     {% endfor %}
   </div>
+  {% include "core/includes/pagination.html" %}
 </section>
 {% endblock %}

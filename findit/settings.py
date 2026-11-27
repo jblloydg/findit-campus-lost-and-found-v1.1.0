@@ -30,6 +30,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "core.middleware.FriendlyErrorMiddleware",
 ]
 if not DEBUG:
     MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
@@ -59,7 +60,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 if DATABASE_URL:
     try:
         import dj_database_url
-        DATABASES = {"default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
+        DATABASES = {"default": dj_database_url.parse(DATABASE_URL, conn_max_age=600, conn_health_checks=True)}
     except ImportError as exc:
         raise RuntimeError("Install the production requirements to use DATABASE_URL.") from exc
 else:
@@ -67,8 +68,15 @@ else:
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "db.sqlite3",
+            # Wait up to 20 s for a lock instead of failing when the website and the
+            # timer runner write at the same moment.
+            "OPTIONS": {"timeout": 20},
         }
     }
+
+# Each web request runs in one transaction: if any database step fails, everything that
+# request wrote is rolled back, so records are never left half-saved.
+DATABASES["default"]["ATOMIC_REQUESTS"] = True
 
 REDIS_URL = os.getenv("REDIS_URL", "").strip()
 if REDIS_URL:
@@ -102,14 +110,75 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+# Report attachments: outside MEDIA_ROOT, served only by a permission-checked view.
+PRIVATE_MEDIA_ROOT = BASE_DIR / "private_media"
+
+# Database backups (core/backup.py). Never inside STATIC_ROOT or MEDIA_ROOT.
+BACKUP_DIR = Path(os.getenv("FINDIT_BACKUP_DIR", str(BASE_DIR / "backups")))
+BACKUP_RETENTION_DAYS = int(os.getenv("FINDIT_BACKUP_RETENTION_DAYS", "14"))
+BACKUP_MIN_KEEP = int(os.getenv("FINDIT_BACKUP_MIN_KEEP", "7"))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+CSRF_FAILURE_VIEW = "core.views.csrf_failure"
+X_FRAME_OPTIONS = "DENY"
+SESSION_COOKIE_HTTPONLY = True
+
+# Logging: warnings and errors (with tracebacks) go to the console and to a rotating
+# file in LOG_DIR. Request bodies and passwords are never logged.
+LOG_DIR = Path(os.getenv("FINDIT_LOG_DIR", str(BASE_DIR / "logs")))
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {"format": "%(asctime)s %(levelname)s %(name)s: %(message)s"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "standard"},
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_DIR / "findit.log"),
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 5,
+            "formatter": "standard",
+            "encoding": "utf-8",
+        },
+    },
+    "root": {"handlers": ["console", "file"], "level": "WARNING"},
+    "loggers": {
+        "django.request": {"handlers": ["console", "file"], "level": "ERROR", "propagate": False},
+        "findit": {"handlers": ["console", "file"], "level": "INFO", "propagate": False},
+    },
+}
+
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "landing"
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# Email: printed to the console locally. Set DJANGO_EMAIL_HOST (and the related variables)
+# on the server to send real password-reset emails. Credentials stay in environment variables.
+EMAIL_HOST = os.getenv("DJANGO_EMAIL_HOST", "").strip()
+if EMAIL_HOST:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_PORT = int(os.getenv("DJANGO_EMAIL_PORT", "587"))
+    EMAIL_HOST_USER = os.getenv("DJANGO_EMAIL_HOST_USER", "")
+    EMAIL_HOST_PASSWORD = os.getenv("DJANGO_EMAIL_HOST_PASSWORD", "")
+    EMAIL_USE_TLS = os.getenv("DJANGO_EMAIL_USE_TLS", "1").lower() in {"1", "true", "yes"}
+    EMAIL_TIMEOUT = 15
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = os.getenv("DJANGO_DEFAULT_FROM_EMAIL", "Find-IT <no-reply@localhost>")
+PASSWORD_RESET_TIMEOUT = 60 * 60  # reset links expire after 1 hour
+
+# Sign-in throttling (core/security.py)
+LOGIN_FAILURE_LIMIT = int(os.getenv("FINDIT_LOGIN_FAILURE_LIMIT", "5"))
+LOGIN_LOCKOUT_SECONDS = int(os.getenv("FINDIT_LOGIN_LOCKOUT_SECONDS", "900"))
+
+if REDIS_URL:
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.redis.RedisCache", "LOCATION": REDIS_URL}}
+else:
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "findit"}}
 
 if not DEBUG:
     if SECRET_KEY == "local-only-findit-change-before-deployment":
@@ -118,6 +187,13 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_REFERRER_POLICY = "same-origin"
+    # HSTS tells browsers to use HTTPS only. Start small, then raise (e.g. 31536000) once HTTPS works.
+    SECURE_HSTS_SECONDS = int(os.getenv("DJANGO_HSTS_SECONDS", "3600"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv("DJANGO_HSTS_INCLUDE_SUBDOMAINS", "0").lower() in {"1", "true", "yes"}
+    SECURE_HSTS_PRELOAD = False
+    # Set DJANGO_BEHIND_PROXY=1 only when a trusted proxy (e.g. Nginx, a PaaS router) terminates HTTPS.
+    if os.getenv("DJANGO_BEHIND_PROXY", "0").lower() in {"1", "true", "yes"}:
+        SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = os.getenv("DJANGO_SSL_REDIRECT", "1").lower() in {"1", "true", "yes"}
     CSRF_TRUSTED_ORIGINS = [
         origin.strip() for origin in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if origin.strip()

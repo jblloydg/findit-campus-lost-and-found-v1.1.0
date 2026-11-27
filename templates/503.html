@@ -1,0 +1,9 @@
+{% extends "core/base.html" %}
+{% block title %}Temporarily unavailable · Find-IT{% endblock %}
+{% block content %}
+<section class="narrow-page"><div class="empty-state error-page">
+  <div class="empty-icon">!</div><span class="eyebrow">Error 503</span><h1>Find-IT is busy right now</h1>
+  <p>We could not reach the database, so your last action was <strong>not saved</strong>. Wait a moment and try again. If it keeps happening, tell a Find-IT administrator.</p>
+  <div class="button-row center-row"><a class="button button-primary" href="javascript:history.back()">Go back</a></div>
+</div></section>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "core/base.html" %}
+{% block title %}Report a problem · Find-IT{% endblock %}
+{% block content %}
+<section class="narrow-page form-page">
+  <a class="back-link" href="{% if post %}{% url 'post-detail' post.pk %}{% else %}{% url 'home' %}{% endif %}">← Back</a>
+  <div class="page-heading compact-heading"><div><span class="eyebrow">General report</span><h1>{% if post %}Report this listing{% else %}Report a problem{% endif %}</h1><p class="muted">For listing or system issues. To report someone's behavior in a chat, use <strong>Report</strong> inside that conversation instead.</p></div></div>
+  <form method="post" enctype="multipart/form-data" class="panel stack-form" novalidate>{% csrf_token %}
+    {% if post %}<input type="hidden" name="post" value="{{ post.pk }}"><div class="related-listing"><span class="eyebrow">Related listing</span><strong>{{ post.title }}</strong><small>{{ post.get_post_type_display }} · {{ post.get_status_display }} · posted by {{ post.author.first_name|default:post.author.username }}</small></div>{% endif %}
+    {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}<label>{{ field.label }}{{ field }}{% if field.help_text %}<small class="form-help">{{ field.help_text }}</small>{% endif %}</label>{% if field.errors %}<div class="field-error">{{ field.errors }}</div>{% endif %}{% endfor %}
+    <p class="form-help">Reported listings are not hidden or deleted automatically. A reviewer investigates first.</p>
+    <div class="form-actions"><a class="button button-outline" href="{% if post %}{% url 'post-detail' post.pk %}{% else %}{% url 'home' %}{% endif %}">Cancel</a><button class="button button-primary" type="submit">Submit report</button></div>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "core/base.html" %}
+{% block title %}My reports · Find-IT{% endblock %}
+{% block content %}
+<section class="page-wrap">
+  <div class="page-heading"><div><span class="eyebrow">Your submissions</span><h1>My reports</h1><p class="muted">Track the reports you submitted. Reviewer notes are internal and are not shown here.</p></div>
+    <div class="button-row"><a class="button button-soft" href="{% url 'general-report-create' %}">Report a problem</a></div></div>
+  <section class="panel"><h2>Chat safety reports</h2>
+    {% if chat_reports %}<div class="table-scroll"><table class="accounts-table"><thead><tr><th>Reference</th><th>Category</th><th>About</th><th>Submitted</th><th>Status</th><th>Last update</th></tr></thead><tbody>
+      {% for report in chat_reports %}<tr><td><strong>{{ report.reference }}</strong></td><td>{{ report.get_reason_display }}</td><td>{% if report.conversation %}{{ report.conversation.post.title|truncatechars:40 }}{% else %}—{% endif %}</td><td>{{ report.created_at|date:"M j, Y" }}</td><td>{% include "core/includes/report_status.html" with status=report.status label=report.get_status_display %}</td><td>{{ report.reviewed_at|date:"M j, Y"|default:"—" }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}<div class="empty-state compact-empty"><div class="empty-icon">✓</div><h3>No chat reports</h3><p>To report someone, open the conversation and choose Report.</p></div>{% endif %}
+  </section>
+  <section class="panel accounts-panel"><h2>General item &amp; system reports</h2>
+    {% if general_reports %}<div class="table-scroll"><table class="accounts-table"><thead><tr><th>Reference</th><th>Category</th><th>Listing</th><th>Submitted</th><th>Status</th><th>Attachment</th></tr></thead><tbody>
+      {% for report in general_reports %}<tr><td><strong>{{ report.reference }}</strong></td><td>{{ report.get_category_display }}</td><td>{% if report.post %}<a href="{% url 'post-detail' report.post.pk %}">{{ report.post.title|truncatechars:40 }}</a>{% else %}—{% endif %}</td><td>{{ report.created_at|date:"M j, Y" }}</td><td>{% include "core/includes/report_status.html" with status=report.status label=report.get_status_display %}</td><td>{% if report.attachment %}<a href="{% url 'general-report-attachment' report.pk %}" target="_blank" rel="noopener">Open</a>{% else %}—{% endif %}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}<div class="empty-state compact-empty"><div class="empty-icon">✓</div><h3>No general reports</h3><p>Use Report a problem for listing or system issues.</p></div>{% endif %}
+  </section>
+</section>
+{% endblock %}

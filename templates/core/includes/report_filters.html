@@ -1,0 +1,9 @@
+<form method="get" class="search-panel report-filters">
+  <label class="search-field"><span aria-hidden="true">⌕</span><input type="search" name="q" value="{{ filters.q }}" placeholder="{{ search_placeholder }}" aria-label="Search reports"></label>
+  <label class="select-field"><span class="sr-only">Category</span><select name="category"><option value="">All categories</option>{% for value,label in category_choices %}<option value="{{ value }}" {% if filters.category == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label class="select-field"><span class="sr-only">Status</span><select name="status"><option value="">Any status</option><option value="OPEN" {% if filters.status == "OPEN" %}selected{% endif %}>Open (Submitted or Under Review)</option>{% for value,label in status_choices %}<option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label class="date-field">From<input type="date" name="date_from" value="{{ filters.date_from }}"></label>
+  <label class="date-field">To<input type="date" name="date_to" value="{{ filters.date_to }}"></label>
+  <button class="button button-outline" type="submit">Filter</button>
+  {% if filters.q or filters.category or filters.status or filters.date_from or filters.date_to %}<a class="text-action" href="?">Clear</a>{% endif %}
+</form>

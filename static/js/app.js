@@ -110,3 +110,39 @@ document.addEventListener("DOMContentLoaded", function () {
     }, 5200);
   });
 });
+
+// Show/hide password buttons (account management feature)
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll("input[data-password-toggle]").forEach(function (input) {
+    var wrap = document.createElement("span");
+    wrap.className = "password-wrap";
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "password-toggle";
+    button.textContent = "Show";
+    button.setAttribute("aria-label", "Show password");
+    button.setAttribute("aria-pressed", "false");
+    button.addEventListener("click", function () {
+      var showing = input.type === "text";
+      input.type = showing ? "password" : "text";
+      button.textContent = showing ? "Show" : "Hide";
+      button.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+      button.setAttribute("aria-pressed", showing ? "false" : "true");
+      input.focus();
+    });
+    wrap.appendChild(button);
+  });
+
+  // Close the profile dropdown when clicking elsewhere or pressing Escape.
+  var menu = document.querySelector("[data-profile-menu]");
+  if (menu) {
+    document.addEventListener("click", function (event) {
+      if (menu.open && !menu.contains(event.target)) menu.open = false;
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && menu.open) { menu.open = false; menu.querySelector("summary").focus(); }
+    });
+  }
+});

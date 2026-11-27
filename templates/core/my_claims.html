@@ -9,6 +9,7 @@
       <div class="listing-thumb">{% if claim.post.photo %}<img src="{{ claim.post.photo.url }}" alt="">{% else %}<span>◈</span>{% endif %}</div>
       <div class="listing-info"><div class="card-meta"><span class="type-pill type-found">Found item</span><span class="status-dot">{{ claim.get_status_display }}</span><span class="subtle-chip">{{ claim.post.get_status_display }}</span></div><h3><a href="{% url 'post-detail' claim.post.pk %}">{{ claim.post.title }}</a></h3><p>Posted by {{ claim.post.author.first_name|default:claim.post.author.username }}</p><small>Applied {{ claim.submitted_at|date:"M j, Y" }}</small></div>
       <div class="listing-actions">
+        <a class="button button-outline button-small" href="{% url 'claim-review' claim.pk %}">My answers</a>
         {% if claim.status == "SUBMITTED" or claim.status == "RETURNED" %}{% if claim.conversation %}<a class="button button-soft button-small" href="{% url 'chat-room' claim.conversation.pk %}">Open chat</a>{% endif %}{% endif %}
         {% if claim.status == "RETURNED" %}<form method="post" action="{% url 'claimed' claim.post.pk %}">{% csrf_token %}<button class="button button-primary button-small" type="submit">Confirm received</button></form>{% endif %}
         {% if claim.status == "SUBMITTED" or claim.status == "RETURNED" %}<form method="post" action="{% url 'close-claim' claim.pk %}">{% csrf_token %}<button class="text-action" type="submit">Close claim</button></form>{% endif %}
