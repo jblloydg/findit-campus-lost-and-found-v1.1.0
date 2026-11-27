@@ -58,17 +58,8 @@ def notify_account(user, text, link="", priority=False):
     notification = InAppNotification.objects.create(
         recipient=user, post=None, link=link[:200], text=text, is_priority=priority,
     )
-    try:
-        from asgiref.sync import async_to_sync
-        from channels.layers import get_channel_layer
-        layer = get_channel_layer()
-        if layer:
-            async_to_sync(layer.group_send)(
-                f"notifications_{user.pk}",
-                {"type": "notification.created", "text": notification.text, "id": notification.pk},
-            )
-    except Exception:  # live push is a bonus; the notice is already saved
-        pass
+    from .services import push_notification
+    push_notification(notification)
     return notification
 
 

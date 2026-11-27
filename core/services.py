@@ -105,13 +105,25 @@ def notify_user(user, post, text, claim=None, priority=False):
     notification = InAppNotification.objects.create(
         recipient=user, post=post, claim=claim, text=text, is_priority=priority,
     )
-    layer = get_channel_layer()
-    if layer:
-        async_to_sync(layer.group_send)(
-            f"notifications_{user.pk}",
-            {"type": "notification.created", "text": notification.text, "id": notification.pk},
-        )
+    push_notification(notification)
     return notification
+
+
+def push_notification(notification):
+    """Live 'new notification' push. BUG-004: sent only after the database has saved it,
+    so nobody sees (or opens) a notice that a failed save later removed."""
+    def send():
+        layer = get_channel_layer()
+        if layer:
+            try:
+                async_to_sync(layer.group_send)(
+                    f"notifications_{notification.recipient_id}",
+                    {"type": "notification.created", "text": notification.text, "id": notification.pk,
+                     "priority": notification.is_priority},
+                )
+            except Exception:  # the live push is a bonus; the notice is saved either way
+                pass
+    transaction.on_commit(send)
 
 
 def notify_claimants(post, text, include_open=True):
@@ -607,9 +619,11 @@ def chat_roles(conversation):
 
 
 def broadcast_conversation(conversation, payload):
-    layer = get_channel_layer()
-    if layer:
-        async_to_sync(layer.group_send)(f"conversation_{conversation.pk.hex}", {"type": "chat.event", "payload": payload})
+    def send():
+        layer = get_channel_layer()
+        if layer:
+            async_to_sync(layer.group_send)(f"conversation_{conversation.pk.hex}", {"type": "chat.event", "payload": payload})
+    transaction.on_commit(send)  # BUG-004: only after the change is saved
 
 
 def question_payload(question):
