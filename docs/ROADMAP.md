@@ -17,7 +17,7 @@ The V2 list was written before v1.1.0. The four sessions already built most of i
 | V2-I | School account verification | ❌ **Not done** | — | Only the `YYYY-NNNN` format is checked. Needs a decision on how DOrSU can confirm enrollment/employment (registrar list, school email, ID upload + staff check…). |
 | V2-J | Performance and uptime evidence (→ v3.0.0) | 🟡 Partly | Sessions 1 + 4 | Session 1 measured 15–181 ms medians locally on 3,000 posts (see `docs/handoffs/session-1.md` §D). `/health/` exists. Real proof needs hosting + an uptime monitor. |
 
-**So the real remaining V2 work is V2-I and the hosted half of V2-J**, plus anything new the owner adds.
+**Remaining V2 work: V2-I in v1.1.1; all of V2-J in v3.0.0.**
 
 ## Version plan (set by the owner)
 
