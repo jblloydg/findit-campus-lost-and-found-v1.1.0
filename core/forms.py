@@ -59,7 +59,7 @@ class FindItLoginForm(AuthenticationForm):
 
     username = forms.CharField(
         label="Student ID or staff username",
-        widget=forms.TextInput(attrs={"autocomplete": "username", "placeholder": "2024-0122", "autofocus": True}),
+        widget=forms.TextInput(attrs={"autocomplete": "username", "placeholder": "2020-0001", "autofocus": True}),
     )
     password = forms.CharField(
         label="Password",
@@ -74,11 +74,11 @@ class FindItLoginForm(AuthenticationForm):
 class SignupForm(forms.Form):
     """Student self-registration. The role is always Student and cannot be chosen."""
 
-    first_name = forms.CharField(max_length=60, label="First name", widget=forms.TextInput(attrs={"autocomplete": "given-name"}))
-    last_name = forms.CharField(max_length=60, label="Last name", widget=forms.TextInput(attrs={"autocomplete": "family-name"}))
+    first_name = forms.CharField(max_length=60, label="First name", widget=forms.TextInput(attrs={"autocomplete": "given-name", "placeholder": "Juan"}))
+    last_name = forms.CharField(max_length=60, label="Last name", widget=forms.TextInput(attrs={"autocomplete": "family-name", "placeholder": "Cruz"}))
     student_id = forms.CharField(
-        max_length=9, label="Student ID", help_text="Format: YYYY-NNNN, such as 2024-0122. Only the format is checked.",
-        widget=forms.TextInput(attrs={"placeholder": "2024-0122", "autocomplete": "username"}),
+        max_length=9, label="Student ID", help_text="Format: YYYY-NNNN, such as 2020-0001. Only the format is checked.",
+        widget=forms.TextInput(attrs={"placeholder": "2020-0001", "autocomplete": "username"}),
     )
     email = forms.EmailField(max_length=254, label="Email address", widget=forms.EmailInput(attrs={"autocomplete": "email"}))
     password1 = forms.CharField(
@@ -100,7 +100,7 @@ class SignupForm(forms.Form):
     def clean_student_id(self):
         value = self.cleaned_data["student_id"].strip()
         if not STUDENT_ID_PATTERN.fullmatch(value):
-            raise ValidationError("Use the Student ID format YYYY-NNNN, such as 2024-0122.")
+            raise ValidationError("Use the Student ID format YYYY-NNNN, such as 2020-0001.")
         if User.objects.filter(username__iexact=value).exists() or Profile.objects.filter(student_id=value).exists():
             raise ValidationError("That Student ID already has an account.")
         return value

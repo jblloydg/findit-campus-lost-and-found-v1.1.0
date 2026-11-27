@@ -33,7 +33,8 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 7. **Guard house:** only staff change the status (QR scan / code / manual). The QR link opens for anyone, but only staff see Confirm. Claims and chats stay open there; the finder sends status requests (reason required, photo optional). No storage location, no condition notes (main campus only).
 8. **Location is DORMANT** (future DOrSU campus map in segments). Keep the field; don't show, collect or filter it unless `FINDIT_LOCATION_ENABLED=1`. Don't remove it, don't build the map unless asked.
 9. **Backups:** session 4 engine (`backup_now`, `restore_backup`), daily via the timer runner, 14 days kept.
-10. Privacy: no real student data, passwords, secrets, `db.sqlite3`, `media/`, `private_media/`, `backups/` or `.env` in Git. Demo accounts are fictional and local-only.
+10. **Example values in the interface, docs, Figma and tests:** Student ID **`2020-0001`**, name **Cruz, Juan D. (Dela)**. **Never use the old example ID from the starter project** — it is the owner's real personal account. Never use any real ID or name as an example.
+11. Privacy: no real student data, passwords, secrets, `db.sqlite3`, `media/`, `private_media/`, `backups/` or `.env` in Git. Demo accounts are fictional and local-only.
 
 ## Working rules (how the owner wants Claude to work)
 - **Ask before building** when anything is unclear — the owner prefers many questions over a wrong implementation. Use question cards/options when available.

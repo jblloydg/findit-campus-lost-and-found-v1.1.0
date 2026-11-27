@@ -22,6 +22,7 @@ How I like to work:
 - Tell me if a request goes against a decision in CLAUDE.md, a role/status name, or the paper, and ask first.
 - One commit per bug (message starts with the bug ID), keep all tests passing, add a test for each fix,
   log each fix in docs/BUG_REPORTS.md, and add a "Changes in 1.1.1" section to HANDOFF.md.
+- Example ID is 2020-0001 and example name is Cruz, Juan D. (Dela). Never use the old example ID from the starter project anywhere (it's my real account).
 - Don't merge to main or tag v1.1.1 until I approve.
 - I use Windows; explain things simply.
 ```
