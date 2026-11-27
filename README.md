@@ -20,6 +20,8 @@ Version 1.1.0 combines four development sessions; see **HANDOFF.md** for what ca
 
 ## Run locally on Windows
 
+**Quickest:** double-click `FindIT.cmd` (first run sets everything up, then opens the site). Run `make_desktop_shortcut.cmd` once for a Desktop shortcut. Manual steps:
+
 1. Install Python 3.12 or later.
 2. Open this folder in VS Code, then open a PowerShell terminal in the project folder.
 3. Create and activate a virtual environment:

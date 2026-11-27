@@ -90,7 +90,18 @@ Run `python manage.py migrate`; **do not** run `makemigrations`.
 
 ---
 
-## 6. Set up and run on Windows PowerShell
+## 6. Set up and run on Windows
+
+### Easiest: double-click
+
+1. Install **Python 3.12+** from python.org and tick **"Add python.exe to PATH"**.
+2. Get the code (Git: `git clone https://github.com/jblloydg/findit-campus-lost-and-found-v1.1.0.git Find-IT`, or GitHub → Code → Download ZIP and extract it).
+3. Double-click **`FindIT.cmd`** in the folder. The first run installs everything and creates the demo accounts (a few minutes); later runs start in seconds. The browser opens http://127.0.0.1:8000/ by itself. Close the black window to stop.
+4. Optional: double-click **`make_desktop_shortcut.cmd`** once to put a **Find-IT** shortcut on your Desktop.
+
+If Windows shows "Windows protected your PC" for a downloaded file, choose **More info → Run anyway**.
+
+### Manual (PowerShell)
 
 ```powershell
 git clone https://github.com/jblloydg/findit-campus-lost-and-found-v1.1.0.git Find-IT
