@@ -87,7 +87,7 @@
         {% endif %}
       </section>
 
-      <div class="form-callout post-form-reminder"><strong>Meet-up reminder</strong><span>Arrange any hand-off only within school premises.</span></div>
+      <div class="form-callout post-form-reminder"><strong>Meet-up reminder</strong><span>Arrange any hand-off only within school premises. You don't set the status: a new post is <em>Open for Claim</em>, and Find-IT changes it as people claim, return or bring the item to the guard house (only a guard can mark it <em>At Guard House</em>).</span></div>
       <section class="panel post-form-card post-form-submit" aria-label="Save">
         <div class="form-actions"><a class="button button-outline" href="{% if post %}{% url 'post-detail' post.pk %}{% else %}{% url 'home' %}{% endif %}">Cancel</a><button class="button button-primary" type="submit">{% if walk_in %}Post and record at guard house{% elif editing %}Save changes{% else %}Publish post{% endif %}</button></div>
       </section>

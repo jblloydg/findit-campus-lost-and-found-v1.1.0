@@ -130,6 +130,12 @@ the chat window over the page you are on. The address bar shows the chat's link 
 **× / Esc / Back** close it and you are back on that page as you left it. A reload or Ctrl/⌘-click opens the
 full chat page. Files: `templates/core/base.html` (the window), `templates/core/post_detail.html`, `static/js/app.js`.
 
+## CHG-015 — "Who sets At Guard House / Claim in Progress?"
+The team could not find where to type a status. Nobody types it, and it is not AI: Find-IT changes the status from what
+people do, and **At Guard House** can only be set by a guard (staff) who scans the finder's turn-in QR / code or records a
+walk-in (decision 7, for security). This is now explained on every post (**How does the status change?** under the facts)
+and in the reminder on Report an item. Files: `templates/core/includes/status_help.html` (new), `post_detail.html`, `post_form.html`, `findit.css`.
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 

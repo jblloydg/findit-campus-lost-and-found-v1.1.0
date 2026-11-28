@@ -1273,3 +1273,8 @@ body.chat-overlay-open { overflow: hidden; }
    line spilled out of the boxes). Rows keep their full height and the list scrolls instead. */
 .question-list { grid-auto-rows: max-content; }
 .chat-page--embed { width: 100%; }
+
+/* ===== v2.1.0 CHG-015: how a post's status changes ===== */
+.status-help { margin: 0.75rem 0 0; padding: 0 1rem; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255,255,255,.9); font-size: var(--step--1); }
+.status-help summary { display: flex; align-items: center; min-height: var(--tap); color: var(--emerald); font-weight: 650; cursor: pointer; }
+.status-help ul { margin: 0 0 0.85rem; padding-left: 1.1rem; display: grid; gap: 0.35rem; color: var(--ink-2); line-height: 1.5; }

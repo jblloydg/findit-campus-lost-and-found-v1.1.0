@@ -42,6 +42,7 @@
         <div><dt>Approx. date {{ post.get_post_type_display|lower }}</dt><dd>{% if post.approximate_date %}{{ post.approximate_date|date:"M j, Y" }}{% else %}<span class="not-given">Not provided</span>{% endif %}</dd></div>
         <div><dt>Approx. time {{ post.get_post_type_display|lower }}</dt><dd>{% if post.approximate_time %}{{ post.approximate_time|time:"g:i A" }}{% else %}<span class="not-given">Not provided</span>{% endif %}</dd></div>
       </dl>
+      {% include "core/includes/status_help.html" %}
       {% if post.description %}<div class="description-panel"><span class="eyebrow">Broad description</span><p>{{ post.description|linebreaksbr }}</p></div>{% endif %}
       {% if post.status == "TURNED_OVER" %}<div class="form-callout guardhouse-callout"><strong>At the guard house</strong><span>The item is held at the main-campus guard house. Claims and chats stay open; approved claimants pick it up in person.{% if intake and user.is_authenticated %} Received {{ intake.received_at|date:"M j, Y" }}.{% endif %}</span></div>{% endif %}
       {% if post.status == "RETURNED" and user_claim and post.returned_application_id == user_claim.pk %}

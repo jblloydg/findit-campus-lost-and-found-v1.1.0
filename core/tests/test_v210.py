@@ -344,3 +344,13 @@ class ChatWindowEverywhereTests(FindItTestCase):
 
     def test_signed_out_pages_have_no_window(self):
         self.assertNotIn('id="chat-overlay"', self.client.get("/login/").content.decode())
+
+
+# ---- CHG-015: explain that Find-IT sets the status (only a guard sets "At Guard House") ----
+class StatusHelpTests(FindItTestCase):
+    def test_post_page_and_form_explain_status(self):
+        post = self.create_post(self.finder, "FOUND")
+        page = self.client_for(self.alice).get(f"/p/{post.pk}/").content.decode()
+        self.assertIn("How does the status change?", page)
+        self.assertIn("only a guard (staff) can set this", page)
+        self.assertIn("You don't set the status", self.client_for(self.alice).get("/posts/new/").content.decode())
