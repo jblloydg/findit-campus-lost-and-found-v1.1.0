@@ -1,6 +1,7 @@
 """v2.1.0: is every page and action reachable by CLICKING, not only by typing its address?
 
-Run from the project folder after `migrate` and `seed_demo` (no server needed):
+Run from the project folder after `migrate` and `seed_demo` (no server needed). Best on fresh demo data:
+the situations below are made from the demo posts and accounts.
     python tools/testing/reachability.py
 
 For each role it starts ONLY from the page that role lands on after signing in (students /home/,
@@ -176,6 +177,14 @@ def make_situations():
             "reason": "SPAM", "details": "Reachability check.", "target_user": chats[0].recipient_id})
     if len(chats) > 1:
         client("moderator.demo").post(f"/conversations/{chats[1].pk}/pause/", {"reason": "Reachability check"})
+    # a student asks the staff team for help (Contact staff → the shared Staff inbox)
+    client("2026-0002").post("/help/new/", {"subject": "Reachability check", "text": "The finder does not reply."})
+    # a finder says they are bringing a found item to the guard house (the guard's Confirm page)
+    from core.models import ItemPost
+    found = ItemPost.objects.filter(post_type="FOUND", status__in=["OPEN", "CLAIM_IN_PROGRESS"], is_archived=False,
+                                    author__username="2026-0001").first()
+    if found:
+        client("2026-0001").post(f"/posts/{found.pk}/turn-over/")
     crawled = [username for username, _ in ROLES.values() if username]
     open_chat = (Conversation.objects.filter(is_closed=False, is_paused=False, claim__isnull=True, post__is_archived=False,
                                             initiator__username__in=crawled, recipient__username__in=crawled)

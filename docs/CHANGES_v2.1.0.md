@@ -1,10 +1,40 @@
-# Find-IT v2.1.0 (in progress) — What changed (report)
+# Find-IT v2.1.0 — What changed and why
 
-Work for v2.1.0 happens on branch **`release/2.1.0`** (from `main` = v2.0.0). v2.1.0 = bug fixes for
-2.0.0 + redesign of the pages that only got the new colours (`docs/CHANGES_v2.0.0.md` §10).
-This file grows with each change; tests and measurements go to `docs/TEST_REPORT_v2.1.0.md`.
-Earlier v2.1.0 changes (BUG-019 questions picker on LOST posts, BUG-020 sidebar highlight, CHG-010 to
-CHG-012 finder questions in chat, VERSION 2.1.0) are logged in `docs/BUG_REPORTS.md` and CLAUDE.md.
+v2.1.0 is a **major update after v2.0.0** (owner, 2026-11-28: not a small 2.0.1 patch). Branch `release/2.1.0`.
+It answers what the front-end team ran into while testing v2.0.0 ("there is no chat", "where is the guard-house
+request?", "two search bars", "log in problem", "a phone photo was refused") and adds what the owner asked for
+(Messenger-style chat, contact staff, every status and page reachable by clicking). Tests and speed:
+`docs/TEST_REPORT_v2.1.0.md`. Who does what for each status: `docs/STATUS_GUIDE.md`. Every change and its commit:
+`docs/BUG_REPORTS.md`.
+
+## Overview
+| Area | Change (ID) |
+| --- | --- |
+| Chat | Messenger-style bar ＋ · message · Send with a ＋ menu (DES-007); chat window over any page with the chat's own address (DES-007/008); same name/time live and after reload (BUG-022); chats still possible At Guard House (CHG-017) |
+| Finding the chat | Messages icon on phones (BUG-021); "how a chat starts" + the author's "Chats about this post" (BUG-023); LOST posts: **I found this – message the owner**, near the top on phones (CHG-013) |
+| Guard house & statuses | "I'll bring this item to the guard house" while posting and with the main buttons (CHG-016); "How does the status change?" on every post (CHG-015); every status checked by clicking + `docs/STATUS_GUIDE.md` (CHG-018) |
+| Staff | **Contact staff** → one shared **Staff inbox** for all staff and admins (CHG-019); Staff workspace redesign (DES-009) |
+| Search | Top bar = search everything; dashboard = filter the listings (CHG-020) |
+| Posting | Report an item uses the whole screen (DES-006); AVIF photos accepted, clear HEIC message (BUG-025); no question picker on LOST posts (BUG-019); sidebar highlight (BUG-020) |
+| Sign-in | Student ID hint, staff username any case, Log in on a post returns to it (BUG-024) |
+| Finder questions | Whoever is the finder in a chat can send ownership questions (CHG-011) |
+| Testing aids | Owner's private tester accounts (CHG-014); 3 open LOST demo posts (CHG-021); `status_journeys.py` and `reachability.py` (CHG-018/022) |
+
+## Upgrading a PC from v2.0.0
+1. Get the new code (`git pull` on `main` once v2.1.0 is released).
+2. Double-click **FindIT.cmd** — it installs packages and runs `migrate` itself. By hand:
+   `pip install -r requirements.txt` then `python manage.py migrate` (new migration **0015_v210_staff_help**).
+3. For the new demo posts: FindIT.cmd menu 3, or `python manage.py seed_demo`.
+
+## New packages and database changes
+- No new package. `requirements.txt` now asks for **Pillow ≥ 11.3** (was ≥ 11) so Windows can read AVIF photos.
+- One migration: `core/migrations/0015_v210_staff_help.py` — two new tables (`StaffHelpThread`, `StaffHelpMessage`).
+- Settings: `X_FRAME_OPTIONS` DENY → **SAMEORIGIN** (the chat window); new optional `FINDIT_TESTER_ACCOUNTS_FILE`.
+
+## Speed (details in the test report)
+Server time unchanged (one database query fewer on the post page and on Notifications). Each page's stylesheet and
+script grew by about 21 KB (about 5 KB compressed): on a slow phone a page is ready about 0.03–0.05 s later than in
+v2.0.0; on PC no noticeable difference.
 
 ## DES-006 — Report an item: use the whole screen (owner's request, 2026-11-28)
 Owner: "In Report an item, use the space so it is not boring to keep scrolling; don't touch the
@@ -220,9 +250,8 @@ Owner: Claude redesigns them, matching the lead interface developer's design (th
   were redone separately: Report an item (DES-006), chat room + chat window (DES-007/008), post page buttons (CHG-013/016).
 Files: `templates/core/staff_dashboard.html`, `templates/core/notifications.html`, `static/css/findit.css`.
 
-## Files
-`templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
-
-## Not included yet
-- The other §10 pages (post page, chat room, profile pages, staff and admin pages …).
-- Reports for the whole v2.1.0 (full bug hunt, performance) when the version is complete.
+## Not included (next versions)
+- Hosting online, PostgreSQL, real email, heavy-load work, uptime evidence → **v3.0.0** (roadmap).
+- HEIC photos are not opened (iPhones send JPG from the photo picker); a HEIC converter would be a new package.
+- Testing on real iPhones/Android phones (only Chrome's phone emulation was used).
+- A "someone is already replying" sign in the staff inbox.

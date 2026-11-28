@@ -1,7 +1,8 @@
 """v2.1.0: every post status can be reached by CLICKING, with the accounts that must cooperate.
 
 Run from the project folder, with the server already running on 127.0.0.1:8000 (or set FINDIT_URL),
-after `migrate` and `seed_demo`:
+after `migrate` and `seed_demo` — on FRESH demo data (each run makes 5 posts; after a few runs the demo
+finder reaches the posts-per-hour limit and the journeys stop):
     python tools/testing/status_journeys.py
 
 Each journey makes its own new post (titles end with a time stamp) and only uses buttons people can
