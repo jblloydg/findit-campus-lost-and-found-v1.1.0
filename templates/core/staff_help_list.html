@@ -1,0 +1,38 @@
+{% extends "core/base.html" %}
+{% block title %}{% if staff_view %}Staff inbox{% else %}Contact staff{% endif %} · Find-IT{% endblock %}
+{% block content %}
+<section class="page-wrap">
+  <div class="page-heading">
+    <div>
+      <span class="eyebrow">{% if staff_view %}Shared by all staff{% else %}Help from the staff team{% endif %}</span>
+      <h1>{% if staff_view %}Staff inbox{% else %}Contact staff{% endif %}</h1>
+      <p class="muted">{% if staff_view %}Requests from students to the whole staff team. Every staff member and administrator sees them; any of you can reply.{% else %}Ask the staff team (guards, moderators and administrators) for help — for example when a post's author does not reply, or about an item at the guard house. Every staff member sees your request.{% endif %}</p>
+    </div>
+    <a class="button button-primary" href="{% url 'staff-help-new' %}">{% include "core/includes/icon.html" with name="plus-circle" %}New request</a>
+  </div>
+  {% if staff_view %}
+  <nav class="segmented" aria-label="Show requests">
+    <a href="{% url 'staff-help' %}" class="{% if show != 'all' %}is-active{% endif %}"{% if show != 'all' %} aria-current="page"{% endif %}>Open ({{ open_count }})</a>
+    <a href="{% url 'staff-help' %}?show=all" class="{% if show == 'all' %}is-active{% endif %}"{% if show == 'all' %} aria-current="page"{% endif %}>All</a>
+  </nav>
+  {% endif %}
+  <div class="conversation-list help-list">
+    {% for thread in threads %}
+    <a class="conversation-row" href="{% url 'staff-help-thread' thread.pk %}">
+      {% include "core/includes/avatar.html" with person=thread.requester size="sm" %}
+      <span class="conversation-details">
+        <span class="conversation-title"><strong>{{ thread.subject }}</strong>{% if staff_view %}<small>{{ thread.requester.first_name|default:thread.requester.username }}</small>{% endif %}</span>
+        <span class="conversation-preview">{% if thread.post %}Post: {{ thread.post.display_title }} · {% endif %}{{ thread.message_count }} message{{ thread.message_count|pluralize }}</span>
+      </span>
+      <span class="conversation-tail"><span class="{% if thread.status == 'OPEN' %}live-chip{% else %}subtle-chip{% endif %}">{{ thread.get_status_display }}</span><small>{{ thread.updated_at|date:"M j" }}</small></span>
+    </a>
+    {% empty %}
+    <div class="empty-state"><div class="empty-icon">{% include "core/includes/icon.html" with name="help" %}</div>
+      <h3>{% if staff_view %}No open requests{% else %}No requests yet{% endif %}</h3>
+      <p>{% if staff_view %}When a student contacts staff, the request shows here for every staff member.{% else %}Need help with a post or an item at the guard house? Send the staff team a message.{% endif %}</p>
+      {% if not staff_view %}<a class="button button-soft" href="{% url 'staff-help-new' %}">New request</a>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

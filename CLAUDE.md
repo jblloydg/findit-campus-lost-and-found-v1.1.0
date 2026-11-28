@@ -17,8 +17,8 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 | `jblloydg/findit-campus-lost-and-found-v1.1.0` | **This repo — the only one to work in.** |
 
 ## Branches and versions
-- `main` = the stable released version (**v2.0.0**, approved 2026-11-28). Frozen rollback copies, never changed: `stable/v1.1.0`, `stable/v1.1.1`, `stable/v1.1.2`, `stable/v2.0.0`.
-- Work for the next version happens on **`release/2.0.0`** (in both the public repo and the owner's private copy). **v2.0.0 = v1.1.2 + the front-end team's interface** (their repo BASTA-KAY = branch `design/v2-interface`), plus the Master Instruction fixes. It must keep running on local devices (one Windows PC, no hosting). The earlier, unused v2 draft is kept on `archive/v2-alt-design`. Next: v2.1.0 (bug fixes for 2.0.0 + redesign of the pages that only got the new colours, list in `docs/CHANGES_v2.0.0.md` §10).
+- `main` = the stable released version (**v2.1.0**, released 2026-11-28 with the owner's approval). Frozen rollback copies, never changed: `stable/v1.1.0`, `stable/v1.1.1`, `stable/v1.1.2`, `stable/v2.0.0`, `stable/v2.1.0`.
+- Work for the next version happens on **`release/2.1.0`** (v2.1.0 = major update after v2.0.0, see "v2.1.0 instructions" below; the owner decided it is not a small 2.0.1 patch). v2.0.0 was built on **`release/2.0.0`** (in both the public repo and the owner's private copy). **v2.0.0 = v1.1.2 + the front-end team's interface** (their repo BASTA-KAY = branch `design/v2-interface`), plus the Master Instruction fixes. It must keep running on local devices (one Windows PC, no hosting). The earlier, unused v2 draft is kept on `archive/v2-alt-design`. Next: v2.1.0 (bug fixes for 2.0.0 + redesign of the pages that only got the new colours, list in `docs/CHANGES_v2.0.0.md` §10).
 - One bug or change = one commit (message starts with its ID, e.g. `BUG-003: …`), so any fix can be reverted alone.
 - **Version plan:** v1.1.1 = V2-I school verification + bug fixes → v2.0.0 interface overhaul → v2.1.0 its bug fixes → v3.0.0 online hosting + PostgreSQL + all of V2-J (performance and uptime evidence). Don't start hosting/PostgreSQL/Redis/SMTP/V2-J work before v3.0.0 unless asked; keep the code PostgreSQL-compatible meanwhile. Details in `docs/ROADMAP.md`.
 - When the owner approves a version: merge its `release/…` branch into `main` and add a frozen `stable/v<version>` branch (tags can be added on GitHub). Never rewrite or delete history.
@@ -32,7 +32,35 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 ## v2.0.0 Master Instruction (owner's rule for every page, from v2.0.0 on)
 One layout that adapts to phone, tablet and desktop. No fixed px for size or placement (only 1px borders, shadows, icon lines). Widths/columns/gaps in % or fr; text and spacing in rem with `clamp()`; full-screen parts in vw/vh/dvh; images and videos `max-width: 100%; height: auto`; content max width (72rem); **tap targets at least 2.75rem (`var(--tap)`)**; **text at least 0.75rem (12 px)**. Check every page at 360–430, 768 and 1280–1920 px with `tools/testing/responsive_check.py` (must report no Find-IT problems) and `campus_bg_check.py`. Tests: `core/tests/test_v200.py`.
 
-## v1.1.2 instructions from the owner (do these in the v1.1.2 session)
+## v2.1.0 instructions from the owner (branch `release/2.1.0`, started 2026-11-28) — all built; see `docs/CHANGES_v2.1.0.md`
+**Ownership questions on LOST posts — how it must work** (owner's explanation to the team, 2026-11-28):
+- Situation: someone **loses** an item and makes a **LOST** post. The author is the owner.
+- **Posting a LOST item has NO ownership-question options.** The question picker ("Pick ownership questions · found items") is only for FOUND posts. Done: **BUG-019** (the picker showed on Lost because `.question-editor { display: grid }` beat `hidden`; global `[hidden] { display: none !important; }`). The server already ignores questions on LOST posts (`apply_post_questions`).
+- The person who **chats the LOST post's author is the finder.** In that chat the finder has the **＋ Questions** button and picks from the **same question bank** finders see when they post a FOUND item. The owner answers the cards privately; the finder judges the answers (no automatic checking); at least 3 answered questions before the finder can approve the owner. This already exists (`core/services.py` → `chat_roles()`, `ask_chat_questions()`; `templates/core/chat_room.html` → `#question-ask`) — keep it.
+- **Make it easy to find** (the team could not find it in v2.0.0):
+  1. On LOST posts, rename the post page button "Message poster" to a clear finder action, e.g. **"I found this – message the owner"** (FOUND posts keep their own wording).
+  2. On phones, show that button near the top of the post page (it is now below photos and comments, about 1,350 px down).
+  3. In the chat, make the **＋ Questions** button easy to see for the finder (with a one-line hint what it does); don't show "Jump to latest" when the chat is empty.
+  4. Add a few **open LOST posts** to `seed_demo` (fictional data only), so the team can test the finder flow — there is only one LOST post now.
+- **Rule: whoever is the finder in a chat can send ownership questions** — LOST post: the person who messaged the author; FOUND post: the author (claim chat or a chat started with "Message poster"). The other side only answers. Done: **CHG-011** (`chat_roles()`, tests `core/tests/test_v210.py`).
+- Also done: **BUG-020** sidebar highlighted "Report found item" while making a Lost post.
+**Make chat easy to see (checked 2026-11-28 after the team said "there is no chat"):** chat works in v2.0.0 (tested PC + phone: Message poster → chat → message delivered → the author sees it under Messages, no script errors). Why it looked missing — fix in v2.1.0:
+- On phones and tablets (≤ 48em / 768 px) the top-bar **Messages icon is hidden** (`findit.css`: `.topbar-actions .icon-messages { display: none; }`); Messages is only in the ☰ menu. Show the Messages icon (with its unread badge) on every screen size.
+- A chat only exists after **another account** taps "Message poster" on your post (you cannot message your own post). Testing needs two accounts (two browsers or a private window); write this in the team's test steps.
+- "Message poster" is far down the post page on phones (see the finder-flow items above).
+- Small display bug: a message shows "Sam · 3:30 p.m." after reload but "Sam Second · 3:30 PM" when it arrives live — use the same name and time format for both (`templates/core/chat_room.html` vs `static/js/chat.js`).
+
+**Chat bar like Messenger (owner, 2026-11-28 — to build in v2.1.0):**
+- One round **＋ button** at the left of the chat bar (like Messenger's ＋). Tapping it opens a small, neat menu (a pop-up above the bar on PC, a bottom sheet on phones) with big tap rows and icons:
+  - **Photo or video** — the current 📎 media upload moves *inside* the ＋ menu (no separate media button in the bar). Same limits, previews, upload progress and waiting/processing/failed states as now.
+  - **Ownership questions** — only for the finder (see the rule above); opens the same question picker that is now the separate "＋ Questions (N left)" box, with "N left". Hidden for the other person.
+- Bar layout: ＋ button · message field (grows with text) · Send. Nothing else in the bar. Close the menu with Esc, tapping outside, or picking an item; keyboard and screen-reader friendly (`aria-expanded`, focus returns to ＋).
+- Neat and user-friendly on phone and PC; follow the Master Instruction (2.75rem tap targets, no fixed px, text ≥ 12 px). Same look in the full chat page and the chat panel on the post page.
+- **Do not rename** what the scripts use: `chat-form`, `chat-file`, `chat-input`, `chat-status`, `data-upload-url`, `data-status-url`, the media limit `data-…` attributes, `#question-ask`, `.question-filter`, `.chat-question-list`, the `ask-questions` form (method="post", `{% csrf_token %}`).
+- Also from the v2.0.0 list for v2.1.0: redesign the pages that only got the new colours (`docs/CHANGES_v2.0.0.md` §10).
+- Keep all v2.0.0 rules (Master Instruction, version label, two copies). `VERSION` = 2.1.0. Reports before `main`: `docs/CHANGES_v2.1.0.md` and `docs/TEST_REPORT_v2.1.0.md`.
+
+## v1.1.2 instructions from the owner (done in the v1.1.2 session)
 1. **BUG-009 — FindIT.cmd reopens the login page every ~20 seconds.** Cause: when Find-IT is already running, the "already running" branch opens the browser and returns to the menu, whose 20-second auto-start then fires again → endless loop (seen when the shortcut is opened twice). Fix: auto-start only the first time the menu shows; in the "already running" case open the browser once and wait at the menu with no timer (or close). Must still work on a plain Windows PC.
 2. **BUG-008 — post page category/location line** (`templates/core/post_detail.html`, the `item-tags` line): the category link is empty (`get_category_display` does not exist for the category model) and filters by name instead of id, and the dormant location is shown when a post has one. Fix: link to `?category=<id>` with the category name; show location only when `FINDIT_LOCATION_ENABLED=1`.
 3. **SEC-001 — media steganography / hidden payloads: everything becomes plain pixels.** Goal: anything hidden inside a photo or video (steganography, appended files, malicious metadata or streams) must end up as meaningless colors/noise in the stored copy, never as data a keylogger or other malware could read or run. Already true in v1.1.1: every photo/video is decoded and re-encoded (photo → JPEG, video → H.264/AAC MP4), originals deleted, files served with `nosniff` and a sandbox CSP. Strengthen in v1.1.2:
@@ -51,6 +79,8 @@ This repository and its release branches are shared publicly. **Never** put any 
 - real people's names, Student IDs, emails or other personal data;
 - any other sensitive instruction the owner marks as private.
 They belong only in the owner's **private copy** (a private repository or the owner's PC). If a task needs one, ask the owner instead of writing it here.
+
+**Accounts are sensitive (owner, v2.1.0):** tester accounts (IDs, emails, password) and the owner's `Accounts/accounts.md` live only in the private copy (`tester-accounts.txt`, ignored by Git here). Never write tester sign-ins in this repository, its docs or tests.
 
 **Two copies of every release (owner's rule since v1.1.2):** this **public** repository has the full program without the private parts; the owner's **private** repository has the same branches (`main`, `release/<version>`, `stable/v<version>`) plus the private notes. Changes flow **public → private only**: do the work here, then merge each public branch into the private branch of the same name. **Never push or merge a private branch into this repository.** When a version is approved, update and freeze both copies (merge into `main`, add `stable/v<version>` in both).
 
@@ -89,7 +119,9 @@ Run the bug hunt again after any big change (e.g. chat, media) and once more on 
 ```powershell
 python manage.py migrate            # never run makemigrations on a server; commit new migrations
 python manage.py seed_demo          # fictional demo data (local only); random passwords -> demo-logins.txt
-python manage.py test core          # 266 tests (v2.0.0); keep them passing, add tests for each fix
+python manage.py test core          # 320 tests (v2.1.0); keep them passing, add tests for each fix
+python tools/testing/status_journeys.py   # every post status reached by clicking (server on :8000)
+python tools/testing/reachability.py      # every page/action reachable by clicking, per role
 python manage.py makemigrations --check --dry-run   # must say "No changes detected" before committing
 python manage.py backup_now [--list] / restore_backup NAME
 ```
@@ -102,5 +134,6 @@ Demo sign-ins: made at random on each PC by `seed_demo`, saved in `demo-logins.t
 - `core/verification.py` (v1.1.1 verification, Student IDs, ID reviews, limits, report & block), `core/auth.py` (sign-in rules), `core/mail.py` (Test inbox)
 - `core/matching.py` (LOST↔FOUND matches), `core/backups.py`, `core/idempotency.py` (duplicate-submit protection), `core/security.py` (sign-in lockout)
 - `templates/core/` (shell: `base.html`, `includes/sidebar.html`, `includes/icon.html`), `static/css/findit.css` (v2.0.0 look, replaced `app.css`), `static/css/campus-bg.css` (monument background), `static/js/app.js`, `chat.js`, `scan.js`
+- v2.1.0: `core/views.py` → `global_search` (top-bar search), `staff_help_*` (Contact staff / Staff inbox), `_is_embedded` (chat window); `templates/core/chat_embed_base.html`; `docs/STATUS_GUIDE.md`
 - `core/tests/` (sessions 1–4 tests), `docs/handoffs/session-N.md` (each session's original handoff), `docs/OPERATIONS.md`
 - Figma: https://www.figma.com/design/HlBvwAA17U86RADmkm56Fk — Starter plan (3 pages max); new screens live in the "New Features (Nov 2026)" section on page "01 — Screens & Overview".

@@ -1,73 +1,103 @@
 {% extends "core/base.html" %}
 {% block title %}{% if editing %}Edit{% else %}Create{% endif %} post · Find-IT{% endblock %}
 {% block content %}
-<section class="narrow-page form-page">
+{# v2.1.0 (DES-006): wide two-column layout. Fields, names and ids are unchanged; only their placement is new. #}
+<section class="page-wrap form-page post-form-page">
   <a class="back-link" href="{% if post %}{% url 'post-detail' post.pk %}{% else %}{% url 'home' %}{% endif %}">← Back</a>
   <div class="page-heading compact-heading"><div><span class="eyebrow">Share with campus</span><h1>{% if walk_in %}Record a walk-in item{% elif editing %}Edit your post{% else %}Create a post{% endif %}</h1><p class="muted">Broad details help people recognize the item without revealing private identifiers.</p></div></div>
-  <form method="post" enctype="multipart/form-data" class="panel stack-form post-editor">
+  <form method="post" enctype="multipart/form-data" class="stack-form post-form-grid">
     {% csrf_token %}
-    {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
-    {% if walk_in %}<div class="form-callout guardhouse-callout"><strong>Walk-in at the guard house</strong><span>This creates a FOUND post that is already marked as at the guard house.</span></div>
-    <label>Handed over by (name)<input name="handed_over_by_name" maxlength="120" value="{{ handed_over_by_name }}" placeholder="Name of the person who brought it"></label>{% endif %}
-    <label>Post type{{ form.post_type }}<small class="form-help">Choose Lost if you are looking for an item, or Found if you have an item.</small></label>
-    {% if form.post_type.errors %}<div class="field-error">{{ form.post_type.errors }}</div>{% endif %}
-    <label>Category{{ form.category }}<small class="form-help">Required. Helps people browse and filters the ownership questions.</small></label>
-    {% if form.category.errors %}<div class="field-error">{{ form.category.errors }}</div>{% endif %}
-    <fieldset class="photo-editor">
-      <legend>Photos <span class="required-mark">required</span></legend>
-      {% if editing and post.photos.all %}
-      <div class="photo-manage-grid">
-        {% for photo in post.photos.all %}
-        <label class="photo-manage-item"><img src="{{ photo.preview_url }}" alt="Photo {{ forloop.counter }}" loading="lazy" decoding="async"><span><input type="checkbox" name="remove_photos" value="{{ photo.pk }}"> Remove</span></label>
-        {% endfor %}
-      </div>
-      {% endif %}
-      {{ form.photos }}
-      <div class="photo-preview-grid" id="photo-preview-grid" hidden aria-label="Preview of the chosen photos"></div>
-      <p class="field-error" id="photo-warning" hidden></p>
-      <small class="form-help">{{ form.photos.help_text }} Photograph the outside only. Hide names, ID numbers and faces.</small>
-      <p class="photo-count muted" id="photo-count" aria-live="polite"></p>
-      {% if form.photos.errors %}<div class="field-error">{{ form.photos.errors }}</div>{% endif %}
-      <div class="human-check" id="human-check" data-threshold="10" data-existing="{% if editing %}{{ post.photos.count }}{% else %}0{% endif %}">
-        <label>Captcha <small class="form-help">Needed only when a post has more than 10 photos. Type the letters, or solve the sum, shown in the image.</small>{{ captcha_form.captcha }}</label>
-        {% if form.captcha.errors %}<div class="field-error">{{ form.captcha.errors }}</div>{% endif %}
-      </div>
-    </fieldset>
-    <label>{{ form.title.label }}{{ form.title }}</label>{% if form.title.errors %}<div class="field-error">{{ form.title.errors }}</div>{% endif %}
-    <label>{{ form.description.label }}{{ form.description }}<small class="form-help">Avoid exact serial numbers, hidden markings, or personal details.</small></label>{% if form.description.errors %}<div class="field-error">{{ form.description.errors }}</div>{% endif %}
-    <div class="when-row">
-      <label>{{ form.approximate_date.label }}{{ form.approximate_date }}</label>
-      <label>{{ form.approximate_time.label }}{{ form.approximate_time }}<small class="form-help">{{ form.approximate_time.help_text }}</small></label>
-    </div>
-    {% if form.approximate_date.errors %}<div class="field-error">{{ form.approximate_date.errors }}</div>{% endif %}{% if form.approximate_time.errors %}<div class="field-error">{{ form.approximate_time.errors }}</div>{% endif %}
-    {% if form.location %}<label>{{ form.location.label }}{{ form.location }}<small class="form-help">{{ form.location.help_text }}</small></label>{% if form.location.errors %}<div class="field-error">{{ form.location.errors }}</div>{% endif %}{% endif %}
-    <div id="verification-questions" class="question-editor">
-      <div><span class="eyebrow">Private ownership check · found items</span><h2>Pick ownership questions</h2>
-        <p class="muted">Claimants answer these privately. Pick up to 5. If you pick fewer than 3 (or none), default questions are added automatically. Claimants also write their own description.</p></div>
-      {% if questions_locked %}
-        <div class="form-callout"><strong>Questions are locked</strong><span>{{ form.questions.help_text }}</span></div>
-        <ol class="locked-questions">{% for q in locked_questions %}<li>{{ q.text }}</li>{% endfor %}</ol>
-      {% else %}
-        <div class="question-toolbar">
-          <label class="search-field question-search"><span aria-hidden="true">⌕</span><input type="search" id="question-search" placeholder="Search questions" aria-label="Search questions"></label>
-          <span class="subtle-chip" id="question-picked" aria-live="polite">0 of 5 picked</span>
+    {% if form.non_field_errors %}<div class="form-errors post-form-wide">{{ form.non_field_errors }}</div>{% endif %}
+
+    <div class="post-form-main">
+      <section class="panel post-form-card post-form-details" aria-labelledby="post-step-item">
+        <h2 class="post-form-step" id="post-step-item"><span class="step-dot">1</span>About the item</h2>
+        {% if walk_in %}<div class="form-callout guardhouse-callout"><strong>Walk-in at the guard house</strong><span>This creates a FOUND post that is already marked as at the guard house.</span></div>
+        <label>Handed over by (name)<input name="handed_over_by_name" maxlength="120" value="{{ handed_over_by_name }}" placeholder="Name of the person who brought it"></label>{% endif %}
+        <div class="form-row-2">
+          <div>
+            <label>Post type{{ form.post_type }}<small class="form-help">Choose Lost if you are looking for an item, or Found if you have an item.</small></label>
+            {% if form.post_type.errors %}<div class="field-error">{{ form.post_type.errors }}</div>{% endif %}
+          </div>
+          <div>
+            <label>Category{{ form.category }}<small class="form-help">Required. Helps people browse and filters the ownership questions.</small></label>
+            {% if form.category.errors %}<div class="field-error">{{ form.category.errors }}</div>{% endif %}
+          </div>
         </div>
-        <p class="fine-print" id="question-suggest-note" hidden>Questions for the chosen category are shown first.</p>
-        <div class="question-list" id="question-list">
-          {% for option in question_options %}
-          <label class="question-option" data-categories="{{ option.category_ids }}" data-general="{{ option.template.is_general|yesno:'1,0' }}" data-default="{{ option.template.is_default|yesno:'1,0' }}">
-            <input type="checkbox" name="questions" value="{{ option.template.pk }}"{% if option.selected %} checked{% endif %}>
-            <span><strong>{{ option.template.text }}</strong>
-              <small>{{ option.template.get_answer_type_display }}{% if option.template.is_default %} · Default{% endif %}{% if not option.template.is_general %} · {% for c in option.template.categories.all %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</small></span>
-          </label>
-          {% endfor %}
-          <p class="muted question-empty" id="question-empty" hidden>No questions match that search.</p>
+        <label>{{ form.title.label }}{{ form.title }}</label>{% if form.title.errors %}<div class="field-error">{{ form.title.errors }}</div>{% endif %}
+        <label>{{ form.description.label }}{{ form.description }}<small class="form-help">Avoid exact serial numbers, hidden markings, or personal details.</small></label>{% if form.description.errors %}<div class="field-error">{{ form.description.errors }}</div>{% endif %}
+        <div class="when-row">
+          <label>{{ form.approximate_date.label }}{{ form.approximate_date }}</label>
+          <label>{{ form.approximate_time.label }}{{ form.approximate_time }}<small class="form-help">{{ form.approximate_time.help_text }}</small></label>
         </div>
-        {% if form.questions.errors %}<div class="field-error">{{ form.questions.errors }}</div>{% endif %}
-      {% endif %}
+        {% if form.approximate_date.errors %}<div class="field-error">{{ form.approximate_date.errors }}</div>{% endif %}{% if form.approximate_time.errors %}<div class="field-error">{{ form.approximate_time.errors }}</div>{% endif %}
+        {% if form.location %}<label>{{ form.location.label }}{{ form.location }}<small class="form-help">{{ form.location.help_text }}</small></label>{% if form.location.errors %}<div class="field-error">{{ form.location.errors }}</div>{% endif %}{% endif %}
+      </section>
+
+      <section class="panel post-form-card post-form-photos" aria-labelledby="post-step-photos">
+        <h2 class="post-form-step" id="post-step-photos"><span class="step-dot">2</span>Photos <span class="required-mark">required</span></h2>
+        <fieldset class="photo-editor">
+          <legend class="sr-only">Photos (required)</legend>
+          {% if editing and post.photos.all %}
+          <div class="photo-manage-grid">
+            {% for photo in post.photos.all %}
+            <label class="photo-manage-item"><img src="{{ photo.preview_url }}" alt="Photo {{ forloop.counter }}" loading="lazy" decoding="async"><span><input type="checkbox" name="remove_photos" value="{{ photo.pk }}"> Remove</span></label>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {{ form.photos }}
+          <div class="photo-preview-grid" id="photo-preview-grid" hidden aria-label="Preview of the chosen photos"></div>
+          <p class="field-error" id="photo-warning" hidden></p>
+          <small class="form-help">{{ form.photos.help_text }} Photograph the outside only. Hide names, ID numbers and faces.</small>
+          <p class="photo-count muted" id="photo-count" aria-live="polite"></p>
+          {% if form.photos.errors %}<div class="field-error">{{ form.photos.errors }}</div>{% endif %}
+          <div class="human-check" id="human-check" data-threshold="10" data-existing="{% if editing %}{{ post.photos.count }}{% else %}0{% endif %}">
+            <label>Captcha <small class="form-help">Needed only when a post has more than 10 photos. Type the letters, or solve the sum, shown in the image.</small>{{ captcha_form.captcha }}</label>
+            {% if form.captcha.errors %}<div class="field-error">{{ form.captcha.errors }}</div>{% endif %}
+          </div>
+        </fieldset>
+      </section>
     </div>
-    <div class="form-callout"><strong>Meet-up reminder</strong><span>Arrange any hand-off only within school premises.</span></div>
-    <div class="form-actions"><a class="button button-outline" href="{% if post %}{% url 'post-detail' post.pk %}{% else %}{% url 'home' %}{% endif %}">Cancel</a><button class="button button-primary" type="submit">{% if walk_in %}Post and record at guard house{% elif editing %}Save changes{% else %}Publish post{% endif %}</button></div>
+
+    <aside class="post-form-side">
+      <section id="verification-questions" class="panel question-editor post-form-card">
+        <div><h2 class="post-form-step"><span class="step-dot">3</span>Pick ownership questions</h2>
+          <span class="eyebrow">Private ownership check · found items</span>
+          <p class="muted">Claimants answer these privately. Pick up to 5. If you pick fewer than 3 (or none), default questions are added automatically. Claimants also write their own description.</p></div>
+        {% if questions_locked %}
+          <div class="form-callout"><strong>Questions are locked</strong><span>{{ form.questions.help_text }}</span></div>
+          <ol class="locked-questions">{% for q in locked_questions %}<li>{{ q.text }}</li>{% endfor %}</ol>
+        {% else %}
+          <div class="question-toolbar">
+            <label class="search-field question-search"><span aria-hidden="true">⌕</span><input type="search" id="question-search" placeholder="Search questions" aria-label="Search questions"></label>
+            <span class="subtle-chip" id="question-picked" aria-live="polite">0 of 5 picked</span>
+          </div>
+          <p class="fine-print" id="question-suggest-note" hidden>Questions for the chosen category are shown first.</p>
+          <div class="question-list" id="question-list">
+            {% for option in question_options %}
+            <label class="question-option" data-categories="{{ option.category_ids }}" data-general="{{ option.template.is_general|yesno:'1,0' }}" data-default="{{ option.template.is_default|yesno:'1,0' }}">
+              <input type="checkbox" name="questions" value="{{ option.template.pk }}"{% if option.selected %} checked{% endif %}>
+              <span><strong>{{ option.template.text }}</strong>
+                <small>{{ option.template.get_answer_type_display }}{% if option.template.is_default %} · Default{% endif %}{% if not option.template.is_general %} · {% for c in option.template.categories.all %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</small></span>
+            </label>
+            {% endfor %}
+            <p class="muted question-empty" id="question-empty" hidden>No questions match that search.</p>
+          </div>
+          {% if form.questions.errors %}<div class="field-error">{{ form.questions.errors }}</div>{% endif %}
+        {% endif %}
+      </section>
+
+      {% if not editing and not walk_in %}
+      <label class="panel post-form-card guardhouse-choice" id="guardhouse-choice" data-found-only>
+        <input type="checkbox" name="bring_to_guardhouse" value="1"{% if request.POST.bring_to_guardhouse %} checked{% endif %}>
+        <span><strong>I'll bring this item to the guard house</strong><small>The guard keeps it safe until the owner picks it up. After you publish, show your turn-in QR or code at the guard house; the guard scans it and the post becomes <em>At Guard House</em>. You can also choose this later on your post.</small></span>
+      </label>
+      {% endif %}
+      <div class="form-callout post-form-reminder"><strong>Meet-up reminder</strong><span>Arrange any hand-off only within school premises. You don't set the status: a new post is <em>Open for Claim</em>, and Find-IT changes it as people claim, return or bring the item to the guard house (only a guard can mark it <em>At Guard House</em>).</span></div>
+      <section class="panel post-form-card post-form-submit" aria-label="Save">
+        <div class="form-actions"><a class="button button-outline" href="{% if post %}{% url 'post-detail' post.pk %}{% else %}{% url 'home' %}{% endif %}">Cancel</a><button class="button button-primary" type="submit">{% if walk_in %}Post and record at guard house{% elif editing %}Save changes{% else %}Publish post{% endif %}</button></div>
+      </section>
+    </aside>
   </form>
 </section>
 {% endblock %}

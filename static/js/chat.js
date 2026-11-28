@@ -85,9 +85,15 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // ---- drawing ----
+  // BUG-022: the same format as the page itself ("Nov 28 · 3:30 p.m."), so a message looks the same
+  // when it arrives live and after a reload.
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   function formatTime(value) {
     var date = new Date(value);
-    return date.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    if (isNaN(date.getTime())) return "";
+    var hour = date.getHours() % 12 || 12;
+    return MONTHS[date.getMonth()] + " " + date.getDate() + " · " + hour + ":" +
+      String(date.getMinutes()).padStart(2, "0") + " " + (date.getHours() < 12 ? "a.m." : "p.m.");
   }
   function bubble(sender, timeText, text, mine) {
     var article = document.createElement("article");
@@ -437,8 +443,8 @@ document.addEventListener("DOMContentLoaded", function () {
     var left = leftAttr === null ? Infinity : parseInt(leftAttr, 10) - Object.keys(uploads).length;
     Array.prototype.forEach.call(files, function (file) {
       var isVideo = /^video\//.test(file.type) || /\.(mp4|mov|webm|3gp|mkv|m4v)$/i.test(file.name);
-      var isPhoto = /^image\/(jpeg|png|webp)$/.test(file.type) || /\.(jpe?g|png|webp)$/i.test(file.name);
-      if (!isVideo && !isPhoto) { setStatus(file.name + ": only photos (JPG, PNG, WebP) and videos can be sent."); return; }
+      var isPhoto = /^image\/(jpeg|png|webp|avif)$/.test(file.type) || /\.(jpe?g|png|webp|avif)$/i.test(file.name);   // BUG-025: + AVIF
+      if (!isVideo && !isPhoto) { setStatus(file.name + (/\.hei[cf]$/i.test(file.name) ? ": HEIC photos can't be sent; pick it from the photo library (it sends a JPG) or save it as JPG." : ": only photos (JPG, PNG, WebP, AVIF) and videos can be sent.")); return; }
       var limitMb = isVideo ? videoMb : photoMb;
       if (file.size > limitMb * 1024 * 1024) { setStatus(file.name + ": " + (isVideo ? "videos" : "photos") + " can be up to " + limitMb + " MB."); return; }
       if (left <= 0) { setStatus("Unverified accounts can send 3 photos or videos per chat. Verify your email to send more."); return; }
@@ -663,4 +669,95 @@ document.addEventListener("DOMContentLoaded", function () {
       setStatus("Not connected. Your message is waiting and will be sent automatically.");
     }
   });
+});
+
+// v2.1.0 DES-007 — Messenger-style chat bar: one ＋ button with a small menu
+// (Photo or video · Ownership questions for the finder), a message field that grows, and Send.
+document.addEventListener("DOMContentLoaded", function () {
+  var plus = document.querySelector(".chat-plus");
+  var menu = document.getElementById("chat-plus-menu");
+  var fileInput = document.getElementById("chat-file");
+  var ask = document.getElementById("question-ask");
+  var input = document.getElementById("chat-input");
+  var embedded = document.body.getAttribute("data-embed") === "true" && window.parent !== window;
+
+  function items() { return menu ? Array.prototype.slice.call(menu.querySelectorAll("[role=menuitem]")) : []; }
+  function isOpen() { return menu && !menu.hidden; }
+  function openMenu() {
+    if (!menu || !plus) return;
+    menu.hidden = false;
+    plus.setAttribute("aria-expanded", "true");
+    plus.classList.remove("chat-plus--hint");
+    var first = items()[0];
+    if (first) first.focus();
+  }
+  function closeMenu(returnFocus) {
+    if (!isOpen()) return;
+    menu.hidden = true;
+    plus.setAttribute("aria-expanded", "false");
+    if (returnFocus) plus.focus();
+  }
+  function openQuestions() {
+    closeMenu(false);
+    if (!ask) return;
+    ask.open = true;
+    ask.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    var filter = ask.querySelector(".question-filter");
+    if (filter) window.setTimeout(function () { filter.focus({ preventScroll: true }); }, 150);
+  }
+
+  if (plus && menu) {
+    plus.addEventListener("click", function () { if (isOpen()) closeMenu(true); else openMenu(); });
+    menu.addEventListener("keydown", function (event) {
+      var list = items(), at = list.indexOf(document.activeElement);
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        var next = list[(at + (event.key === "ArrowDown" ? 1 : list.length - 1)) % list.length];
+        if (next) next.focus();
+      } else if (event.key === "Tab") {
+        closeMenu(false);
+      }
+    });
+    var mediaItem = menu.querySelector("[data-plus-media]");
+    if (mediaItem && fileInput) mediaItem.addEventListener("click", function () { closeMenu(false); fileInput.click(); plus.focus(); });
+    document.addEventListener("click", function (event) {
+      if (isOpen() && !menu.contains(event.target) && !plus.contains(event.target)) closeMenu(false);
+    });
+  }
+  // "＋ → Ownership questions" links in the hint lines (they can be redrawn live, so listen on the page).
+  document.addEventListener("click", function (event) {
+    var opener = event.target.closest && event.target.closest("[data-open-questions]");
+    if (opener) { event.preventDefault(); openQuestions(); }
+  });
+  if (ask && window.location.hash === "#question-ask") ask.open = true;
+
+  // The message field grows with the text (up to about 6 lines), like Messenger.
+  if (input) {
+    var grow = function () {
+      input.style.height = "auto";
+      input.style.height = Math.min(input.scrollHeight + 2, window.innerHeight * 0.3) + "px";
+    };
+    input.addEventListener("input", grow);
+    var form = document.getElementById("chat-form");
+    if (form) form.addEventListener("submit", function () { window.setTimeout(grow, 0); });
+  }
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    if (isOpen()) { closeMenu(true); return; }
+    if (ask && ask.open && ask.contains(document.activeElement)) { ask.open = false; if (plus) plus.focus(); return; }
+    // Inside the chat window on a post page: Esc closes the window.
+    if (embedded && !(event.target.closest && event.target.closest("#chat-search-input"))) {
+      window.parent.postMessage({ type: "findit-chat-close" }, window.location.origin);
+    }
+  });
+
+  // Inside the chat window: ordinary links open in the main window (the chat window is only for the chat).
+  if (embedded) {
+    document.addEventListener("click", function (event) {
+      var link = event.target.closest && event.target.closest("a[href]");
+      if (!link || link.target || link.getAttribute("href").charAt(0) === "#") return;
+      link.target = "_top";
+    });
+  }
 });

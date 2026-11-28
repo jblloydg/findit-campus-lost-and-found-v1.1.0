@@ -130,7 +130,8 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         user = get_user_model().objects.select_related("profile").filter(pk=self.scope["user"].pk).first()
         conversation = Conversation.objects.filter(pk=self.conversation_id).only("claim_id").first()
         self.sender_active = bool(user and user.is_active)
-        self.sender_name = (user.get_full_name() or user.username) if user else ""
+        # BUG-022: same name as the page shows (first name, else username)
+        self.sender_name = (user.first_name or user.username) if user else ""
         self.sender_unverified = bool(user and is_unverified_student(user))
         self.limits = SystemSettings.current() if self.sender_unverified else None
         self.claim_id = conversation.claim_id if conversation else None

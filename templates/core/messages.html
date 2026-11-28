@@ -2,7 +2,7 @@
 {% block title %}Messages · Find-IT{% endblock %}
 {% block content %}
 <section class="page-wrap">
-  <div class="page-heading"><div><span class="eyebrow">Private conversations</span><h1>Messages</h1><p class="muted">Coordinate item returns through Find-IT. Meet only within school premises.</p></div></div>
+  <div class="page-heading"><div><span class="eyebrow">Private conversations</span><h1>Messages</h1><p class="muted">Coordinate item returns through Find-IT. Meet only within school premises.</p><p class="muted chat-start-hint">A chat appears here when someone messages you about your post, or when you message someone about theirs.</p></div></div>
   <div class="conversation-list">
     {% for conversation in conversations %}
     <a class="conversation-row" href="{% url 'chat-room' conversation.pk %}">
@@ -15,7 +15,7 @@
       </span>
       <span class="conversation-tail">{% if conversation.is_paused %}<span class="subtle-chip">Paused</span>{% elif conversation.is_closed %}<span class="subtle-chip">Read-only</span>{% else %}<span class="live-chip">Open</span>{% endif %}<small>{{ conversation.updated_at|date:"M j" }}</small></span>
     </a>
-    {% empty %}<div class="empty-state"><div class="empty-icon">↗</div><h3>No conversations yet</h3><p>After you message a post author or apply to claim a found item, the private chat will show here.</p><a class="button button-soft" href="{% url 'home' %}">Browse listings</a></div>{% endfor %}
+    {% empty %}<div class="empty-state"><div class="empty-icon">{% include "core/includes/icon.html" with name="message" %}</div><h3>No chats yet</h3><p>A chat starts when <strong>another person</strong> taps the message button on one of your posts, or when you tap it on someone else's post. You can't message your own post.</p><p class="muted">Found something? Open its Lost post and tap <strong>“I found this – message the owner”</strong>.</p><div class="button-row empty-actions"><a class="button button-primary" href="{% url 'home' %}?type=LOST">Browse lost items</a><a class="button button-soft" href="{% url 'home' %}?type=FOUND">Browse found items</a></div></div>{% endfor %}
   </div>
 </section>
 {% endblock %}

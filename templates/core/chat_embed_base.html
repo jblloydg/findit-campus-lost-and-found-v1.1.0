@@ -1,0 +1,21 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  {% comment %}DES-007: the chat page as it is shown inside the chat window over a post page
+  (no sidebar or top bar; the post page around it already has them and the version label).{% endcomment %}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}Find-IT{% endblock %}</title>
+  <link rel="preload" as="font" type="font/woff2" href="{% static 'fonts/geist-latin-var.woff2' %}" crossorigin>
+  <link rel="stylesheet" href="{% static 'css/findit.css' %}">
+</head>
+<body class="embed-mode" data-embed="true" data-user-authenticated="{{ user.is_authenticated|yesno:'true,false' }}" data-user-id="{% if user.is_authenticated %}{{ user.pk }}{% endif %}">
+{% include "core/includes/flashes.html" %}
+<main id="main-content" class="embed-content">
+  {% block content %}{% endblock %}
+</main>
+{% if unverified_warning %}{% include "core/includes/unverified_warning.html" %}{% endif %}
+<script src="{% static 'js/app.js' %}" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

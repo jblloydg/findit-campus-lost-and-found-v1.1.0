@@ -1,0 +1,62 @@
+{% extends "core/base.html" %}
+{% block title %}Search{% if q %}: {{ q }}{% endif %} · Find-IT{% endblock %}
+{% block content %}
+<section class="page-wrap search-page">
+  <div class="page-heading"><div><span class="eyebrow">Search everything</span><h1>{% if q %}Results for “{{ q }}”{% else %}Search Find-IT{% endif %}</h1>
+    <p class="muted">Posts, categories, your chats, staff requests and Find-IT pages. To filter listings by type, category, status or date, use the search on the <a href="{% url 'home' %}">Dashboard</a>.</p></div></div>
+  <form class="search-panel global-search-form" method="get" action="{% url 'global-search' %}" role="search">
+    <label class="search-field"><span aria-hidden="true">⌕</span><input type="search" name="q" value="{{ q }}" placeholder="Search posts, chats, people, pages…" aria-label="Search everything" minlength="2" maxlength="100" autofocus></label>
+    <button class="button button-primary" type="submit">{% include "core/includes/icon.html" with name="search" %}Search</button>
+  </form>
+  {% if q and q|length < 2 %}<p class="muted">Type at least 2 letters.</p>{% endif %}
+  {% if q|length >= 2 and not total %}
+    <div class="empty-state"><div class="empty-icon">{% include "core/includes/icon.html" with name="search" %}</div><h3>Nothing found for “{{ q }}”</h3><p>Try another word, or browse the listings.</p><a class="button button-soft" href="{% url 'home' %}">Browse listings</a></div>
+  {% endif %}
+
+  {% if results.pages %}
+  <section class="search-group"><h2>Pages</h2>
+    <div class="search-chips">{% for page in results.pages %}<a class="chip search-page-chip" href="{{ page.url }}">{{ page.label }} →</a>{% endfor %}</div>
+  </section>
+  {% endif %}
+
+  {% if results.posts %}
+  <section class="search-group">
+    <div class="section-heading"><h2>Posts</h2><a class="text-action" href="{% url 'home' %}?q={{ q|urlencode }}">See all {{ results.post_total }} in listings →</a></div>
+    <div class="search-list">
+      {% for post in results.posts %}
+      <a class="search-row" href="{% url 'post-detail' post.pk %}">
+        {% with photo=post.photos.all.0 %}{% if photo %}<img class="search-thumb" src="{{ photo.preview_url }}" alt="" loading="lazy" decoding="async">{% else %}<span class="search-thumb"></span>{% endif %}{% endwith %}
+        <span class="search-row-text"><strong>{{ post.display_title }}</strong><small><span class="type-pill type-{{ post.post_type|lower }}">{{ post.get_post_type_display }}</span> {{ post.category.name }} · {{ post.get_status_display }} · {{ post.created_at|date:"M j" }}</small></span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if results.categories %}
+  <section class="search-group"><h2>Categories</h2>
+    <div class="search-chips">{% for category in results.categories %}<a class="chip" href="{% url 'home' %}?category={{ category.pk }}">{{ category.name }}</a>{% endfor %}</div>
+  </section>
+  {% endif %}
+
+  {% if results.chats %}
+  <section class="search-group"><h2>Your chats</h2>
+    <div class="search-list">
+      {% for chat in results.chats %}
+      <a class="search-row" href="{% url 'chat-room' chat.pk %}">{% include "core/includes/avatar.html" with person=chat.other_person size="sm" %}<span class="search-row-text"><strong>{{ chat.post.display_title }}</strong><small>with {{ chat.other_person.first_name|default:chat.other_person.username }} · {{ chat.updated_at|date:"M j" }}</small></span></a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if results.help %}
+  <section class="search-group"><h2>{% if current_is_staff %}Staff inbox{% else %}Your requests to staff{% endif %}</h2>
+    <div class="search-list">
+      {% for thread in results.help %}
+      <a class="search-row" href="{% url 'staff-help-thread' thread.pk %}">{% include "core/includes/avatar.html" with person=thread.requester size="sm" %}<span class="search-row-text"><strong>{{ thread.subject }}</strong><small>{{ thread.get_status_display }} · {{ thread.updated_at|date:"M j" }}</small></span></a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

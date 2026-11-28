@@ -46,6 +46,11 @@ class FindItBackend(ModelBackend):
             return profile.user if profile else None
         user = User.objects.filter(username=identifier).select_related("profile").first()
         if user is None:
+            # BUG-024: staff usernames are not case-sensitive ("Security.Demo" = "security.demo"),
+            # but only when exactly one account matches.
+            matches = list(User.objects.filter(username__iexact=identifier).select_related("profile")[:2])
+            user = matches[0] if len(matches) == 1 else None
+        if user is None:
             return None
         try:
             if user.profile.role == Profile.Role.STUDENT:

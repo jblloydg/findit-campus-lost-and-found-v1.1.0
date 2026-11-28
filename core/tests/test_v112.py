@@ -105,13 +105,14 @@ class DemoLoginsTests(FindItTestCase):
         super().tearDown()
 
     def seed(self, *args):
-        with override_settings(DEBUG=True, FINDIT_DEMO_LOGINS_FILE=self.file):
+        with override_settings(DEBUG=True, FINDIT_DEMO_LOGINS_FILE=self.file,
+                               FINDIT_TESTER_ACCOUNTS_FILE=os.path.join(self.folder, "tester-accounts.txt")):
             call_command("seed_demo", *args, stdout=StringIO())
             return demo_logins.load()
 
     def test_random_passwords_saved_and_working(self):
         logins = self.seed()
-        self.assertEqual(len(logins), 10)  # 8 demo accounts + the 2 v2.0.0 examples (Drew, Morgan)
+        self.assertEqual(len(logins), 10)  # 8 demo accounts + the 2 v2.0.0 examples (Drew, Morgan); no tester file here
         self.assertEqual(len(set(logins.values())), 10)  # every account gets its own
         for username, password in logins.items():
             self.assertRegex(password, r"^[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$")
@@ -172,6 +173,10 @@ class NoSensitiveDataInSharedFilesTests(SimpleTestCase):
         except (OSError, subprocess.CalledProcessError):
             self.skipTest("Git is not available in this folder.")
         self.assertNotIn("demo-logins.txt", files)
+        # CHG-014: tester accounts are sensitive and stay in the owner's private copy only
+        for private in ("tester-accounts.txt", "tester-passwords.txt", "accounts.md"):
+            self.assertFalse([f for f in files if f.lower().endswith(private)], private)
+        self.assertFalse([f for f in files if f.startswith("Accounts/")], "Accounts/")
         problems = []
         for name in files:
             path = root / name
@@ -329,7 +334,7 @@ class Sec001PhotoTests(FindItTestCase):
         response = self.client_for(self.finder).post(
             "/posts/new/", {"post_type": "FOUND", "category": self.category.pk, "photos": [fake]})
         self.assertEqual(response.status_code, 200)  # the form again, with a message - not an error page
-        self.assertContains(response, "JPG, PNG, or WebP")
+        self.assertContains(response, "JPG, PNG, WebP or AVIF")
 
     def test_post_photo_and_preview_are_clean(self):
         image, bits = _picture_with_lsb_message()

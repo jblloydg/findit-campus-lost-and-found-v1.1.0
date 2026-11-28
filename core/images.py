@@ -8,7 +8,7 @@ Both are JPEG. Re-saving also removes hidden photo data (EXIF), such as the GPS
 location some phones store in pictures.
 
 SEC-001 (v1.1.2) — hidden data becomes plain pixels:
-* Only real JPEG, PNG and WebP pictures are opened (no other picture formats).
+* Only real JPEG, PNG, WebP and (v2.1.0) AVIF pictures are opened (no other picture formats).
 * The two lowest bits of every colour value are replaced by random noise before saving,
   so data hidden in the pixels ("steganography") cannot survive. The change is at most
   3 of 255 colour steps, which people cannot see, and the JPEG re-encoding changes more.
@@ -29,6 +29,12 @@ from PIL import Image, ImageChops, ImageOps
 Image.MAX_IMAGE_PIXELS = 60_000_000   # refuse absurdly large pictures ("decompression bombs")
 
 ALLOWED_FORMATS = ("JPEG", "PNG", "WEBP")  # SEC-001: never open any other picture format
+try:  # BUG-025 (v2.1.0): AVIF photos (common from phones and the web), when this PC's Pillow can read them.
+    from PIL import features as _features
+    if _features.check("avif"):
+        ALLOWED_FORMATS = ALLOWED_FORMATS + ("AVIF",)
+except Exception:  # pragma: no cover - very old Pillow
+    pass
 SCRAMBLE_MASK = 0xFC  # SEC-001: keep the top 6 bits of each colour value; the lowest 2 become random
 
 FULL = {"max_side": 1600, "max_bytes": 300 * 1024}

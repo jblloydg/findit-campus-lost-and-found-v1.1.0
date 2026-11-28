@@ -27,7 +27,7 @@ The V2 list was written before v1.1.0. The four sessions already built most of i
 | **v1.1.1** | V2-I school account verification, chat/media, speed + bug fixes + easier start. | Released on `main` (rollback: `stable/v1.1.0`) |
 | **v1.1.2** | Bug fixes and security for v1.1.1 (SEC-001, SEC-002, CHG-008, BUG-008/009/010). | Released on `main` (rollback: `stable/v1.1.2`) |
 | **v2.0.0** | Interface overhaul by the 3 front-end developers (sidebar design, DOrSU monument background, the 9 missing pages, version label) + v1.1.2 + Master Instruction fixes. Branch `release/2.0.0`. | Released on `main` (rollback: `stable/v2.0.0`) |
-| **v2.1.0** | Fix bugs found in 2.0.0 **+ redesign the pages that only got the new colours** (list: `docs/CHANGES_v2.0.0.md` §10) **+ adaptive layout**: every page adapts from PC to phone using relative sizes (percentages / fluid units) instead of fixed pixel sizes. | Planned |
+| **v2.1.0** | Major update after v2.0.0: Messenger-style chat (＋ menu, chat window over any page), finder flow easy to find, Contact staff / shared staff inbox, search everything, guard-house step while posting, AVIF photos, sign-in fixes, Report an item + Staff workspace redesign, tester accounts (private), status guide and click-through tests. Details: `docs/CHANGES_v2.1.0.md`, `docs/TEST_REPORT_v2.1.0.md` | **Released** 2026-11-28 (`main`, `stable/v2.1.0`) |
 | **v3.0.0** | Online hosting: put the app on the internet, move SQLite → PostgreSQL, all of V2-J (2.5-second and uptime evidence). | Planned |
 
 ### What v1.1.1 contains

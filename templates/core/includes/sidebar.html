@@ -14,8 +14,8 @@
     <a class="nav-link{% if nav == 'home' and kind == 'FOUND' %} is-active{% endif %}" href="{% url 'home' %}?type=FOUND"{% if nav == 'home' and kind == 'FOUND' %} aria-current="page"{% endif %}>{% include "core/includes/icon.html" with name="found" %}Found items</a>
 
     <p class="nav-section">Report an item</p>
-    <a class="nav-link{% if nav == 'create-post' and kind == 'LOST' %} is-active{% endif %}" href="{% url 'create-post' %}?type=LOST">{% include "core/includes/icon.html" with name="plus-circle" %}Report lost item</a>
-    <a class="nav-link{% if nav == 'create-post' and kind != 'LOST' %} is-active{% endif %}" href="{% url 'create-post' %}?type=FOUND">{% include "core/includes/icon.html" with name="file-plus" %}Report found item</a>
+    <a class="nav-link{% if nav == 'create-post' and kind == 'LOST' %} is-active{% endif %}" href="{% url 'create-post' %}?type=LOST" data-report-kind="LOST">{% include "core/includes/icon.html" with name="plus-circle" %}Report lost item</a>
+    <a class="nav-link{% if nav == 'create-post' and kind == 'FOUND' %} is-active{% endif %}" href="{% url 'create-post' %}?type=FOUND" data-report-kind="FOUND">{% include "core/includes/icon.html" with name="file-plus" %}Report found item</a>
 
     <p class="nav-section">My activity</p>
     <a class="nav-link{% if nav == 'my-posts' %} is-active{% endif %}" href="{% url 'my-posts' %}">{% include "core/includes/icon.html" with name="folder" %}My posts</a>
@@ -23,12 +23,14 @@
     <a class="nav-link nav-messages{% if nav == 'messages' or nav == 'chat-room' %} is-active{% endif %}" href="{% url 'messages' %}">{% include "core/includes/icon.html" with name="message" %}Messages{% if priority_message_count %}<span class="priority-count" title="Needs your attention">{{ priority_message_count }}</span>{% endif %}</a>
     <a class="nav-link nav-notice{% if nav == 'notifications' %} is-active{% endif %}" href="{% url 'notifications' %}">{% include "core/includes/icon.html" with name="bell" %}Notifications{% if unread_notification_count %}<span class="notice-count">{{ unread_notification_count }}</span>{% endif %}</a>
     <a class="nav-link{% if nav == 'my-reports' or nav == 'general-report-create' %} is-active{% endif %}" href="{% url 'my-reports' %}">{% include "core/includes/icon.html" with name="flag" %}My reports</a>
+    {% if not current_is_staff %}<a class="nav-link{% if nav == 'staff-help' or nav == 'staff-help-new' or nav == 'staff-help-thread' %} is-active{% endif %}" href="{% url 'staff-help' %}">{% include "core/includes/icon.html" with name="help" %}Contact staff</a>{% endif %}
 
     {% if current_is_staff %}
     <p class="nav-section">Staff</p>
     <a class="nav-link{% if nav == 'staff-dashboard' %} is-active{% endif %}" href="{% url 'staff-dashboard' %}">{% include "core/includes/icon.html" with name="shield" %}Staff workspace</a>
     <a class="nav-link{% if nav == 'staff-scan' %} is-active{% endif %}" href="{% url 'staff-scan' %}">{% include "core/includes/icon.html" with name="scan" %}Scan turn-in QR</a>
     <a class="nav-link{% if nav == 'walk-in' %} is-active{% endif %}" href="{% url 'walk-in' %}">{% include "core/includes/icon.html" with name="walk-in" %}Walk-in item</a>
+    <a class="nav-link{% if nav == 'staff-help' or nav == 'staff-help-new' or nav == 'staff-help-thread' %} is-active{% endif %}" href="{% url 'staff-help' %}">{% include "core/includes/icon.html" with name="mail" %}Staff inbox{% if staff_inbox_open %}<span class="priority-count" title="Waiting for staff">{{ staff_inbox_open }}</span>{% endif %}</a>
     {% if current_can_review %}
     <a class="nav-link{% if nav == 'admin-reports' %} is-active{% endif %}" href="{% url 'admin-reports' %}">{% include "core/includes/icon.html" with name="alert" %}Chat &amp; item reports</a>
     <a class="nav-link{% if nav == 'general-reports' %} is-active{% endif %}" href="{% url 'general-reports' %}">{% include "core/includes/icon.html" with name="report" %}System reports</a>

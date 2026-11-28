@@ -1,0 +1,35 @@
+{% extends "core/base.html" %}
+{% block title %}{{ thread.subject }} · Find-IT{% endblock %}
+{% block content %}
+<section class="page-wrap chat-page">
+  <a class="back-link" href="{% url 'staff-help' %}">← {% if staff_view %}Staff inbox{% else %}Contact staff{% endif %}</a>
+  <div class="chat-shell">
+    <header class="chat-header">
+      {% include "core/includes/avatar.html" with person=thread.requester size="md" %}
+      <div><span class="eyebrow">{% if staff_view %}Staff inbox · from {{ thread.requester.first_name|default:thread.requester.username }}{% else %}Your request to the staff team{% endif %}</span><h1>{{ thread.subject }}</h1>
+        <p class="muted">{% if thread.post %}Post: <a href="{% url 'post-detail' thread.post.pk %}">{{ thread.post.display_title }}</a> ({{ thread.post.get_status_display }}) · {% endif %}Seen by every staff member</p></div>
+      <span class="{% if thread.status == 'OPEN' %}live-chip{% else %}subtle-chip{% endif %}">{{ thread.get_status_display }}</span>
+    </header>
+    <div class="chat-messages help-messages">
+      {% for message in help_messages %}
+      <article class="chat-message {% if message.sender_id == user.pk %}mine{% endif %}">
+        <div class="message-bubble"><div class="message-meta"><strong>{{ message.sender.first_name|default:message.sender.username }}{% if message.from_staff %} · Staff{% endif %}</strong><time>{{ message.sent_at|date:"M j · g:i a" }}</time></div><p>{{ message.text|linebreaksbr }}</p></div>
+      </article>
+      {% endfor %}
+    </div>
+    {% if thread.status != "RESOLVED" %}
+    <form method="post" class="chat-composer help-composer">{% csrf_token %}
+      <label for="help-text" class="sr-only">Message</label><textarea id="help-text" name="text" rows="2" maxlength="2000" required placeholder="{% if staff_view and thread.requester_id != user.pk %}Reply as staff…{% else %}Add a message…{% endif %}"></textarea>
+      <button class="button button-primary chat-send" type="submit">Send</button>
+    </form>
+    {% endif %}
+    <div class="button-row help-actions">
+      {% if thread.status == "RESOLVED" %}
+      <form method="post">{% csrf_token %}<input type="hidden" name="action" value="reopen"><button class="button button-outline button-small" type="submit">Reopen</button></form>
+      {% else %}
+      <form method="post">{% csrf_token %}<input type="hidden" name="action" value="resolve"><button class="button button-soft button-small" type="submit">Mark resolved</button></form>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

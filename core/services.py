@@ -609,14 +609,24 @@ def reapply_status(post, user):
 # ---------------------------------------------------------------------------
 
 def chat_roles(conversation):
-    """(asker, answerer): the finder side asks, the claimant/owner side answers."""
+    """(asker, answerer): the finder side asks, the claimant/owner side answers.
+
+    Owner's rule (v2.1.0, CHG-011): whoever is the finder in a chat can send ownership questions.
+    - LOST post: the person who messaged the author is the finder; the author (owner) answers.
+    - FOUND post, claim chat: the claim's finder asks; the claimant answers.
+    - FOUND post, chat without a claim ("Message poster"): the author is the finder and asks;
+      the other person answers.
+    """
     post = conversation.post
     if post.post_type == ItemPost.Type.LOST:
         finder = conversation.initiator if conversation.recipient_id == post.author_id else conversation.recipient
         return finder, post.author
     claim = conversation.claim
     if claim is None:
-        return None, None
+        if post.author_id not in (conversation.initiator_id, conversation.recipient_id):
+            return None, None
+        other = conversation.initiator if conversation.recipient_id == post.author_id else conversation.recipient
+        return post.author, other
     return claim.finder_user, claim.claimant
 
 
@@ -857,3 +867,68 @@ def revoke_moderator_if_not_staff(user, actor):
             verification=verification, previous_status=previous, new_status=verification.status,
             actor=actor, remarks=verification.remarks,
         )
+
+
+# ---- CHG-019 (v2.1.0): Contact staff — one shared staff inbox ----
+MAX_OPEN_HELP_REQUESTS = 5
+
+
+def _staff_team():
+    from .permissions import STAFF_ROLES
+    return get_user_model().objects.filter(is_active=True, profile__role__in=STAFF_ROLES)
+
+
+@transaction.atomic
+def open_staff_help(requester, subject, text, post=None):
+    """A student asks the staff team for help. Every staff member and administrator is told."""
+    from django.urls import reverse
+    from .models import StaffHelpMessage, StaffHelpThread
+    from .verification import notify_account
+    subject, text = (subject or "").strip()[:120], (text or "").strip()[:2000]
+    if not text:
+        raise ValueError("Write what you need help with.")
+    open_count = StaffHelpThread.objects.filter(requester=requester).exclude(status=StaffHelpThread.Status.RESOLVED).count()
+    if open_count >= MAX_OPEN_HELP_REQUESTS:
+        raise ValueError(f"You already have {open_count} open requests. Add to one of them, or wait until staff resolve one.")
+    if not subject:
+        subject = f"About: {post.display_title}" if post else "Help request"
+    thread = StaffHelpThread.objects.create(requester=requester, post=post, subject=subject)
+    StaffHelpMessage.objects.create(thread=thread, sender=requester, text=text)
+    link = reverse("staff-help-thread", args=[thread.pk])
+    for member in _staff_team().exclude(pk=requester.pk):
+        notify_account(member, f"New request in the staff inbox: {subject}", link=link, priority=True)
+    audit(requester, "opened_staff_help", thread, subject)
+    return thread
+
+
+@transaction.atomic
+def add_staff_help_message(thread, sender, text):
+    from django.urls import reverse
+    from .models import StaffHelpMessage, StaffHelpThread
+    from .permissions import is_staff_or_admin
+    from .verification import notify_account
+    text = (text or "").strip()[:2000]
+    if not text:
+        raise ValueError("Write a message first.")
+    thread = StaffHelpThread.objects.select_for_update().get(pk=thread.pk)
+    staff_side = is_staff_or_admin(sender) and sender.pk != thread.requester_id
+    if not staff_side and sender.pk != thread.requester_id:
+        raise PermissionError("Only the person who asked and the staff team can write here.")
+    message = StaffHelpMessage.objects.create(thread=thread, sender=sender, text=text, from_staff=staff_side)
+    thread.status = StaffHelpThread.Status.ANSWERED if staff_side else StaffHelpThread.Status.OPEN
+    thread.save(update_fields=["status", "updated_at"])
+    link = reverse("staff-help-thread", args=[thread.pk])
+    if staff_side:
+        notify_account(thread.requester, f"Staff replied to your request: {thread.subject}", link=link, priority=True)
+    else:
+        for member in _staff_team().exclude(pk=sender.pk):
+            notify_account(member, f"New message in the staff inbox: {thread.subject}", link=link, priority=True)
+    return message
+
+
+def set_staff_help_status(thread, actor, resolved):
+    from .models import StaffHelpThread
+    thread.status = StaffHelpThread.Status.RESOLVED if resolved else StaffHelpThread.Status.OPEN
+    thread.save(update_fields=["status", "updated_at"])
+    audit(actor, "resolved_staff_help" if resolved else "reopened_staff_help", thread, "")
+    return thread

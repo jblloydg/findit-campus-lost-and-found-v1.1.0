@@ -37,12 +37,12 @@
   </nav>
 
   <form class="search-panel{% if location_enabled %} has-location{% endif %}" method="get" action="{% url 'home' %}">
-    <label class="search-field"><span aria-hidden="true">⌕</span><input type="search" name="q" value="{{ q }}" placeholder="Search by title, description or category" aria-label="Search listings"></label>
+    <label class="search-field"><span aria-hidden="true">⌕</span><input type="search" name="q" value="{{ q }}" placeholder="Filter these listings by title, description or category" aria-label="Filter these listings"></label>
     <label class="select-field"><span class="sr-only">Type</span><select name="type"><option value="">All posts</option><option value="LOST" {% if selected_type == "LOST" %}selected{% endif %}>Lost</option><option value="FOUND" {% if selected_type == "FOUND" %}selected{% endif %}>Found</option></select></label>
     <label class="select-field"><span class="sr-only">Category</span><select name="category"><option value="">All categories</option>{% for category in categories %}<option value="{{ category.pk }}" {% if selected_category == category.pk|stringformat:"d" %}selected{% endif %}>{{ category.name }}</option>{% endfor %}</select></label>
     <label class="select-field"><span class="sr-only">Status</span><select name="status"><option value="">Any status</option>{% for value,label in status_choices %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
     {% if location_enabled %}<label class="select-field location-field"><span class="sr-only">Location</span><input type="text" name="location" value="{{ location }}" maxlength="120" placeholder="Any location" aria-label="Filter by location"></label>{% endif %}
-    <button class="button button-primary" type="submit">{% include "core/includes/icon.html" with name="search" %}Search</button>
+    <button class="button button-primary" type="submit">{% include "core/includes/icon.html" with name="search" %}Filter</button>
     <div class="filter-row">
       <span class="filter-label">Item date</span>
       <label class="date-field"><span>From</span><input type="date" name="date_from" value="{{ date_from }}" aria-label="Item date from"></label>

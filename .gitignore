@@ -21,6 +21,11 @@ logs/
 
 # Demo sign-ins made on this PC (CHG-008: never in Git)
 demo-logins.txt
+# Tester accounts (CHG-014): sensitive, only in the owner's private copy, never in the shared repository
+tester-accounts.txt
+tester-passwords.txt
+Accounts/
+accounts.md
 
 # SQLite helper files (WAL mode, v1.1.1 PERF-002) — part of the local database, never commit (BUG-018)
 *.sqlite3-wal

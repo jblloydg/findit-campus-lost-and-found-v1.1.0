@@ -1,3 +1,4 @@
+import os
 import re
 
 from django import forms
@@ -316,11 +317,16 @@ class MultipleImageField(forms.ImageField):
     """Accepts several images in one input. Each file is checked by Pillow and validate_photo."""
 
     def __init__(self, *args, **kwargs):
-        kwargs.setdefault("widget", MultipleFileInput(attrs={"accept": "image/jpeg,image/png,image/webp", "multiple": True}))
+        kwargs.setdefault("widget", MultipleFileInput(attrs={"accept": "image/jpeg,image/png,image/webp,image/avif", "multiple": True}))
         super().__init__(*args, **kwargs)
 
     def clean(self, data, initial=None):
         single_clean = super().clean
+        from .validators import HEIC_EXTENSIONS, HEIC_MESSAGE
+        for item in (data if isinstance(data, (list, tuple)) else [data]):
+            # BUG-025: say what to do with an iPhone HEIC photo instead of "not an image".
+            if item and os.path.splitext(getattr(item, "name", "") or "")[1].lower() in HEIC_EXTENSIONS:
+                raise forms.ValidationError(HEIC_MESSAGE)
         if isinstance(data, (list, tuple)):
             files = [single_clean(item, initial) for item in data if item]
         elif data:
@@ -346,8 +352,8 @@ class ProfileForm(forms.Form):
     )
     photo = forms.ImageField(
         label="Profile picture", required=False,
-        help_text="Optional. JPG, PNG, or WebP; up to 2 MB.",
-        widget=forms.FileInput(attrs={"accept": "image/jpeg,image/png,image/webp"}),
+        help_text="Optional. JPG, PNG, WebP or AVIF; up to 2 MB.",
+        widget=forms.FileInput(attrs={"accept": "image/jpeg,image/png,image/webp,image/avif"}),
     )
     remove_photo = forms.BooleanField(label="Remove my current profile picture", required=False)
 
@@ -469,7 +475,7 @@ class ItemPostForm(forms.ModelForm):
     photos = MultipleImageField(
         required=False,
         label="Photos",
-        help_text=f"Add 1 to {MAX_POST_PHOTOS} photos (JPG, PNG or WebP, up to 5 MB each). No video.",
+        help_text=f"Add 1 to {MAX_POST_PHOTOS} photos (JPG, PNG, WebP or AVIF, up to 5 MB each). No video.",
     )
     remove_photos = forms.ModelMultipleChoiceField(
         queryset=PostPhoto.objects.none(), required=False,

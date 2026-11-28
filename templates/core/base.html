@@ -19,9 +19,9 @@
   <div class="app-main">
     <header class="app-topbar">
       <button type="button" class="icon-button menu-toggle" data-drawer-open aria-controls="app-sidebar" aria-expanded="false" aria-label="Open menu">{% include "core/includes/icon.html" with name="menu" %}</button>
-      <form class="topbar-search" method="get" action="{% url 'home' %}" role="search">
+      <form class="topbar-search" method="get" action="{% url 'global-search' %}" role="search">
         {% include "core/includes/icon.html" with name="search" %}
-        <input type="search" name="q" value="{{ request.GET.q }}" placeholder="Search lost and found items…" aria-label="Search lost and found items">
+        <input type="search" name="q" value="{% if request.resolver_match.url_name == 'global-search' %}{{ request.GET.q }}{% endif %}" placeholder="Search everything…" aria-label="Search everything: posts, chats, pages">
       </form>
       <div class="topbar-actions">
         <a class="button button-primary new-post-full" href="{% url 'create-post' %}">{% include "core/includes/icon.html" with name="plus-circle" %}New post</a>
@@ -61,7 +61,7 @@
   </a>
   {% block public_nav %}{% endblock %}
   <div class="public-actions">
-    <a class="button button-ghost-light" href="{% url 'login' %}">Log in</a>
+    <a class="button button-ghost-light" href="{% url 'login' %}{% if request.resolver_match.url_name == 'post-detail' %}?next={{ request.get_full_path|urlencode }}{% endif %}">Log in</a>
     <a class="button button-soft" href="{% url 'signup' %}">Create account</a>
   </div>
 </header>
@@ -105,6 +105,18 @@
 </div>
 {% endif %}
 {% block unverified_warning %}{% if unverified_warning %}{% include "core/includes/unverified_warning.html" %}{% endif %}{% endblock %}
+{% if user.is_authenticated and request.resolver_match.url_name != 'chat-room' %}
+{% comment %}DES-007 / DES-008: a chat opens in a big window over the page you are on. The address bar shows the
+chat's own link (/conversations/…/) while it is open; × (or Esc / Back) closes it and the page is as you left it.{% endcomment %}
+<div class="chat-overlay" id="chat-overlay" hidden role="dialog" aria-modal="true" aria-label="Private chat">
+  <div class="chat-overlay-backdrop" data-chat-close></div>
+  <div class="chat-overlay-window">
+    <button type="button" class="chat-overlay-close" data-chat-close aria-label="Close chat">×</button>
+    <iframe title="Private chat" name="findit-chat"></iframe>
+    <p class="chat-overlay-loading">Opening the chat…</p>
+  </div>
+</div>
+{% endif %}
 <script src="{% static 'js/app.js' %}" defer></script>
 {% block scripts %}{% endblock %}
 </body>

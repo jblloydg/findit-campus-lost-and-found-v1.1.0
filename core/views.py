@@ -64,6 +64,9 @@ from .services import (
 User = get_user_model()
 
 
+from .auth import STUDENT_ID_PATTERN  # noqa: E402  (BUG-024 sign-in hint)
+
+
 def _safe_next(request, fallback="home"):
     target = request.POST.get("next") or request.GET.get("next") or ""
     if target and url_has_allowed_host_and_scheme(target, {request.get_host()}):
@@ -107,7 +110,13 @@ def login_view(request):
             messages.success(request, f"Welcome back, {user.first_name or user.username}.")
             return redirect(_safe_next(request, fallback=_role_home(user)))
         record_login_failure(username, ip)
-        messages.error(request, "Sign-in failed. Check the details below.")
+        if STUDENT_ID_PATTERN.fullmatch(username.strip()):
+            # BUG-024: the team typed a Student ID on new (not yet verified) accounts and only saw
+            # "Sign-in failed". Shown for every Student ID, so it does not reveal whether an account exists.
+            messages.error(request, "Sign-in failed. A Student ID only works after your email is verified, "
+                                    "so sign in with your email address instead.")
+        else:
+            messages.error(request, "Sign-in failed. Check the details below.")
     return render(request, "core/login.html", {
         "form": form,
         "next": request.POST.get("next") or request.GET.get("next", ""),
@@ -283,9 +292,8 @@ def _can_view_archived(post, user):
 
 
 def _conversation_for_post(post, user):
-    if post.is_archived or post.status in {
-        ItemPost.Status.TURNED_OVER, ItemPost.Status.CLAIMED, ItemPost.Status.CLOSED
-    }:
+    # CHG-017 (v2.1.0): a post at the guard house can still be messaged, so its author can help the owner.
+    if post.is_archived or post.status in {ItemPost.Status.CLAIMED, ItemPost.Status.CLOSED}:
         return None
     if post.post_type == ItemPost.Type.FOUND:
         claim = post.claims.filter(claimant=user, status__in=ClaimApplication.ACTIVE_STATUSES).first()
@@ -349,6 +357,8 @@ def post_detail(request, post_id):
             ItemPost.Status.TURNED_OVER, ItemPost.Status.CLAIMED, ItemPost.Status.CLOSED
         }
     )
+    # CHG-017: messaging stays possible while the item is at the guard house (comments and new posts' claims follow can_interact).
+    can_message = not post.is_archived and post.status not in {ItemPost.Status.CLAIMED, ItemPost.Status.CLOSED}
     applications = []
     account_list = []
     if can_manage:
@@ -372,18 +382,22 @@ def post_detail(request, post_id):
     if request.user.is_authenticated and request.user.pk != post.author_id:
         if post.post_type == ItemPost.Type.FOUND and latest_claim is not None:
             panel_conversation = getattr(latest_claim, "conversation", None)
-        elif post.post_type == ItemPost.Type.LOST:
-            panel_conversation = post.conversations.filter(initiator=request.user).first()
+        if panel_conversation is None:  # LOST post, or a FOUND post's "Message poster" chat (DES-007)
+            panel_conversation = post.conversations.filter(initiator=request.user, claim__isnull=True).first()
+    # BUG-023: the author sees the chats about this post (or why there are none yet).
+    author_chats = []
+    if request.user.is_authenticated and request.user.pk == post.author_id:
+        author_chats = list(
+            post.conversations.filter(Q(initiator=request.user) | Q(recipient=request.user))
+            .select_related("initiator", "recipient").order_by("-updated_at")[:10]
+        )
+        for chat in author_chats:
+            chat.other_person = chat.initiator if chat.recipient_id == request.user.pk else chat.recipient
     if can_moderate and post.status == ItemPost.Status.TURNED_OVER:
         account_list = User.objects.filter(profile__role=Profile.Role.STUDENT, is_active=True).order_by("first_name")
     for application in applications:
         application.claimant_unverified = is_unverified_student(application.claimant)
     viewer_is_student_other = request.user.is_authenticated and request.user.pk != post.author_id
-    from .chat_history import latest_page
-    panel_history = (
-        latest_page(panel_conversation.messages.select_related("sender", "attachment"), budget=4 * 1024)
-        if panel_conversation else ([], False)
-    )
     context = {
         "chat_char_limit": (
             SystemSettings.current().unverified_chat_max_chars
@@ -407,6 +421,7 @@ def post_detail(request, post_id):
         "can_edit": can_edit,
         "can_moderate": can_moderate,
         "can_interact": can_interact,
+        "can_message": can_message,
         "applications": applications,
         "account_list": account_list,
         "resume": resume,
@@ -414,6 +429,7 @@ def post_detail(request, post_id):
         "shared_by_author": post.shares.filter(user_id=post.author_id).exists(),
         "share_count": post.shares.count(),
         "panel_conversation": panel_conversation,
+        "author_chats": author_chats,
         "show_matches": show_matches,
         "possible_matches": possible_matches,
         "my_ticket": my_ticket,
@@ -423,8 +439,6 @@ def post_detail(request, post_id):
         "status_request_form": StatusChangeRequestForm() if my_ticket and post.status == ItemPost.Status.TURNED_OVER else None,
         "my_pending_request": post.status_requests.filter(requester=request.user, decision="PENDING").first() if request.user.is_authenticated else None,
         "pending_status_requests": post.status_requests.filter(decision="PENDING").select_related("requester") if can_moderate else [],
-        "panel_messages": panel_history[0],
-        "panel_has_older": panel_history[1],
         "panel_can_send": bool(
             panel_conversation and panel_conversation.includes(request.user)
             and not panel_conversation.is_closed and not panel_conversation.is_paused
@@ -487,6 +501,17 @@ def create_post(request):
                     note="Listing created.",
                 )
             messages.success(request, "Your post is live.")
+            if post.post_type == ItemPost.Type.FOUND and request.POST.get("bring_to_guardhouse"):
+                # CHG-016: the finder chose "I'll bring this item to the guard house" while posting.
+                ticket = post.turn_in_tickets.filter(finder=request.user).first()
+                if ticket:
+                    try:
+                        request_guardhouse(ticket, request.user)
+                    except ValueError as exc:
+                        messages.error(request, str(exc))
+                    else:
+                        messages.info(request, f"Staff were told you're bringing it. Show turn-in code {ticket.code} "
+                                               "(or the QR on your post) at the guard house.")
             if post.post_type == ItemPost.Type.LOST:
                 match_count = len(find_possible_matches(post))
                 if match_count:
@@ -1129,6 +1154,13 @@ def chat_messages_json(request, conversation_id):
     return JsonResponse(payload)
 
 
+def _is_embedded(request):
+    """DES-007: the chat page is being shown inside the chat window over a post page.
+    Browsers say so with Sec-Fetch-Dest: iframe (also after a form inside the window redirects);
+    ?embed=1 is the fallback for older browsers."""
+    return request.GET.get("embed") == "1" or request.headers.get("Sec-Fetch-Dest") == "iframe"
+
+
 @never_cache
 @login_required
 def chat_room(request, conversation_id):
@@ -1158,7 +1190,7 @@ def chat_room(request, conversation_id):
     question_bank = []
     round_count = 0
     if is_asker and can_send and (claim is None or claim.status in {"SUBMITTED", "APPROVED"}):
-        round_count = current_round_questions(conversation).count() if claim else 0
+        round_count = current_round_questions(conversation).count()  # CHG-011: also counts chats without a claim
         if round_count < 5:
             question_bank = list(QuestionTemplate.objects.filter(is_active=True).prefetch_related("categories"))
     can_decide = bool(claim and can_decide_claim(request.user, claim))
@@ -1168,7 +1200,10 @@ def chat_room(request, conversation_id):
     other = None
     if conversation.includes(request.user):
         other = conversation.recipient if conversation.initiator_id == request.user.pk else conversation.initiator
+    embedded = _is_embedded(request)
     return render(request, "core/chat_room.html", {
+        "base_template": "core/chat_embed_base.html" if embedded else "core/base.html",
+        "embedded": embedded,
         "other_person": other,
         "unverified_warning": bool(other and is_unverified_student(other)),
         "other_verified": bool(other and other.profile.is_verified),
@@ -1289,10 +1324,10 @@ def notifications(request):
             if notice.post_id:
                 return redirect("post-detail", post_id=notice.post_id)
         return redirect("notifications")
-    unread_ids = list(rows.filter(read_at__isnull=True).values_list("pk", flat=True)[:200])
-    if unread_ids:
-        InAppNotification.objects.filter(pk__in=unread_ids).update(read_at=timezone.now())
-    return render(request, "core/notifications.html", {"notifications": rows[:200]})
+    shown = list(rows[:200])   # DES-009: read the list first, so the notices that were new still look new now
+    if any(notice.read_at is None for notice in shown):
+        rows.filter(read_at__isnull=True).update(read_at=timezone.now())
+    return render(request, "core/notifications.html", {"notifications": shown})
 
 
 @login_required
@@ -2328,3 +2363,154 @@ def server_error(request):
     from django.template import loader
     from .version import FINDIT_VERSION
     return HttpResponseServerError(loader.get_template("500.html").render({"findit_version": FINDIT_VERSION}))
+
+
+# ---- CHG-019 (v2.1.0): Contact staff — one shared staff inbox ----
+@login_required
+def staff_help_list(request):
+    """Students: their requests to the staff team. Staff and admins: the shared staff inbox (everyone's)."""
+    from .models import StaffHelpThread
+    staff_view = is_staff_or_admin(request.user)
+    show = request.GET.get("show", "open")
+    threads = StaffHelpThread.objects.select_related("requester", "post").annotate(message_count=Count("messages"))
+    if staff_view:
+        if show != "all":
+            threads = threads.exclude(status=StaffHelpThread.Status.RESOLVED)
+    else:
+        threads = threads.filter(requester=request.user)
+    return render(request, "core/staff_help_list.html", {
+        "threads": threads[:200], "staff_view": staff_view, "show": show,
+        "open_count": StaffHelpThread.objects.exclude(status=StaffHelpThread.Status.RESOLVED).count() if staff_view else 0,
+    })
+
+
+@login_required
+def staff_help_new(request):
+    from .services import open_staff_help
+    post = None
+    post_id = request.POST.get("post") or request.GET.get("post")
+    if post_id:
+        try:
+            post = ItemPost.objects.filter(pk=post_id).first()
+        except (ValueError, ValidationError):
+            post = None
+    if request.method == "POST":
+        try:
+            thread = open_staff_help(request.user, request.POST.get("subject", ""), request.POST.get("text", ""), post)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "Sent to the staff team. Any staff member can reply; you'll get a notification.")
+            return redirect("staff-help-thread", thread_id=thread.pk)
+    return render(request, "core/staff_help_new.html", {
+        "post": post, "subject": request.POST.get("subject", ""), "text": request.POST.get("text", ""),
+    })
+
+
+@login_required
+def staff_help_thread(request, thread_id):
+    from .models import StaffHelpThread
+    from .services import add_staff_help_message, set_staff_help_status
+    thread = get_object_or_404(StaffHelpThread.objects.select_related("requester", "post"), pk=thread_id)
+    staff_view = is_staff_or_admin(request.user)
+    if not staff_view and thread.requester_id != request.user.pk:
+        return HttpResponseForbidden("This request is private to the person who asked and the staff team.")
+    if request.method == "POST":
+        action = request.POST.get("action", "reply")
+        if action in {"resolve", "reopen"}:
+            set_staff_help_status(thread, request.user, resolved=action == "resolve")
+            messages.success(request, "Marked as resolved." if action == "resolve" else "Reopened.")
+        else:
+            try:
+                add_staff_help_message(thread, request.user, request.POST.get("text", ""))
+            except (ValueError, PermissionError) as exc:
+                messages.error(request, str(exc))
+        return redirect("staff-help-thread", thread_id=thread.pk)
+    InAppNotification.objects.filter(
+        recipient=request.user, link=reverse("staff-help-thread", args=[thread.pk]), read_at__isnull=True,
+    ).update(read_at=timezone.now())
+    return render(request, "core/staff_help_thread.html", {
+        "thread": thread, "help_messages": thread.messages.select_related("sender"), "staff_view": staff_view,
+    })
+
+
+# ---- CHG-020 (v2.1.0): the top bar is a general search over everything you can open ----
+# (The search on the dashboard stays the specific one: it filters the listings below it.)
+SEARCH_PAGES = [
+    # (label, words people might type, url name, query, who can see it)
+    ("Dashboard", "home dashboard listings browse", "home", "", "all"),
+    ("Lost items", "lost items browse missing", "home", "?type=LOST", "all"),
+    ("Found items", "found items browse", "home", "?type=FOUND", "all"),
+    ("Report a lost item", "report lost post new create", "create-post", "?type=LOST", "all"),
+    ("Report a found item", "report found post new create guard house", "create-post", "?type=FOUND", "all"),
+    ("My posts", "my posts listings mine", "my-posts", "", "all"),
+    ("My claims", "my claims claim applications", "my-claims", "", "all"),
+    ("Messages", "messages chats chat conversations inbox", "messages", "", "all"),
+    ("Notifications", "notifications updates alerts bell", "notifications", "", "all"),
+    ("My reports", "my reports report problem", "my-reports", "", "all"),
+    ("Report a problem", "report problem bug issue help", "general-report-create", "", "all"),
+    ("Contact staff", "contact staff help guard support inbox", "staff-help", "", "student"),
+    ("My profile", "profile account me photo", "my-profile", "", "all"),
+    ("Edit profile", "edit profile name photo", "edit-profile", "", "all"),
+    ("Change password", "change password security", "change-password", "", "all"),
+    ("Verify my email", "verify email verification verified", "verify-email", "", "all"),
+    ("Blocked people", "blocked people block unblock", "blocked-people", "", "all"),
+    ("Staff workspace", "staff workspace dashboard guard", "staff-dashboard", "", "staff"),
+    ("Scan turn-in QR", "scan qr turn in code guard house", "staff-scan", "", "staff"),
+    ("Walk-in item", "walk in walk-in guard house record", "walk-in", "", "staff"),
+    ("Staff inbox", "staff inbox help requests contact", "staff-help", "", "staff"),
+    ("Chat & item reports", "reports chat safety moderation", "admin-reports", "", "review"),
+    ("System reports", "system reports general problems", "general-reports", "", "review"),
+    ("ID reviews", "id reviews student id conflict", "id-reviews", "", "review"),
+    ("Admin dashboard", "admin dashboard numbers", "admin-dashboard", "", "admin"),
+    ("Accounts", "accounts users people students staff", "staff-accounts", "", "admin"),
+    ("Moderator verification", "moderator verification verify staff", "moderator-verifications", "", "admin"),
+    ("Categories", "categories category", "admin-categories", "", "admin"),
+    ("Question bank", "questions question bank ownership", "admin-questions", "", "admin"),
+    ("System settings", "settings system limits", "admin-settings", "", "admin"),
+    ("Backups", "backups backup restore", "backup-status", "", "admin"),
+    ("Audit trail", "audit trail log history", "audit-log", "", "admin"),
+    ("System status", "system status health", "system-status", "", "admin"),
+]
+
+
+@login_required
+def global_search(request):
+    from .models import StaffHelpThread
+    from .permissions import can_review_reports
+    q = request.GET.get("q", "").strip()[:100]
+    staff = is_staff_or_admin(request.user)
+    results = {"posts": [], "categories": [], "chats": [], "help": [], "pages": [], "post_total": 0}
+    if len(q) >= 2:
+        posts = ItemPost.objects.filter(is_archived=False).filter(
+            Q(title__icontains=q) | Q(description__icontains=q) | Q(category__name__icontains=q)
+        ).select_related("category").prefetch_related("photos").order_by("-created_at")
+        results["post_total"] = posts.count()
+        results["posts"] = list(posts[:12])
+        results["categories"] = list(Category.objects.filter(name__icontains=q, is_active=True)[:8])
+        name = Q(post__title__icontains=q) | Q(initiator__first_name__icontains=q) | Q(recipient__first_name__icontains=q)
+        results["chats"] = list(
+            Conversation.objects.filter(Q(initiator=request.user) | Q(recipient=request.user)).filter(name)
+            .select_related("post", "initiator", "recipient").order_by("-updated_at")[:8]
+        )
+        for chat in results["chats"]:
+            chat.other_person = chat.recipient if chat.initiator_id == request.user.pk else chat.initiator
+        threads = StaffHelpThread.objects.filter(Q(subject__icontains=q) | Q(post__title__icontains=q))
+        if not staff:
+            threads = threads.filter(requester=request.user)
+        results["help"] = list(threads.select_related("requester")[:8])
+        role = "admin" if is_admin(request.user) else "review" if can_review_reports(request.user) else "staff" if staff else "student"
+        allowed = {"all", role, "student" if role == "student" else "staff"}
+        if role == "admin":
+            allowed |= {"staff", "review"}
+        if role == "review":
+            allowed |= {"staff"}
+        words = q.lower().split()
+        for label, keywords, url_name, query, who in SEARCH_PAGES:
+            if who not in allowed:
+                continue
+            haystack = f"{label} {keywords}".lower()
+            if all(word in haystack for word in words):
+                results["pages"].append({"label": label, "url": reverse(url_name) + query})
+    total = sum(len(v) for k, v in results.items() if k != "post_total")
+    return render(request, "core/search.html", {"q": q, "results": results, "total": total})

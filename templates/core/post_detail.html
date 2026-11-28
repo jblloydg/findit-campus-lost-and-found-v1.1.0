@@ -32,6 +32,7 @@
         {% if claim_counts.claiming or claim_counts.approved %}<p class="claim-counts"><strong>{{ claim_counts.claiming }}</strong> {% if post.post_type == "LOST" %}verifying{% else %}claiming{% endif %} · <strong>{{ claim_counts.approved }}</strong> approved</p>{% endif %}
         <p class="detail-author">Posted by <strong>{{ post.author.first_name|default:post.author.username }}</strong> {{ post.author|verified_mark }}{% if post.approximate_date %} · Approx. {{ post.approximate_date|date:"M j, Y" }}{% endif %}</p>
         {% if post.category or location_enabled and post.location %}<p class="item-tags">{% if post.category %}<a class="category-tag" href="{% url 'home' %}?category={{ post.category_id }}">{{ post.category.name }}</a>{% endif %}{% if location_enabled and post.location %}<span class="location-tag">📍 {{ post.location }}</span>{% endif %}</p>{% endif %}
+        <div class="primary-actions top-actions">{% include "core/includes/post_primary_actions.html" %}</div>
         {% if user.is_authenticated and user.pk != post.author_id %}<a class="text-action report-listing-link" href="{% url 'general-report-create' %}?post={{ post.pk }}">⚑ Report this listing</a>{% endif %}
         {% if can_block_author %}<a class="text-action report-listing-link danger-link" href="{% url 'report-block' post.author_id %}?next={{ request.path|urlencode }}">⛔ Report &amp; block the poster</a>{% endif %}
         {% if is_blocked %}<p class="form-callout warning-callout"><strong>Blocked</strong><span>One of you blocked the other, so claims, comments and messages between you are turned off.</span></p>{% endif %}
@@ -41,6 +42,7 @@
         <div><dt>Approx. date {{ post.get_post_type_display|lower }}</dt><dd>{% if post.approximate_date %}{{ post.approximate_date|date:"M j, Y" }}{% else %}<span class="not-given">Not provided</span>{% endif %}</dd></div>
         <div><dt>Approx. time {{ post.get_post_type_display|lower }}</dt><dd>{% if post.approximate_time %}{{ post.approximate_time|time:"g:i A" }}{% else %}<span class="not-given">Not provided</span>{% endif %}</dd></div>
       </dl>
+      {% include "core/includes/status_help.html" %}
       {% if post.description %}<div class="description-panel"><span class="eyebrow">Broad description</span><p>{{ post.description|linebreaksbr }}</p></div>{% endif %}
       {% if post.status == "TURNED_OVER" %}<div class="form-callout guardhouse-callout"><strong>At the guard house</strong><span>The item is held at the main-campus guard house. Claims and chats stay open; approved claimants pick it up in person.{% if intake and user.is_authenticated %} Received {{ intake.received_at|date:"M j, Y" }}.{% endif %}</span></div>{% endif %}
       {% if post.status == "RETURNED" and user_claim and post.returned_application_id == user_claim.pk %}
@@ -67,7 +69,7 @@
         {% elif latest_claim.status == "DECLINED" %}<p class="muted">The finder or staff declined this claim.{% if latest_claim.decline_reason %} Reason: “{{ latest_claim.decline_reason }}”{% endif %}</p>
         {% else %}<p class="muted">Your answers are private. The finder and authorized staff can review the form.</p>{% endif %}
         <div class="button-row">
-          {% if latest_claim.conversation %}<button type="button" class="button button-soft" data-chat-toggle>Open chat</button>{% endif %}
+          {% if latest_claim.conversation %}<a class="button button-soft" href="{% url 'chat-room' latest_claim.conversation.pk %}" data-chat-open>Open chat</a>{% endif %}
           {% if latest_claim.status == "RETURNED" %}<form method="post" action="{% url 'claimed' post.pk %}">{% csrf_token %}<button class="button button-primary" type="submit">Confirm I received it</button></form>{% endif %}
           {% if latest_claim.status == "SUBMITTED" or latest_claim.status == "APPROVED" or latest_claim.status == "RETURNED" %}<form method="post" action="{% url 'close-claim' latest_claim.pk %}">{% csrf_token %}<button class="button button-outline" type="submit">Withdraw my claim</button></form>{% endif %}
         </div>
@@ -120,17 +122,19 @@
     <aside class="detail-aside">
       <div class="panel action-panel">
         <span class="eyebrow">Next step</span>
-        {% if post.post_type == "FOUND" and post.can_accept_claims and not user_claim and can_interact %}
-          {% if user.is_authenticated %}
-            {% if user.pk != post.author_id %}<a class="button button-primary button-full" href="#claim-form">Claim this item</a>{% else %}<p class="muted">This is your found-item post.</p>{% endif %}
-          {% else %}<button class="button button-primary button-full" data-login-next="{{ request.path }}?resume=claim#claim-form">Claim this item</button>{% endif %}
-        {% endif %}
-        {% if user.is_authenticated and user.pk != post.author_id and can_interact %}
-          <a class="button button-outline button-full" href="{% url 'post-detail' post.pk %}?resume=message">Message poster</a>
-        {% elif not user.is_authenticated and can_interact %}
-          <button class="button button-outline button-full" data-login-next="{{ request.path }}?resume=message">Sign in to message</button>
+        <div class="primary-actions aside-actions">{% include "core/includes/post_primary_actions.html" %}</div>
+        {% if user.is_authenticated and user.pk == post.author_id %}
+        <div class="author-chats" id="author-chats">
+          <span class="eyebrow">Chats about this post</span>
+          {% for chat in author_chats %}
+          <a class="author-chat-row" href="{% url 'chat-room' chat.pk %}" data-chat-open>{% include "core/includes/avatar.html" with person=chat.other_person size="sm" %}<span><strong>{{ chat.other_person.first_name|default:chat.other_person.username }}</strong><small>{% if chat.claim_id %}Claim chat{% elif post.post_type == "LOST" %}May have found your item{% else %}Asked about this item{% endif %} · {{ chat.updated_at|date:"M j" }}</small></span></a>
+          {% empty %}
+          <p class="muted author-chats-empty">No one has messaged you about this post yet. {% if post.post_type == "LOST" %}When someone who found your item taps <strong>“I found this – message the owner”</strong>{% else %}When someone taps <strong>“Message poster”</strong> or claims this item{% endif %}, the chat opens here and under <a href="{% url 'messages' %}">Messages</a>. You can't message your own post.</p>
+          {% endfor %}
+        </div>
         {% endif %}
         <p class="action-note">Keep all coordination inside Find-IT. Meet only within school premises.</p>
+        {% if user.is_authenticated and not can_moderate %}<a class="text-action contact-staff-link" href="{% url 'staff-help-new' %}?post={{ post.pk }}">{% include "core/includes/icon.html" with name="help" %}{% if user.pk == post.author_id %}Need help with this post? Contact staff{% else %}No reply from the poster? Contact staff{% endif %}</a>{% endif %}
         {% if can_manage %}
           <hr>
           <span class="eyebrow">Manage listing</span>
@@ -164,7 +168,7 @@
         {% endif %}
       </div>
       {% if my_ticket or can_moderate and post.status == "TURNED_OVER" or pending_status_requests %}
-      <div class="panel guardhouse-panel">
+      <div class="panel guardhouse-panel" id="guardhouse-panel">
         <span class="eyebrow">Guard house</span>
         {% if intake and can_moderate %}<p class="fine-print">Received by {{ intake.received_by.first_name|default:intake.received_by.username }} · {{ intake.received_at|date:"M j, Y · g:i a" }} · {{ intake.get_method_display }}<br>Handed over by {{ intake.handed_over_by_label }}</p>{% endif %}
         {% if my_ticket %}
@@ -182,7 +186,7 @@
             </details>{% endif %}
           {% elif post.status != "CLAIMED" and post.status != "CLOSED" %}
             {% if my_ticket.requested_at %}<p class="muted">You said you're bringing it ({{ my_ticket.requested_at|date:"M j, g:i a" }}). Show this QR or code to the guard.</p>
-            {% else %}<form method="post" action="{% url 'turnover' post.pk %}">{% csrf_token %}<button class="button button-outline button-full" type="submit">I'm bringing it to the guard house</button></form>{% endif %}
+            {% elif post.post_type != "FOUND" or user.pk != post.author_id %}<form method="post" action="{% url 'turnover' post.pk %}">{% csrf_token %}<button class="button button-outline button-full" type="submit">I'm bringing it to the guard house</button></form>{% else %}<p class="muted">Bringing it to the guard house? Use the button under the title (Next step).</p>{% endif %}
           {% endif %}
           {% if post.status != "CLAIMED" and post.status != "CLOSED" %}
           <button type="button" class="button button-soft button-full" data-qr-toggle{% if not my_ticket_qr %} disabled title="Connect to the internet to load the QR"{% endif %}>Show turn-in QR</button>
@@ -230,7 +234,7 @@
             {% if application.decline_reason %}<small>Reason: {{ application.decline_reason }}</small>{% endif %}</div>
           <div class="application-links">
             {% if not application.is_lost_report %}<a class="text-action" href="{% url 'claim-review' application.pk %}">View form</a>{% endif %}
-            {% if application.conversation %}<a class="text-action" href="{% url 'chat-room' application.conversation.pk %}">Chat</a>{% endif %}
+            {% if application.conversation %}<a class="text-action" href="{% url 'chat-room' application.conversation.pk %}" data-chat-open>Chat</a>{% endif %}
           </div>
           {% if application.can_decide and application.status == "SUBMITTED" and not application.is_lost_report %}
           <form method="post" action="{% url 'approve-claim' application.pk %}">{% csrf_token %}<button class="button button-small button-primary" type="submit">Approve</button></form>
@@ -261,23 +265,8 @@
     </aside>
   </div>
   {% if panel_conversation %}
-  <button type="button" class="chat-launcher" data-chat-toggle aria-controls="chat-panel">💬 Chat{% if not panel_can_send %} (read-only){% endif %}</button>
-  <aside class="chat-panel" id="chat-panel" hidden data-panel-id="{{ panel_conversation.pk }}" aria-label="Chat with {% if post.post_type == 'FOUND' %}the finder{% else %}the owner{% endif %}">
-    <header class="chat-panel-head"><strong>{% if post.post_type == "FOUND" %}Chat with the finder{% else %}Chat with the owner{% endif %}</strong>
-      <div><a class="text-action" href="{% url 'chat-room' panel_conversation.pk %}">Full chat</a><button type="button" class="modal-close" data-chat-toggle aria-label="Hide chat">×</button></div></header>
-    <div class="chat-messages panel-messages" id="chat-messages" data-conversation="{{ panel_conversation.pk }}" data-can-send="{{ panel_can_send|yesno:'true,false' }}" data-has-older="{{ panel_has_older|yesno:'true,false' }}">
-      <p class="chat-history-status" data-history-status>{% if panel_has_older %}Scroll up for older messages{% endif %}</p>
-      {% for message in panel_messages %}
-      <article class="chat-message {% if message.sender_id == user.pk %}mine{% endif %}" data-message-id="{{ message.pk }}"><div class="message-bubble"><div class="message-meta"><strong>{{ message.sender.first_name|default:message.sender.username }}</strong><time>{{ message.sent_at|date:"M j · g:i a" }}</time></div>{% if message.text %}<p>{{ message.text|linebreaksbr }}</p>{% endif %}{% include "core/includes/chat_attachment.html" %}</div></article>
-      {% empty %}<div class="chat-empty"><p>No messages yet. Questions and answers appear in the full chat.</p></div>{% endfor %}
-    </div>
-    <button type="button" class="button button-soft button-small chat-jump" data-chat-jump hidden>↓ Jump to latest</button>
-    {% if panel_can_send %}
-    <form class="chat-composer" id="chat-form"><label for="chat-input" class="sr-only">Message</label><textarea id="chat-input" rows="2" maxlength="{{ chat_char_limit }}" placeholder="Write a message…" required></textarea><button class="button button-primary button-small" type="submit">Send</button></form>
-    <p class="chat-status" id="chat-status" role="status" aria-live="polite"></p>
-    {% else %}<div class="chat-readonly">This chat is read-only. Its history stays visible.</div>{% endif %}
-  </aside>
+  <button type="button" class="chat-launcher" data-chat-url="{% url 'chat-room' panel_conversation.pk %}">💬 Chat{% if not panel_can_send %} (read-only){% endif %}</button>
   {% endif %}
 </section>
 {% endblock %}
-{% block scripts %}{% if panel_conversation %}<script src="{% static 'js/chat.js' %}" defer></script>{% endif %}{% endblock %}
+{% block scripts %}{% endblock %}

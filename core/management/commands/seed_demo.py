@@ -106,6 +106,7 @@ class Command(BaseCommand):
             profile.save()
             users[username] = User.objects.select_related("profile").get(pk=user.pk)
             self.stdout.write(f"{'Created' if created else 'Ready'} demo account: {username} ({role})")
+        testers = self._tester_accounts(login_rows)
         if logins_only:
             for username, label in EXTRA_LOGINS:
                 extra = User.objects.filter(username=username).first()
@@ -128,6 +129,8 @@ class Command(BaseCommand):
             self._guardhouse_item(alex, sam, staff)
             self._walk_in(staff)
             self._verification_examples(riley, known, login_rows)
+            self._tester_chats(testers)
+            self._open_lost_posts(users)
         path = demo_logins.save(login_rows)
         self.stdout.write(f"Demo sign-ins for this PC saved in {path.name} (FindIT.cmd menu 2 shows them).")
         self.stdout.write(self.style.WARNING(
@@ -265,6 +268,76 @@ class Command(BaseCommand):
                 message="Demo: I think this Student ID is mine; the verified account is not me.",
             )
             self.stdout.write("Created demo account: morgan.shared@example.com (ID conflict + open ID review)")
+
+    def _open_lost_posts(self, users):
+        """v2.1.0: a few OPEN lost posts so testers can try "I found this – message the owner"."""
+        for username, title, category, description, color in (
+            ("2026-0003", "Brown leather wallet", "Wallets & purses", "Small brown leather wallet, lost near the canteen.", (120, 80, 50)),
+            ("2026-0004", "Silver house keys with blue tag", "Keys", "Three keys on a ring with a blue plastic tag.", (150, 160, 175)),
+            ("2026-0002", "Gray hoodie", "Clothing & footwear", "Plain gray hoodie left in a classroom in the IT building.", (130, 130, 135)),
+        ):
+            self._post(users[username], title, ItemPost.Type.LOST, category, description, color)
+
+    def _tester_accounts(self, login_rows):
+        """CHG-014: the owner's tester accounts from tester-accounts.txt (private copy only; none without it).
+        Their passwords are fixed in that file, so they are the same on every PC that has it."""
+        from core.models import StudentIdRecord
+        made = {}
+        for row in demo_logins.tester_accounts():
+            user, created = User.objects.get_or_create(
+                username=row["username"],
+                defaults={"first_name": row["first_name"], "last_name": row["last_name"], "email": row["email"]},
+            )
+            if created or not user.check_password(row["password"]):
+                user.set_password(row["password"])
+                user.save(update_fields=["password"])
+            profile, _ = Profile.objects.get_or_create(user=user)
+            profile.role = Profile.Role.STUDENT
+            profile.student_id = row["username"]
+            profile.email_verified_at = profile.email_verified_at or timezone.now()
+            profile.student_id_locked = True
+            profile.save()
+            StudentIdRecord.objects.get_or_create(user=user, student_id=row["username"], defaults={"source": "SIGNUP"})
+            login_rows.append((f"Tester, posted {row['posts']} (verified)", user.username, user.email, user.username, row["password"]))
+            made.setdefault(row["posts"], user)
+            self.stdout.write(f"{'Created' if created else 'Ready'} tester account ({row['posts']})")
+        return made
+
+    def _tester_chats(self, testers):
+        """CHG-014: one tester found something, the other lost something, and they chat on both posts.
+
+        - The LOST tester messaged the FOUND tester's post ("Message poster"): the FOUND tester is the finder.
+        - The FOUND tester messaged the LOST tester's post ("I found this – message the owner"): the
+          FOUND tester is the finder there too and can send ownership questions from the chat's ＋ menu.
+        """
+        if "FOUND" not in testers or "LOST" not in testers:
+            return
+        from core.models import ChatMessage
+        finder, owner = testers["FOUND"], testers["LOST"]
+        found, created_found = self._post(
+            finder, "Gray backpack with keychain", ItemPost.Type.FOUND, "Bags & backpacks",
+            "Gray backpack found near the covered walk. Has a small keychain on the zipper.", (110, 116, 122),
+        )
+        if created_found:
+            apply_post_questions(found, [])
+        lost, _ = self._post(
+            owner, "Silver USB flash drive", ItemPost.Type.LOST, "Electronics & gadgets",
+            "Lost a small silver USB flash drive, probably in the computer laboratory.", (170, 174, 180),
+        )
+        chat_on_found = create_lost_post_conversation(found, owner)
+        chat_on_lost = create_lost_post_conversation(lost, finder)
+        if not chat_on_found.messages.exists():
+            for sender, text in (
+                (owner, "Hi! I think this might be my backpack. Where did you find it?"),
+                (finder, "Hello! Near the covered walk this morning. Can you describe the keychain?"),
+            ):
+                ChatMessage.objects.create(conversation=chat_on_found, sender=sender, text=text)
+        if not chat_on_lost.messages.exists():
+            for sender, text in (
+                (finder, "Hi, I found a silver flash drive in the computer lab. It could be yours."),
+                (owner, "That would be great! What should I do to show it's mine?"),
+            ):
+                ChatMessage.objects.create(conversation=chat_on_lost, sender=sender, text=text)
 
     def _walk_in(self, staff):
         post, created = self._post(
