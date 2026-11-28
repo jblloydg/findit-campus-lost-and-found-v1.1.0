@@ -1,6 +1,7 @@
-# Find-IT test tools (v1.1.1)
+# Find-IT test tools (v1.1.1, extended in v1.1.2)
 
 Scripts used for the bug hunts and performance tests in `docs/TEST_REPORT_v1.1.1.md`.
+Demo passwords come from `demo-logins.txt` (v1.1.2). `crawl.py` also uses a local Developer account named `dev.test` if one exists on the PC (skipped otherwise).
 They are **local testing tools only** — never run them against an online site.
 
 Run them from the **project folder** (where `manage.py` is), after `python manage.py migrate`
@@ -17,6 +18,7 @@ and `python manage.py seed_demo`, with `DJANGO_DEBUG=1`.
 | `browser_queue.py` | Stops the server while messages are typed, restarts it, checks each message is saved once. | Playwright + Chrome |
 | `browser_notice.py` | Live notices, missed notices and chat catch-up across a server restart. | Playwright + Chrome |
 | `media_browser.py` | Photo/video sending: size refusal, 4 MB photo, 20 MB / 59 s video, upload while the server is down. Put `phone_photo.jpg` (> 5 MB), `phone_photo_4mb.jpg` and `phone_video_59s.mp4` in `tools/testing/media/` first. | Playwright + Chrome |
+| `page_load.py` (v1.1.2) | Real browser: phone (4× slower CPU, 1.5 Mbit/s) and desktop page load times, data downloaded, and whether the design (CSS) was applied. | Playwright + Chrome |
 | `media_open.py CONVERSATION_ID` | Slow phone + slow network: data downloaded when opening a chat full of media, scroll smoothness. | Playwright + Chrome |
 
 Setup for the browser scripts:

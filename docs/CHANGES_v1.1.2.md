@@ -4,8 +4,8 @@ v1.1.2 = **bug fixes and security updates** for v1.1.1, reported by testers and 
 No new pages or features for users; the program still runs on one Windows PC with `FindIT.cmd`
 (no hosting). Plain text so it can be read in any Claude session.
 
-Related files: bug log `docs/BUG_REPORTS.md`; tests and measurements `docs/TEST_REPORT_v1.1.2.md`
-(written before v1.1.2 goes to `main`).
+Related files: bug log `docs/BUG_REPORTS.md`; full bug hunt, security checks and speed measurements
+`docs/TEST_REPORT_v1.1.2.md`.
 
 ## Summary
 | ID | Type | In one line |
@@ -147,7 +147,7 @@ None.
 None.
 
 ## Tests
-`python manage.py test core`: **235 tests** (202 from v1.1.1 + 33 new in `core/tests/test_v112.py`), all passing.
+`python manage.py test core`: **228 tests** (202 from v1.1.1 + 26 new in `core/tests/test_v112.py`), all passing.
 `makemigrations --check`: no changes.
 
 ## Not included / still open

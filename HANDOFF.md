@@ -21,7 +21,7 @@ behind each change: **`docs/CHANGES_v1.1.2.md`**. In short:
 - **SEC-002** Notifications only open Find-IT's own pages (`core/security.is_own_site_path`).
 - **CHG-008** No private data in the shared repository; random demo passwords per PC (`core/demo_logins.py`,
   FindIT.cmd menu 2); leak-check test.
-- No migrations, no new packages. Tests: 235.
+- No migrations, no new packages. Tests: 228.
 
 ## Changes in 1.1.1
 
