@@ -17,7 +17,7 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 | `jblloydg/findit-campus-lost-and-found-v1.1.0` | **This repo — the only one to work in.** |
 
 ## Branches and versions
-- `main` = the stable released version (v1.1.2 until the owner approves v2.0.0). Frozen rollback copies, never changed: `stable/v1.1.0`, `stable/v1.1.1`, `stable/v1.1.2`.
+- `main` = the stable released version (**v2.0.0**, approved 2026-11-28). Frozen rollback copies, never changed: `stable/v1.1.0`, `stable/v1.1.1`, `stable/v1.1.2`, `stable/v2.0.0`.
 - Work for the next version happens on **`release/2.0.0`** (in both the public repo and the owner's private copy). **v2.0.0 = v1.1.2 + the front-end team's interface** (their repo BASTA-KAY = branch `design/v2-interface`), plus the Master Instruction fixes. It must keep running on local devices (one Windows PC, no hosting). The earlier, unused v2 draft is kept on `archive/v2-alt-design`. Next: v2.1.0 (bug fixes for 2.0.0 + redesign of the pages that only got the new colours, list in `docs/CHANGES_v2.0.0.md` §10).
 - One bug or change = one commit (message starts with its ID, e.g. `BUG-003: …`), so any fix can be reverted alone.
 - **Version plan:** v1.1.1 = V2-I school verification + bug fixes → v2.0.0 interface overhaul → v2.1.0 its bug fixes → v3.0.0 online hosting + PostgreSQL + all of V2-J (performance and uptime evidence). Don't start hosting/PostgreSQL/Redis/SMTP/V2-J work before v3.0.0 unless asked; keep the code PostgreSQL-compatible meanwhile. Details in `docs/ROADMAP.md`.

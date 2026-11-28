@@ -21,8 +21,9 @@ Tests and measurements: `docs/TEST_REPORT_v2.0.0.md`. Every change has its own c
 ## Where it came from (branches)
 | Branch | What it is |
 | --- | --- |
-| `main` | Released v1.1.2 until the owner approves v2.0.0. |
-| `stable/v1.1.2` | Frozen v1.1.2, the rollback point. |
+| `main` | **v2.0.0** (approved by the owner on 2026-11-28). |
+| `stable/v2.0.0` | Frozen v2.0.0 (never changed). |
+| `stable/v1.1.2` | Frozen v1.1.2, the rollback point to the previous version. |
 | `release/2.0.0` | **This version.** Replaces the earlier v2 draft that was on this branch (normal merge, nothing deleted). |
 | `design/v2-interface` | The front-end team's work. Their BASTA-KAY zip is exactly this branch (0 different files). Based on the final v1.1.1. |
 | `archive/v2-alt-design` | The earlier, different v2 design that was on `release/2.0.0`. Kept unchanged so nothing is lost; not used. |
