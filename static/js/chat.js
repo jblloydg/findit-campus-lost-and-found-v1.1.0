@@ -443,8 +443,8 @@ document.addEventListener("DOMContentLoaded", function () {
     var left = leftAttr === null ? Infinity : parseInt(leftAttr, 10) - Object.keys(uploads).length;
     Array.prototype.forEach.call(files, function (file) {
       var isVideo = /^video\//.test(file.type) || /\.(mp4|mov|webm|3gp|mkv|m4v)$/i.test(file.name);
-      var isPhoto = /^image\/(jpeg|png|webp)$/.test(file.type) || /\.(jpe?g|png|webp)$/i.test(file.name);
-      if (!isVideo && !isPhoto) { setStatus(file.name + ": only photos (JPG, PNG, WebP) and videos can be sent."); return; }
+      var isPhoto = /^image\/(jpeg|png|webp|avif)$/.test(file.type) || /\.(jpe?g|png|webp|avif)$/i.test(file.name);   // BUG-025: + AVIF
+      if (!isVideo && !isPhoto) { setStatus(file.name + (/\.hei[cf]$/i.test(file.name) ? ": HEIC photos can't be sent; pick it from the photo library (it sends a JPG) or save it as JPG." : ": only photos (JPG, PNG, WebP, AVIF) and videos can be sent.")); return; }
       var limitMb = isVideo ? videoMb : photoMb;
       if (file.size > limitMb * 1024 * 1024) { setStatus(file.name + ": " + (isVideo ? "videos" : "photos") + " can be up to " + limitMb + " MB."); return; }
       if (left <= 0) { setStatus("Unverified accounts can send 3 photos or videos per chat. Verify your email to send more."); return; }

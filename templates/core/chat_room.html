@@ -91,7 +91,7 @@
       </div>
       <form class="chat-composer" id="chat-form" data-upload-url="{% url 'chat-upload' conversation.pk %}" data-status-url="{% url 'chat-upload-status' conversation.pk %}" data-photo-mb="{{ media_limits.photo_mb }}" data-video-mb="{{ media_limits.video_mb }}" data-video-seconds="{{ media_limits.video_seconds }}"{% if media_limits.left is not None %} data-media-left="{{ media_limits.left }}"{% endif %}>{% csrf_token %}
         <button type="button" class="chat-plus{% if question_bank and not questions %} chat-plus--hint{% endif %}" aria-haspopup="menu" aria-expanded="false" aria-controls="chat-plus-menu" aria-label="Add a photo or video{% if question_bank %} or ownership questions{% endif %}">{% include "core/includes/icon.html" with name="plus" %}</button>
-        <input type="file" id="chat-file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,video/3gpp,video/x-matroska,.mkv,.m4v" multiple hidden>
+        <input type="file" id="chat-file" accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/quicktime,video/webm,video/3gpp,video/x-matroska,.mkv,.m4v" multiple hidden>
         <label for="chat-input" class="sr-only">Message</label><textarea id="chat-input" rows="1" maxlength="{{ chat_char_limit }}" placeholder="Write a message…" required></textarea>
         <button class="button button-primary chat-send" type="submit">Send</button>
       </form>

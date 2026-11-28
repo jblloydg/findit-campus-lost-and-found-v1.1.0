@@ -3,8 +3,11 @@ import os
 from django.core.exceptions import ValidationError
 
 MAX_PHOTO_BYTES = 5 * 1024 * 1024
-ALLOWED_PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp"}
-ALLOWED_PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+ALLOWED_PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp", "image/avif"}   # BUG-025: + AVIF
+ALLOWED_PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".avif"}
+HEIC_EXTENSIONS = {".heic", ".heif"}
+HEIC_MESSAGE = ("HEIC photos (iPhone) can't be opened here. Upload it from the iPhone's photo picker (it sends a JPG), "
+                "set Camera → Formats → Most Compatible, or save it as JPG first.")
 
 
 def _check_real_picture(file, message):
@@ -34,12 +37,14 @@ def validate_photo(file):
     if file.size > MAX_PHOTO_BYTES:
         raise ValidationError("Choose an image smaller than 5 MB.")
     extension = os.path.splitext(getattr(file, "name", "") or "")[1].lower()
+    if extension in HEIC_EXTENSIONS:
+        raise ValidationError(HEIC_MESSAGE)
     if extension and extension not in ALLOWED_PHOTO_EXTENSIONS:
-        raise ValidationError("Upload a JPG, PNG, or WebP exterior photo.")
+        raise ValidationError("Upload a JPG, PNG, WebP or AVIF exterior photo.")
     content_type = getattr(file, "content_type", "")
     if content_type and content_type not in ALLOWED_PHOTO_TYPES:
-        raise ValidationError("Upload a JPG, PNG, or WebP exterior photo.")
-    _check_real_picture(file, "Upload a JPG, PNG, or WebP exterior photo.")
+        raise ValidationError("Upload a JPG, PNG, WebP or AVIF exterior photo.")
+    _check_real_picture(file, "Upload a JPG, PNG, WebP or AVIF exterior photo.")
 
 
 MAX_PROFILE_PHOTO_BYTES = 2 * 1024 * 1024
@@ -51,9 +56,9 @@ def validate_profile_photo(file):
         raise ValidationError("Choose a profile picture smaller than 2 MB.")
     content_type = getattr(file, "content_type", "")
     if content_type and content_type not in ALLOWED_PHOTO_TYPES:
-        raise ValidationError("Upload a JPG, PNG, or WebP profile picture.")
+        raise ValidationError("Upload a JPG, PNG, WebP or AVIF profile picture.")
     if not getattr(file, "_committed", False):
-        _check_real_picture(file, "Upload a JPG, PNG, or WebP profile picture.")
+        _check_real_picture(file, "Upload a JPG, PNG, WebP or AVIF profile picture.")
 
 
 MAX_REPORT_ATTACHMENT_BYTES = 5 * 1024 * 1024

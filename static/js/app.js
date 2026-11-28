@@ -412,7 +412,8 @@ document.addEventListener("DOMContentLoaded", function () {
       previewGrid.innerHTML = "";
       var problems = [];
       Array.prototype.forEach.call(multiPhotoInput.files || [], function (file) {
-        if (file.type && ["image/jpeg", "image/png", "image/webp"].indexOf(file.type) === -1) { problems.push(file.name + " is not JPG, PNG or WebP"); return; }
+        if (/\.hei[cf]$/i.test(file.name)) { problems.push(file.name + " is an iPhone HEIC photo: pick it from the photo library (it sends a JPG) or save it as JPG"); return; }
+        if (file.type && ["image/jpeg", "image/png", "image/webp", "image/avif"].indexOf(file.type) === -1) { problems.push(file.name + " is not JPG, PNG, WebP or AVIF"); return; }   // BUG-025: + AVIF
         if (file.size > 5 * 1024 * 1024) { problems.push(file.name + " is larger than 5 MB"); return; }
         var url = URL.createObjectURL(file);
         previewUrls.push(url);

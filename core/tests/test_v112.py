@@ -334,7 +334,7 @@ class Sec001PhotoTests(FindItTestCase):
         response = self.client_for(self.finder).post(
             "/posts/new/", {"post_type": "FOUND", "category": self.category.pk, "photos": [fake]})
         self.assertEqual(response.status_code, 200)  # the form again, with a message - not an error page
-        self.assertContains(response, "JPG, PNG, or WebP")
+        self.assertContains(response, "JPG, PNG, WebP or AVIF")
 
     def test_post_photo_and_preview_are_clean(self):
         image, bits = _picture_with_lsb_message()

@@ -43,7 +43,7 @@ from .models import ChatAttachment, ChatMessage, ClaimApplication, Conversation
 
 log = logging.getLogger("findit.chat_media")
 
-PHOTO_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
+PHOTO_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".avif": "image/avif"}
 VIDEO_TYPES = {".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm", ".3gp": "video/3gpp",
                ".mkv": "video/x-matroska", ".m4v": "video/x-m4v"}
 MB = 1024 * 1024
@@ -118,7 +118,9 @@ def accept_upload(conversation, user, uploaded, client_id):
         raise MediaRefused("This conversation is not open for new messages.")
     kind = kind_of(uploaded.name)
     if kind is None:
-        raise MediaRefused("Send a photo (JPG, PNG, WebP) or a video (MP4, MOV, WebM, 3GP, MKV).")
+        if os.path.splitext(uploaded.name or "")[1].lower() in (".heic", ".heif"):
+            raise MediaRefused("HEIC photos (iPhone) can't be sent. Pick it from the photo library (the iPhone sends a JPG) or save it as JPG.")
+        raise MediaRefused("Send a photo (JPG, PNG, WebP, AVIF) or a video (MP4, MOV, WebM, 3GP, MKV).")
     limits = limits_for(user)
     max_bytes = limits["photo_bytes"] if kind == ChatAttachment.Kind.PHOTO else limits["video_bytes"]
     if uploaded.size > max_bytes:

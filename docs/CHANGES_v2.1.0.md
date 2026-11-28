@@ -180,6 +180,16 @@ A message showed "Sam Second · Nov 28, 3:30 PM" when it arrived live but "Sam �
 Live messages (and live photos/videos) now use the first name and the page's format. Checked with two browsers:
 identical. Files: `core/consumers.py`, `core/chat_media.py`, `static/js/chat.js`.
 
+## BUG-025 — AVIF photos accepted; clear message for iPhone HEIC
+The team's phone photo (`….avif`) was refused. **AVIF** is now accepted wherever photos are (posts, profile picture,
+chat photos). Like every photo it is opened, re-encoded to JPEG, its lowest colour bits scrambled and the result checked
+(SEC-001 unchanged), so nothing hidden survives. **HEIC** (iPhone camera format) is not opened; people get a clear message
+instead of "not a valid image": pick the photo from the iPhone photo picker (the iPhone then sends a JPG), choose
+Camera → Formats → Most Compatible, or save it as JPG. No new package: `requirements.txt` now asks for **Pillow ≥ 11.3**,
+whose Windows version reads AVIF (on a PC with an older Pillow, AVIF is simply refused as before).
+Files: `core/images.py`, `core/validators.py`, `core/forms.py`, `core/chat_media.py`, `static/js/app.js`, `static/js/chat.js`,
+`templates/core/chat_room.html`, `requirements.txt`.
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 

@@ -431,3 +431,44 @@ class SameNameAndTimeTests(SimpleTestCase):
         self.assertIn('date:"M j · g:i a"', page)
         self.assertIn('" · " + hour + ":"', js)
         self.assertIn('"a.m." : "p.m."', js)
+
+
+# ---- BUG-025: AVIF photos are accepted (and re-encoded to JPEG like every photo); HEIC gets a clear message ----
+from PIL import features as _pil_features
+from unittest import skipUnless
+
+
+def _avif():
+    import io
+    from PIL import Image
+    buffer = io.BytesIO()
+    Image.new("RGB", (80, 60), (200, 40, 40)).save(buffer, "AVIF")
+    return SimpleUploadedFile("phone.avif", buffer.getvalue(), content_type="image/avif")
+
+
+@skipUnless(_pil_features.check("avif"), "this PC's Pillow cannot read AVIF")
+class AvifPhotoTests(FindItTestCase):
+    def test_post_with_avif_photo_is_stored_as_jpeg(self):
+        response = self.client_for(self.finder).post("/posts/new/", {
+            "post_type": "FOUND", "category": Category.objects.first().pk, "photos": _avif()})
+        self.assertEqual(response.status_code, 302)
+        post = ItemPost.objects.filter(author=self.finder).latest("created_at")
+        stored = post.photos.first().image
+        stored.open("rb")
+        self.assertTrue(stored.read(3) == b"\xff\xd8\xff")   # JPEG
+        stored.close()
+
+    def test_heic_gets_a_clear_message(self):
+        fake = SimpleUploadedFile("IMG_0001.HEIC", b"\x00\x00\x00\x18ftypheic", content_type="image/heic")
+        response = self.client_for(self.finder).post("/posts/new/", {
+            "post_type": "FOUND", "category": Category.objects.first().pk, "photos": fake})
+        self.assertContains(response, "HEIC photos (iPhone)")
+
+    def test_chat_accepts_avif_as_a_photo_and_reencodes_it(self):
+        import io
+        from core.chat_media import kind_of
+        from core.images import compress
+        from core.models import ChatAttachment
+        self.assertEqual(kind_of("phone.avif"), ChatAttachment.Kind.PHOTO)
+        data = compress(io.BytesIO(_avif().read()), max_side=1600, max_bytes=300 * 1024)
+        self.assertTrue(data.startswith(b"\xff\xd8\xff"))
