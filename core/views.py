@@ -1324,10 +1324,10 @@ def notifications(request):
             if notice.post_id:
                 return redirect("post-detail", post_id=notice.post_id)
         return redirect("notifications")
-    unread_ids = list(rows.filter(read_at__isnull=True).values_list("pk", flat=True)[:200])
-    if unread_ids:
-        InAppNotification.objects.filter(pk__in=unread_ids).update(read_at=timezone.now())
-    return render(request, "core/notifications.html", {"notifications": rows[:200]})
+    shown = list(rows[:200])   # DES-009: read the list first, so the notices that were new still look new now
+    if any(notice.read_at is None for notice in shown):
+        rows.filter(read_at__isnull=True).update(read_at=timezone.now())
+    return render(request, "core/notifications.html", {"notifications": shown})
 
 
 @login_required
