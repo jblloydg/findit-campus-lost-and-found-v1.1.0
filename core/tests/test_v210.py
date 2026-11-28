@@ -1,4 +1,4 @@
-"""v2.0.1 tests (patch for v2.0.0)."""
+"""v2.1.0 tests."""
 from core.models import ChatQuestion, Conversation, InAppNotification, QuestionTemplate
 
 from .base import FindItTestCase

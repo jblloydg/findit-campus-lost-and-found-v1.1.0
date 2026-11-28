@@ -8,6 +8,12 @@ All accounts, names and photos in the demo are fictional. The repository contain
 
 ---
 
+## Work in progress: 2.1.0 (branch `release/2.1.0`)
+Started 2026-11-28 after v2.0.0 was released. Done so far: **BUG-019** (no question picker on LOST posts),
+**BUG-020** (sidebar highlight), **CHG-011** (whoever is the finder can send ownership questions in the chat,
+also FOUND-post authors). To build next: see CLAUDE.md "v2.1.0 instructions" (Messenger-style ＋ chat bar,
+make the finder flow easy to find, more LOST demo posts, redesign the pages from `docs/CHANGES_v2.0.0.md` §10).
+
 ## Changes in 2.0.0
 
 The interface overhaul (branch `release/2.0.0`): **v1.1.2 + the front-end team's v2.0.0 interface**.

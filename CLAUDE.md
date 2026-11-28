@@ -18,7 +18,7 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 
 ## Branches and versions
 - `main` = the stable released version (**v2.0.0**, approved 2026-11-28). Frozen rollback copies, never changed: `stable/v1.1.0`, `stable/v1.1.1`, `stable/v1.1.2`, `stable/v2.0.0`.
-- Work for the next version happens on **`release/2.0.1`** (v2.0.1 = patch for v2.0.0, see "v2.0.1 instructions" below). v2.0.0 was built on **`release/2.0.0`** (in both the public repo and the owner's private copy). **v2.0.0 = v1.1.2 + the front-end team's interface** (their repo BASTA-KAY = branch `design/v2-interface`), plus the Master Instruction fixes. It must keep running on local devices (one Windows PC, no hosting). The earlier, unused v2 draft is kept on `archive/v2-alt-design`. Next: v2.1.0 (bug fixes for 2.0.0 + redesign of the pages that only got the new colours, list in `docs/CHANGES_v2.0.0.md` §10).
+- Work for the next version happens on **`release/2.1.0`** (v2.1.0 = major update after v2.0.0, see "v2.1.0 instructions" below; the owner decided it is not a small 2.0.1 patch). v2.0.0 was built on **`release/2.0.0`** (in both the public repo and the owner's private copy). **v2.0.0 = v1.1.2 + the front-end team's interface** (their repo BASTA-KAY = branch `design/v2-interface`), plus the Master Instruction fixes. It must keep running on local devices (one Windows PC, no hosting). The earlier, unused v2 draft is kept on `archive/v2-alt-design`. Next: v2.1.0 (bug fixes for 2.0.0 + redesign of the pages that only got the new colours, list in `docs/CHANGES_v2.0.0.md` §10).
 - One bug or change = one commit (message starts with its ID, e.g. `BUG-003: …`), so any fix can be reverted alone.
 - **Version plan:** v1.1.1 = V2-I school verification + bug fixes → v2.0.0 interface overhaul → v2.1.0 its bug fixes → v3.0.0 online hosting + PostgreSQL + all of V2-J (performance and uptime evidence). Don't start hosting/PostgreSQL/Redis/SMTP/V2-J work before v3.0.0 unless asked; keep the code PostgreSQL-compatible meanwhile. Details in `docs/ROADMAP.md`.
 - When the owner approves a version: merge its `release/…` branch into `main` and add a frozen `stable/v<version>` branch (tags can be added on GitHub). Never rewrite or delete history.
@@ -32,7 +32,7 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 ## v2.0.0 Master Instruction (owner's rule for every page, from v2.0.0 on)
 One layout that adapts to phone, tablet and desktop. No fixed px for size or placement (only 1px borders, shadows, icon lines). Widths/columns/gaps in % or fr; text and spacing in rem with `clamp()`; full-screen parts in vw/vh/dvh; images and videos `max-width: 100%; height: auto`; content max width (72rem); **tap targets at least 2.75rem (`var(--tap)`)**; **text at least 0.75rem (12 px)**. Check every page at 360–430, 768 and 1280–1920 px with `tools/testing/responsive_check.py` (must report no Find-IT problems) and `campus_bg_check.py`. Tests: `core/tests/test_v200.py`.
 
-## v2.0.1 instructions from the owner (patch for v2.0.0, branch `release/2.0.1`)
+## v2.1.0 instructions from the owner (branch `release/2.1.0`, started 2026-11-28)
 **Ownership questions on LOST posts — how it must work** (owner's explanation to the team, 2026-11-28):
 - Situation: someone **loses** an item and makes a **LOST** post. The author is the owner.
 - **Posting a LOST item has NO ownership-question options.** The question picker ("Pick ownership questions · found items") is only for FOUND posts. Done: **BUG-019** (the picker showed on Lost because `.question-editor { display: grid }` beat `hidden`; global `[hidden] { display: none !important; }`). The server already ignores questions on LOST posts (`apply_post_questions`).
@@ -42,9 +42,17 @@ One layout that adapts to phone, tablet and desktop. No fixed px for size or pla
   2. On phones, show that button near the top of the post page (it is now below photos and comments, about 1,350 px down).
   3. In the chat, make the **＋ Questions** button easy to see for the finder (with a one-line hint what it does); don't show "Jump to latest" when the chat is empty.
   4. Add a few **open LOST posts** to `seed_demo` (fictional data only), so the team can test the finder flow — there is only one LOST post now.
-- **Rule: whoever is the finder in a chat can send ownership questions** — LOST post: the person who messaged the author; FOUND post: the author (claim chat or a chat started with "Message poster"). The other side only answers. Done: **CHG-011** (`chat_roles()`).
+- **Rule: whoever is the finder in a chat can send ownership questions** — LOST post: the person who messaged the author; FOUND post: the author (claim chat or a chat started with "Message poster"). The other side only answers. Done: **CHG-011** (`chat_roles()`, tests `core/tests/test_v210.py`).
 - Also done: **BUG-020** sidebar highlighted "Report found item" while making a Lost post.
-- Keep all v2.0.0 rules (Master Instruction, version label, two copies). `VERSION` = 2.0.1. Reports before `main`: `docs/CHANGES_v2.0.1.md` and `docs/TEST_REPORT_v2.0.1.md`.
+**Chat bar like Messenger (owner, 2026-11-28 — to build in v2.1.0):**
+- One round **＋ button** at the left of the chat bar (like Messenger's ＋). Tapping it opens a small, neat menu (a pop-up above the bar on PC, a bottom sheet on phones) with big tap rows and icons:
+  - **Photo or video** — the current 📎 media upload moves *inside* the ＋ menu (no separate media button in the bar). Same limits, previews, upload progress and waiting/processing/failed states as now.
+  - **Ownership questions** — only for the finder (see the rule above); opens the same question picker that is now the separate "＋ Questions (N left)" box, with "N left". Hidden for the other person.
+- Bar layout: ＋ button · message field (grows with text) · Send. Nothing else in the bar. Close the menu with Esc, tapping outside, or picking an item; keyboard and screen-reader friendly (`aria-expanded`, focus returns to ＋).
+- Neat and user-friendly on phone and PC; follow the Master Instruction (2.75rem tap targets, no fixed px, text ≥ 12 px). Same look in the full chat page and the chat panel on the post page.
+- **Do not rename** what the scripts use: `chat-form`, `chat-file`, `chat-input`, `chat-status`, `data-upload-url`, `data-status-url`, the media limit `data-…` attributes, `#question-ask`, `.question-filter`, `.chat-question-list`, the `ask-questions` form (method="post", `{% csrf_token %}`).
+- Also from the v2.0.0 list for v2.1.0: redesign the pages that only got the new colours (`docs/CHANGES_v2.0.0.md` §10).
+- Keep all v2.0.0 rules (Master Instruction, version label, two copies). `VERSION` = 2.1.0. Reports before `main`: `docs/CHANGES_v2.1.0.md` and `docs/TEST_REPORT_v2.1.0.md`.
 
 ## v1.1.2 instructions from the owner (done in the v1.1.2 session)
 1. **BUG-009 — FindIT.cmd reopens the login page every ~20 seconds.** Cause: when Find-IT is already running, the "already running" branch opens the browser and returns to the menu, whose 20-second auto-start then fires again → endless loop (seen when the shortcut is opened twice). Fix: auto-start only the first time the menu shows; in the "already running" case open the browser once and wait at the menu with no timer (or close). Must still work on a plain Windows PC.
@@ -103,7 +111,7 @@ Run the bug hunt again after any big change (e.g. chat, media) and once more on 
 ```powershell
 python manage.py migrate            # never run makemigrations on a server; commit new migrations
 python manage.py seed_demo          # fictional demo data (local only); random passwords -> demo-logins.txt
-python manage.py test core          # 266 tests (v2.0.0); keep them passing, add tests for each fix
+python manage.py test core          # 272 tests (v2.1.0 so far); keep them passing, add tests for each fix
 python manage.py makemigrations --check --dry-run   # must say "No changes detected" before committing
 python manage.py backup_now [--list] / restore_backup NAME
 ```
