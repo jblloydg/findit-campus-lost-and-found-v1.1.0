@@ -1,6 +1,6 @@
 # Find-IT handoff — v2.1.0 (and earlier versions below)
 
-> **Continuing the work?** Read `CLAUDE.md` (rules and decisions), `docs/ROADMAP.md` (V2 status and what's next) and `docs/BUG_REPORTS.md` (how to report). Version 2.0.0 is released on `main` (approved 2026-11-28). Frozen rollback points: `stable/v1.1.0`, `stable/v1.1.1`, `stable/v1.1.2`, `stable/v2.0.0`. A paste-ready prompt for a new Claude session is in `docs/TRANSFER_PROMPT.md`.
+> **Continuing the work?** Read `CLAUDE.md` (rules and decisions), `docs/ROADMAP.md` (V2 status and what's next) and `docs/BUG_REPORTS.md` (how to report). Version **2.1.0** is released on `main` (2026-11-28). Frozen rollback points: `stable/v1.1.0`, `stable/v1.1.1`, `stable/v1.1.2`, `stable/v2.0.0`, `stable/v2.1.0`. A paste-ready prompt for a new Claude session is in `docs/TRANSFER_PROMPT.md`.
 
 Version **1.1.0** combines the work of four separate development sessions on top of the original Find-IT starter. Each session's own handoff is kept unchanged in `docs/handoffs/session-1.md` … `session-4.md`.
 
@@ -9,7 +9,7 @@ All accounts, names and photos in the demo are fictional. The repository contain
 ---
 
 ## Changes in 2.1.0
-Branch `release/2.1.0` (major update after v2.0.0). Full patch notes with the reason for each change:
+Released 2026-11-28 (branch `release/2.1.0`, frozen copy `stable/v2.1.0`); major update after v2.0.0. Full patch notes with the reason for each change:
 **`docs/CHANGES_v2.1.0.md`**; tests, bug hunt and speed: **`docs/TEST_REPORT_v2.1.0.md`**; who does what for each post
 status: **`docs/STATUS_GUIDE.md`**. In short:
 - **Chat:** Messenger-style bar ＋ · message · Send (＋ menu: Photo or video; Ownership questions for the finder) —
