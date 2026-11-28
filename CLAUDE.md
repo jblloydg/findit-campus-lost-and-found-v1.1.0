@@ -42,6 +42,7 @@ One layout that adapts to phone, tablet and desktop. No fixed px for size or pla
   2. On phones, show that button near the top of the post page (it is now below photos and comments, about 1,350 px down).
   3. In the chat, make the **＋ Questions** button easy to see for the finder (with a one-line hint what it does); don't show "Jump to latest" when the chat is empty.
   4. Add a few **open LOST posts** to `seed_demo` (fictional data only), so the team can test the finder flow — there is only one LOST post now.
+- **Rule: whoever is the finder in a chat can send ownership questions** — LOST post: the person who messaged the author; FOUND post: the author (claim chat or a chat started with "Message poster"). The other side only answers. Done: **CHG-011** (`chat_roles()`).
 - Also done: **BUG-020** sidebar highlighted "Report found item" while making a Lost post.
 - Keep all v2.0.0 rules (Master Instruction, version label, two copies). `VERSION` = 2.0.1. Reports before `main`: `docs/CHANGES_v2.0.1.md` and `docs/TEST_REPORT_v2.0.1.md`.
 
