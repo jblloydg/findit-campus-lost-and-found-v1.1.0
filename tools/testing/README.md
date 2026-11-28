@@ -1,4 +1,4 @@
-# Find-IT test tools (v1.1.1, extended in v1.1.2)
+# Find-IT test tools (v1.1.1, extended in v1.1.2 and v2.0.0)
 
 Scripts used for the bug hunts and performance tests in `docs/TEST_REPORT_v1.1.1.md`.
 Demo passwords come from `demo-logins.txt` (v1.1.2). `crawl.py` also uses a local Developer account named `dev.test` if one exists on the PC (skipped otherwise).
@@ -19,7 +19,8 @@ and `python manage.py seed_demo`, with `DJANGO_DEBUG=1`.
 | `browser_notice.py` | Live notices, missed notices and chat catch-up across a server restart. | Playwright + Chrome |
 | `media_browser.py` | Photo/video sending: size refusal, 4 MB photo, 20 MB / 59 s video, upload while the server is down. Put `phone_photo.jpg` (> 5 MB), `phone_photo_4mb.jpg` and `phone_video_59s.mp4` in `tools/testing/media/` first. | Playwright + Chrome |
 | `campus_bg_check.py` | Every page for every role in Chrome at several widths: checks the DOrSU photo background loaded and nothing scrolls sideways; saves screenshots to `tools/testing/out/campus_bg/`. `WIDTHS=320,768,1920` to choose widths. | Playwright + Chrome, server running on 127.0.0.1:8000 (or `FINDIT_URL`) |
-| `page_load.py` (v1.1.2) | Real browser: phone (4× slower CPU, 1.5 Mbit/s) and desktop page load times, data downloaded, and whether the design (CSS) was applied. | Playwright + Chrome |
+| `page_load.py` (v1.1.2) | Real browser: phone (4× slower CPU, 1.5 Mbit/s) and desktop page load times, data downloaded, and whether the design (CSS) was applied. Every page counts as a first visit; `CACHE=1` = normal browsing (files kept from earlier pages, v2.0.0). | Playwright + Chrome |
+| `responsive_check.py` (v2.0.0) | Master Instruction check, every page for every role at 360, 390, 430, 768, 1280, 1920 px: sideways scrolling, tap targets under 2.75rem (44 px), text under 12 px, icons outside 12–48 px, text lines wider than 75rem. Problems are grouped by element. Server must already run on 127.0.0.1:8000. | Playwright + Chrome |
 | `media_open.py CONVERSATION_ID` | Slow phone + slow network: data downloaded when opening a chat full of media, scroll smoothness. | Playwright + Chrome |
 
 Setup for the browser scripts:

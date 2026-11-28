@@ -60,7 +60,8 @@ def run(phone, pages):
             cdp.send("Emulation.setCPUThrottlingRate", {"rate": 4})
             cdp.send("Network.emulateNetworkConditions", {"offline": False, "latency": 150,
                      "downloadThroughput": 1.5 * 1024 * 1024 / 8, "uploadThroughput": 750 * 1024 / 8})
-        cdp.send("Network.setCacheDisabled", {"cacheDisabled": True})
+        # CACHE=1: normal browsing (files kept from earlier pages). Default: every page as a first visit.
+        cdp.send("Network.setCacheDisabled", {"cacheDisabled": os.environ.get("CACHE") != "1"})
         received = []
         cdp.on("Network.loadingFinished", lambda event: received.append(event.get("encodedDataLength", 0)))
         results = [measure(page, received, url) for url in pages]
