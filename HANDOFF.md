@@ -8,6 +8,21 @@ All accounts, names and photos in the demo are fictional. The repository contain
 
 ---
 
+## Changes in 1.1.2
+
+Bug fixes and security updates for v1.1.1 (branch `release/1.1.2`). Full patch notes with the reason
+behind each change: **`docs/CHANGES_v1.1.2.md`**. In short:
+- **BUG-009** FindIT.cmd: 20-second auto-start only once; "already running" opens the browser once.
+- **BUG-010** Design missing on some Windows PCs: standard file types for Find-IT's own files (`core/apps.py`).
+- **BUG-008** Post page category link fixed; dormant location hidden.
+- **SEC-001** Photos and videos: only real JPEG/PNG/WebP and MP4/MOV/3GP/MKV/WebM accepted; lowest colour bits
+  randomised; metadata, colour profiles, extra streams and appended files removed; playlists refused;
+  output checked (`core/images.py`, `core/chat_media.py`, `core/validators.py`).
+- **SEC-002** Notifications only open Find-IT's own pages (`core/security.is_own_site_path`).
+- **CHG-008** No private data in the shared repository; random demo passwords per PC (`core/demo_logins.py`,
+  FindIT.cmd menu 2); leak-check test.
+- No migrations, no new packages. Tests: 235.
+
 ## Changes in 1.1.1
 
 **Goal:** the last V2 item, **V2-I school account verification**, plus bug fixes and an easier way to run the app. Everything runs on one PC without hosting: emails are printed in the Find-IT window and copied to a **Test inbox** page instead of being sent.
