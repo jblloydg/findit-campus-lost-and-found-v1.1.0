@@ -151,6 +151,13 @@ author can help. Before, new chats were refused once the item reached the guard 
 Now the message button stays on the post and starts a chat; only **Claimed** and **Closed** posts take no new chats.
 Files: `core/views.py` (`_conversation_for_post`, `post_detail` → `can_message`), `post_primary_actions.html`.
 
+## CHG-018 — Every status can be reached by clicking + a step-by-step guide
+- **Guide:** `docs/STATUS_GUIDE.md` — for each status, which role (finder, owner/claimant, guard, admin) presses which
+  button, in order, plus a small map.
+- **Proof:** `tools/testing/status_journeys.py` plays 5 journeys in Chrome by clicking, as the demo finder, claimant,
+  owner and guard: FOUND handed over in person; FOUND via the guard house (code typed at Scan turn-in QR);
+  LOST with ownership questions in the chat; guard house and back; closed. **18 of 18 steps pass**, no script errors.
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 
