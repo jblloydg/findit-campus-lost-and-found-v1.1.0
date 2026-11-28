@@ -1,0 +1,15 @@
+{% extends "core/base.html" %}
+{% block title %}Contact staff · Find-IT{% endblock %}
+{% block content %}
+<section class="page-wrap form-page-narrow">
+  <a class="back-link" href="{% if post %}{% url 'post-detail' post.pk %}{% else %}{% url 'staff-help' %}{% endif %}">← {% if post %}Back to {{ post.display_title }}{% else %}Contact staff{% endif %}</a>
+  <div class="page-heading"><div><span class="eyebrow">Help from the staff team</span><h1>Contact staff</h1>
+    <p class="muted">Your message goes to <strong>all</strong> staff members (guards, moderators, administrators), not one person. Any of them can reply; you'll get a notification.</p></div></div>
+  <form method="post" class="panel stack-form">{% csrf_token %}
+    {% if post %}<input type="hidden" name="post" value="{{ post.pk }}"><div class="form-callout"><strong>About this post</strong><span>{{ post.get_post_type_display }} · {{ post.display_title }} · {{ post.get_status_display }}</span></div>{% endif %}
+    <label>Subject (optional)<input name="subject" maxlength="120" value="{{ subject }}" placeholder="{% if post %}About: {{ post.display_title }}{% else %}e.g. The finder does not reply{% endif %}"></label>
+    <label>Message <span class="required-mark">required</span><textarea name="text" rows="6" maxlength="2000" required placeholder="What happened and what do you need? Don't share passwords or ID numbers.">{{ text }}</textarea></label>
+    <div class="form-actions"><a class="button button-outline" href="{% if post %}{% url 'post-detail' post.pk %}{% else %}{% url 'staff-help' %}{% endif %}">Cancel</a><button class="button button-primary" type="submit">Send to staff</button></div>
+  </form>
+</section>
+{% endblock %}

@@ -359,3 +359,59 @@ class ChatAtGuardHouseTests(FindItTestCase):
             ItemPost.objects.filter(pk=post.pk).update(status=status)
             self.client_for(self.alice).get(f"/p/{post.pk}/?resume=message")
             self.assertFalse(Conversation.objects.filter(post=post).exists(), status)
+
+
+# ---- CHG-019: Contact staff — one shared staff inbox ----
+from core.models import StaffHelpThread
+
+
+class StaffInboxTests(FindItTestCase):
+    def ask(self, client=None, **extra):
+        client = client or self.client_for(self.alice)
+        return client.post("/help/new/", {"subject": "", "text": "The finder does not reply.", **extra})
+
+    def test_student_request_reaches_every_staff_member(self):
+        post = self.create_post(self.finder, "FOUND")
+        self.ask(post=str(post.pk))
+        thread = StaffHelpThread.objects.get(requester=self.alice)
+        self.assertEqual(thread.post, post)
+        self.assertEqual(thread.subject, f"About: {post.display_title}")
+        link = f"/help/{thread.pk}/"
+        for member in (self.staff, self.admin):
+            self.assertTrue(InAppNotification.objects.filter(recipient=member, link=link).exists())
+            self.assertIn(thread.subject, self.client_for(member).get("/help/").content.decode())
+
+    def test_any_staff_replies_and_student_is_told(self):
+        self.ask()
+        thread = StaffHelpThread.objects.get(requester=self.alice)
+        self.client_for(self.staff).post(f"/help/{thread.pk}/", {"text": "We can help at the guard house."})
+        thread.refresh_from_db()
+        self.assertEqual(thread.status, StaffHelpThread.Status.ANSWERED)
+        self.assertTrue(thread.messages.filter(from_staff=True, sender=self.staff).exists())
+        self.assertTrue(InAppNotification.objects.filter(recipient=self.alice, link=f"/help/{thread.pk}/").exists())
+        self.client_for(self.admin).post(f"/help/{thread.pk}/", {"text": "Also seen by the admin."})
+        self.assertEqual(thread.messages.filter(from_staff=True).count(), 2)
+
+    def test_private_to_requester_and_staff(self):
+        self.ask()
+        thread = StaffHelpThread.objects.get(requester=self.alice)
+        self.assertEqual(self.client_for(self.bob).get(f"/help/{thread.pk}/").status_code, 403)
+        self.assertEqual(self.client_for(self.bob).post(f"/help/{thread.pk}/", {"text": "x"}).status_code, 403)
+        self.assertNotIn(thread.subject, self.client_for(self.bob).get("/help/").content.decode())
+
+    def test_resolve_and_limit(self):
+        for _ in range(5):
+            self.ask()
+        self.ask()
+        self.assertEqual(StaffHelpThread.objects.filter(requester=self.alice).count(), 5)
+        thread = StaffHelpThread.objects.filter(requester=self.alice).first()
+        self.client_for(self.alice).post(f"/help/{thread.pk}/", {"action": "resolve"})
+        thread.refresh_from_db()
+        self.assertEqual(thread.status, StaffHelpThread.Status.RESOLVED)
+
+    def test_reachable_by_clicking(self):
+        post = self.create_post(self.finder, "FOUND")
+        student = self.client_for(self.alice)
+        self.assertIn('href="/help/"', student.get("/home/").content.decode())                  # sidebar
+        self.assertIn(f'href="/help/new/?post={post.pk}"', student.get(f"/p/{post.pk}/").content.decode())  # post page
+        self.assertIn('href="/help/"', self.client_for(self.staff).get("/staff/").content.decode())  # staff sidebar + workspace

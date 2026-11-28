@@ -1038,3 +1038,41 @@ class ChatAttachment(models.Model):
         """v2.0.0 video badge: 42 seconds -> "0:42"."""
         seconds = int(round(self.duration_seconds or 0))
         return f"{seconds // 60}:{seconds % 60:02d}"
+
+
+class StaffHelpThread(models.Model):
+    """CHG-019 (v2.1.0): "Contact staff" — a request a student sends to the whole staff team.
+
+    Not addressed to one staff account: every Staff member and administrator sees the shared staff inbox
+    and any of them can reply. Typical use: the post author does not reply, or the item is at the guard house.
+    """
+    class Status(models.TextChoices):
+        OPEN = "OPEN", "Waiting for staff"
+        ANSWERED = "ANSWERED", "Staff replied"
+        RESOLVED = "RESOLVED", "Resolved"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="staff_help_threads")
+    post = models.ForeignKey(ItemPost, on_delete=models.SET_NULL, null=True, blank=True, related_name="staff_help_threads")
+    subject = models.CharField(max_length=120)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.OPEN)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+        indexes = [models.Index(fields=["status", "updated_at"], name="staffhelp_status_idx")]
+
+    def __str__(self):
+        return self.subject
+
+
+class StaffHelpMessage(models.Model):
+    thread = models.ForeignKey(StaffHelpThread, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="staff_help_messages")
+    from_staff = models.BooleanField(default=False)
+    text = models.CharField(max_length=2000)
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["sent_at"]

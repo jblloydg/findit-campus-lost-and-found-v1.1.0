@@ -12,9 +12,15 @@ def site_context(request):
         profile = request.user.profile
     except Profile.DoesNotExist:
         profile = None
+    staff = is_staff_or_admin(request.user)
+    staff_inbox_open = 0
+    if staff:  # CHG-019: open requests in the shared staff inbox (sidebar count)
+        from .models import StaffHelpThread
+        staff_inbox_open = StaffHelpThread.objects.filter(status=StaffHelpThread.Status.OPEN).count()
     return {
+        "staff_inbox_open": staff_inbox_open,
         "findit_version": FINDIT_VERSION,  # DES-005: version label, read once from VERSION
-        "current_is_staff": is_staff_or_admin(request.user),
+        "current_is_staff": staff,
         "current_is_admin": is_admin(request.user),
         "current_is_developer": is_developer(request.user),
         # v2.0.0 sidebar: verified moderators and admins see the review links.

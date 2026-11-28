@@ -2363,3 +2363,72 @@ def server_error(request):
     from django.template import loader
     from .version import FINDIT_VERSION
     return HttpResponseServerError(loader.get_template("500.html").render({"findit_version": FINDIT_VERSION}))
+
+
+# ---- CHG-019 (v2.1.0): Contact staff — one shared staff inbox ----
+@login_required
+def staff_help_list(request):
+    """Students: their requests to the staff team. Staff and admins: the shared staff inbox (everyone's)."""
+    from .models import StaffHelpThread
+    staff_view = is_staff_or_admin(request.user)
+    show = request.GET.get("show", "open")
+    threads = StaffHelpThread.objects.select_related("requester", "post").annotate(message_count=Count("messages"))
+    if staff_view:
+        if show != "all":
+            threads = threads.exclude(status=StaffHelpThread.Status.RESOLVED)
+    else:
+        threads = threads.filter(requester=request.user)
+    return render(request, "core/staff_help_list.html", {
+        "threads": threads[:200], "staff_view": staff_view, "show": show,
+        "open_count": StaffHelpThread.objects.exclude(status=StaffHelpThread.Status.RESOLVED).count() if staff_view else 0,
+    })
+
+
+@login_required
+def staff_help_new(request):
+    from .services import open_staff_help
+    post = None
+    post_id = request.POST.get("post") or request.GET.get("post")
+    if post_id:
+        try:
+            post = ItemPost.objects.filter(pk=post_id).first()
+        except (ValueError, ValidationError):
+            post = None
+    if request.method == "POST":
+        try:
+            thread = open_staff_help(request.user, request.POST.get("subject", ""), request.POST.get("text", ""), post)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "Sent to the staff team. Any staff member can reply; you'll get a notification.")
+            return redirect("staff-help-thread", thread_id=thread.pk)
+    return render(request, "core/staff_help_new.html", {
+        "post": post, "subject": request.POST.get("subject", ""), "text": request.POST.get("text", ""),
+    })
+
+
+@login_required
+def staff_help_thread(request, thread_id):
+    from .models import StaffHelpThread
+    from .services import add_staff_help_message, set_staff_help_status
+    thread = get_object_or_404(StaffHelpThread.objects.select_related("requester", "post"), pk=thread_id)
+    staff_view = is_staff_or_admin(request.user)
+    if not staff_view and thread.requester_id != request.user.pk:
+        return HttpResponseForbidden("This request is private to the person who asked and the staff team.")
+    if request.method == "POST":
+        action = request.POST.get("action", "reply")
+        if action in {"resolve", "reopen"}:
+            set_staff_help_status(thread, request.user, resolved=action == "resolve")
+            messages.success(request, "Marked as resolved." if action == "resolve" else "Reopened.")
+        else:
+            try:
+                add_staff_help_message(thread, request.user, request.POST.get("text", ""))
+            except (ValueError, PermissionError) as exc:
+                messages.error(request, str(exc))
+        return redirect("staff-help-thread", thread_id=thread.pk)
+    InAppNotification.objects.filter(
+        recipient=request.user, link=reverse("staff-help-thread", args=[thread.pk]), read_at__isnull=True,
+    ).update(read_at=timezone.now())
+    return render(request, "core/staff_help_thread.html", {
+        "thread": thread, "help_messages": thread.messages.select_related("sender"), "staff_view": staff_view,
+    })

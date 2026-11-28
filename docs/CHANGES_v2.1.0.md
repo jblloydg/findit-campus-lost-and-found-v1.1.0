@@ -158,6 +158,23 @@ Files: `core/views.py` (`_conversation_for_post`, `post_detail` → `can_message
   owner and guard: FOUND handed over in person; FOUND via the guard house (code typed at Scan turn-in QR);
   LOST with ownership questions in the chat; guard house and back; closed. **18 of 18 steps pass**, no script errors.
 
+## CHG-019 — Contact staff: one shared staff inbox
+Owner: if the author does not reply, people can contact the staff — not one staff account, but messages shared by all staff.
+- **Students:** **Contact staff** in the sidebar, **No reply from the poster? Contact staff** on every post (authors:
+  *Need help with this post?*), and **Not getting a reply? Contact staff** in every chat. They write a message (the post
+  is attached automatically) and see all replies in one thread; they can add messages and mark it resolved.
+- **Staff + administrators:** **Staff inbox** in the sidebar (red count of requests waiting) and on the Staff workspace.
+  **Every** staff member and admin sees every request and can reply; each is notified of new requests and messages.
+  Open / All tabs; Mark resolved / Reopen.
+- Status: *Waiting for staff* → *Staff replied* → *Resolved*. At most 5 open requests per student.
+- Private: only the person who asked and the staff team can open a request.
+- **Database:** new migration `core/migrations/0015_v210_staff_help.py` (tables `StaffHelpThread`, `StaffHelpMessage`).
+  Run `python manage.py migrate` (FindIT.cmd does it automatically).
+Files: `core/models.py`, `core/services.py` (`open_staff_help`, `add_staff_help_message`, `set_staff_help_status`),
+`core/views.py` (`staff_help_list`, `staff_help_new`, `staff_help_thread`), `core/urls.py` (`/help/…`),
+`core/context_processors.py`, templates `staff_help_list.html`, `staff_help_new.html`, `staff_help_thread.html`,
+`includes/sidebar.html`, `post_detail.html`, `chat_room.html`, `staff_dashboard.html`, `findit.css`.
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 

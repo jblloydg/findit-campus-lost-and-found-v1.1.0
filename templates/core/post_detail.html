@@ -134,6 +134,7 @@
         </div>
         {% endif %}
         <p class="action-note">Keep all coordination inside Find-IT. Meet only within school premises.</p>
+        {% if user.is_authenticated and not can_moderate %}<a class="text-action contact-staff-link" href="{% url 'staff-help-new' %}?post={{ post.pk }}">{% include "core/includes/icon.html" with name="help" %}{% if user.pk == post.author_id %}Need help with this post? Contact staff{% else %}No reply from the poster? Contact staff{% endif %}</a>{% endif %}
         {% if can_manage %}
           <hr>
           <span class="eyebrow">Manage listing</span>

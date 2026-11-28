@@ -100,6 +100,7 @@
     {% if is_unverified_sender %}<p class="fine-print">Unverified accounts: up to {{ chat_char_limit }} characters per message and a limited number of messages every few minutes. <a href="{% url 'verify-email' %}">Verify your email</a> to remove these limits.</p>{% endif %}
     <p class="chat-privacy">Messages are private to the participants. Administrators and verified moderators can review chats for safety.</p>
     {% else %}<div class="chat-readonly">This conversation is read-only. Its history remains until the post is permanently removed.</div>{% endif %}
+    {% if not staff_view and not current_is_staff %}<p class="chat-report-link"><a class="text-action" href="{% url 'staff-help-new' %}?post={{ conversation.post.pk }}">Not getting a reply? Contact staff</a> <span class="muted">— your message goes to every staff member.</span></p>{% endif %}
     {% if can_report %}<p class="chat-report-link"><a class="text-action" href="{% url 'report-chat' conversation.pk %}">⚑ Report this conversation</a> <span class="muted">for harassment, threats, scams, or other unsafe behavior.</span>{% if can_block_other %} · <a class="text-action danger-link" href="{% url 'report-block' other_person.pk %}?conversation={{ conversation.pk }}&amp;next={{ request.path|urlencode }}">⛔ Report &amp; block</a>{% endif %}</p>{% endif %}
     {% if is_reviewer %}
     <details class="moderation-tools"><summary>Reviewer tools</summary>
