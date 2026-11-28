@@ -10,6 +10,9 @@
       <div><span class="eyebrow">Private Find-IT chat</span><h1>{{ conversation.post.display_title }}</h1><p class="muted">{% if staff_view %}Staff review view · Participants: {{ conversation.initiator.first_name|default:conversation.initiator.username }} and {{ conversation.recipient.first_name|default:conversation.recipient.username }}{% else %}{{ conversation.initiator.first_name|default:conversation.initiator.username }} {{ conversation.initiator|verified_mark }} ↔ {{ conversation.recipient.first_name|default:conversation.recipient.username }} {{ conversation.recipient|verified_mark }}{% endif %}</p></div>
       {% if conversation.is_paused %}<span class="status-pill status-closed">Paused for review</span>{% elif conversation.is_closed %}<span class="status-pill status-closed">Read-only</span>{% endif %}
     </header>
+    {% if is_asker and not claim and conversation.post.post_type == "FOUND" and question_bank %}
+    <div class="claim-strip"><span class="muted">You found this item. Tap <a class="text-action" href="#question-ask">＋ Questions</a> to send ownership questions; the other person answers privately and you judge the answers.</span></div>
+    {% endif %}
     {% if claim or is_asker and conversation.post.post_type == "LOST" %}
     <div class="claim-strip">
       {% if claim %}<span class="status-pill status-{{ claim.status|lower }}">{% if claim.is_lost_report %}Owner verification · {% endif %}{{ claim.get_status_display }}{% if claim_rank %} · #{{ claim_rank }} approved{% endif %}</span>{% else %}<span class="muted">Send ownership questions to verify the owner, or bring the item to the guard house.</span>{% endif %}

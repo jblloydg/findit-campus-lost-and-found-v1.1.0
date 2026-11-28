@@ -1158,7 +1158,7 @@ def chat_room(request, conversation_id):
     question_bank = []
     round_count = 0
     if is_asker and can_send and (claim is None or claim.status in {"SUBMITTED", "APPROVED"}):
-        round_count = current_round_questions(conversation).count() if claim else 0
+        round_count = current_round_questions(conversation).count()  # CHG-011: also counts chats without a claim
         if round_count < 5:
             question_bank = list(QuestionTemplate.objects.filter(is_active=True).prefetch_related("categories"))
     can_decide = bool(claim and can_decide_claim(request.user, claim))

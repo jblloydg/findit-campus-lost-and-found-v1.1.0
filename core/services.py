@@ -609,14 +609,24 @@ def reapply_status(post, user):
 # ---------------------------------------------------------------------------
 
 def chat_roles(conversation):
-    """(asker, answerer): the finder side asks, the claimant/owner side answers."""
+    """(asker, answerer): the finder side asks, the claimant/owner side answers.
+
+    Owner's rule (v2.0.1, CHG-011): whoever is the finder in a chat can send ownership questions.
+    - LOST post: the person who messaged the author is the finder; the author (owner) answers.
+    - FOUND post, claim chat: the claim's finder asks; the claimant answers.
+    - FOUND post, chat without a claim ("Message poster"): the author is the finder and asks;
+      the other person answers.
+    """
     post = conversation.post
     if post.post_type == ItemPost.Type.LOST:
         finder = conversation.initiator if conversation.recipient_id == post.author_id else conversation.recipient
         return finder, post.author
     claim = conversation.claim
     if claim is None:
-        return None, None
+        if post.author_id not in (conversation.initiator_id, conversation.recipient_id):
+            return None, None
+        other = conversation.initiator if conversation.recipient_id == post.author_id else conversation.recipient
+        return post.author, other
     return claim.finder_user, claim.claimant
 
 

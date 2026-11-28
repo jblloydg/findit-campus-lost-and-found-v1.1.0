@@ -250,6 +250,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Search + max-count for the in-chat question picker.
+  // CHG-011: the finder's hint link "＋ Questions" opens the question box it jumps to.
+  document.querySelectorAll('a[href="#question-ask"]').forEach(function (link) {
+    link.addEventListener("click", function () { var box = document.getElementById("question-ask"); if (box) box.open = true; });
+  });
   document.querySelectorAll(".question-ask").forEach(function (box) {
     var filter = box.querySelector(".question-filter");
     var list = box.querySelector(".chat-question-list");
