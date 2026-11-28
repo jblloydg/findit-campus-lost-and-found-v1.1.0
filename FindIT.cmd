@@ -3,7 +3,8 @@ rem ==========================================================================
 rem  Find-IT v1.1.1 - one-click menu for Windows
 rem  Double-click this file. The first time it installs everything by itself
 rem  (needs internet once). Then pick a number from the menu.
-rem  Doing nothing for 20 seconds starts Find-IT automatically.
+rem  Doing nothing for 20 seconds starts Find-IT automatically - only the
+rem  first time the menu shows (BUG-009: it used to repeat every 20 seconds).
 rem ==========================================================================
 setlocal EnableExtensions
 title Find-IT v1.1.1
@@ -14,6 +15,9 @@ call :findpython
 if not defined SYSPY goto :nopython
 call :setup
 if errorlevel 1 goto :fail
+
+rem AUTOSTART is set until the menu has shown once; after that the menu waits.
+set "AUTOSTART=1"
 
 :menu
 cls
@@ -28,9 +32,14 @@ echo     5  Make a backup now
 echo     6  Developer account  ^(create it, or reset its password^)
 echo     0  Quit
 echo.
-echo   Starts automatically in 20 seconds if you press nothing.
-echo.
-choice /c 1234560 /n /t 20 /d 1 /m "  Type a number: "
+if defined AUTOSTART (
+  echo   Starts automatically in 20 seconds if you press nothing.
+  echo.
+  set "AUTOSTART="
+  choice /c 1234560 /n /t 20 /d 1 /m "  Type a number: "
+) else (
+  choice /c 1234560 /n /m "  Type a number: "
+)
 if errorlevel 7 goto :eof
 if errorlevel 6 goto :developer
 if errorlevel 5 goto :backup
@@ -44,10 +53,12 @@ rem --------------------------------------------------------------------------
 netstat -ano | findstr /r /c:":8000 .*LISTENING" >nul 2>nul
 if not errorlevel 1 (
   echo.
-  echo   Find-IT already seems to be running in another window.
-  echo   Opening http://127.0.0.1:8000/ in your browser instead.
+  echo   Find-IT is already running in another window.
+  echo   Opening http://127.0.0.1:8000/ in your browser once.
+  echo   You can close this extra window; keep the other one open.
   start "" http://127.0.0.1:8000/
-  timeout /t 4 >nul
+  echo.
+  pause
   goto :menu
 )
 taskkill /fi "WINDOWTITLE eq Find-IT timers*" /t /f >nul 2>nul
