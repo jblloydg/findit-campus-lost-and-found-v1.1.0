@@ -1,21 +1,21 @@
-{% extends "core/base.html" %}
+{% extends base_template|default:"core/base.html" %}
 {% load static findit_tags %}
 {% block title %}Private chat · Find-IT{% endblock %}
 {% block content %}
-<section class="page-wrap chat-page">
-  <a class="back-link" href="{% url 'post-detail' conversation.post.pk %}">← Back to {{ conversation.post.display_title }}</a>
+<section class="page-wrap chat-page{% if embedded %} chat-page--embed{% endif %}">
+  {% if not embedded %}<a class="back-link" href="{% url 'post-detail' conversation.post.pk %}">← Back to {{ conversation.post.display_title }}</a>{% endif %}
   <div class="chat-shell">
     <header class="chat-header">
-      <div class="avatar">{{ conversation.post.display_title|slice:":1"|upper }}</div>
-      <div><span class="eyebrow">Private Find-IT chat</span><h1>{{ conversation.post.display_title }}</h1><p class="muted">{% if staff_view %}Staff review view · Participants: {{ conversation.initiator.first_name|default:conversation.initiator.username }} and {{ conversation.recipient.first_name|default:conversation.recipient.username }}{% else %}{{ conversation.initiator.first_name|default:conversation.initiator.username }} {{ conversation.initiator|verified_mark }} ↔ {{ conversation.recipient.first_name|default:conversation.recipient.username }} {{ conversation.recipient|verified_mark }}{% endif %}</p></div>
+      {% if other_person %}{% include "core/includes/avatar.html" with person=other_person size="md" %}{% else %}<div class="avatar">{{ conversation.post.display_title|slice:":1"|upper }}</div>{% endif %}
+      <div><span class="eyebrow">Private chat · <a href="{% url 'post-detail' conversation.post.pk %}">{{ conversation.post.get_post_type_display }} post</a></span><h1>{{ conversation.post.display_title }}</h1><p class="muted">{% if staff_view %}Staff review view · Participants: {{ conversation.initiator.first_name|default:conversation.initiator.username }} and {{ conversation.recipient.first_name|default:conversation.recipient.username }}{% else %}{{ conversation.initiator.first_name|default:conversation.initiator.username }} {{ conversation.initiator|verified_mark }} ↔ {{ conversation.recipient.first_name|default:conversation.recipient.username }} {{ conversation.recipient|verified_mark }}{% endif %}</p></div>
       {% if conversation.is_paused %}<span class="status-pill status-closed">Paused for review</span>{% elif conversation.is_closed %}<span class="status-pill status-closed">Read-only</span>{% endif %}
     </header>
     {% if is_asker and not claim and conversation.post.post_type == "FOUND" and question_bank %}
-    <div class="claim-strip"><span class="muted">You found this item. Tap <a class="text-action" href="#question-ask">＋ Questions</a> to send ownership questions; the other person answers privately and you judge the answers.</span></div>
+    <div class="claim-strip finder-strip"><span class="muted">You found this item. Tap <button type="button" class="text-action" data-open-questions>＋ → Ownership questions</button> to check it's theirs; the other person answers privately and you judge the answers.</span></div>
     {% endif %}
     {% if claim or is_asker and conversation.post.post_type == "LOST" %}
     <div class="claim-strip">
-      {% if claim %}<span class="status-pill status-{{ claim.status|lower }}">{% if claim.is_lost_report %}Owner verification · {% endif %}{{ claim.get_status_display }}{% if claim_rank %} · #{{ claim_rank }} approved{% endif %}</span>{% else %}<span class="muted">Send ownership questions to verify the owner, or bring the item to the guard house.</span>{% endif %}
+      {% if claim %}<span class="status-pill status-{{ claim.status|lower }}">{% if claim.is_lost_report %}Owner verification · {% endif %}{{ claim.get_status_display }}{% if claim_rank %} · #{{ claim_rank }} approved{% endif %}</span>{% else %}<span class="muted">You found this item. Tap {% if question_bank %}<button type="button" class="text-action" data-open-questions>＋ → Ownership questions</button>{% else %}＋ → Ownership questions{% endif %} to check that this is the owner, or bring the item to the guard house.</span>{% endif %}
       {% if claim.status == "DECLINED" and claim.decline_reason %}<span class="muted">Reason: {{ claim.decline_reason }}</span>{% endif %}
       {% if can_decide and claim.status == "SUBMITTED" %}
         <form method="post" action="{% url 'approve-claim' claim.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button class="button button-primary button-small" type="submit"{% if not lost_ready %} disabled title="Send at least 3 questions and wait for all answers"{% endif %}>Approve</button></form>
@@ -72,21 +72,31 @@
       {% endfor %}
     </section>
     {% if question_bank %}
-    <details class="question-ask" id="question-ask"><summary class="button button-soft button-small">＋ Questions ({{ questions_left }} left)</summary>
+    <details class="question-ask" id="question-ask"><summary class="question-ask-head"><span><strong>Ownership questions</strong> <span class="questions-left">({{ questions_left }} left)</span></span><span class="question-ask-close" aria-hidden="true">×</span><span class="sr-only">Close</span></summary>
       <form method="post" action="{% url 'ask-questions' conversation.pk %}" class="stack-form">{% csrf_token %}
         <p class="fine-print">Pick questions to send as answer cards. You judge the answers yourself. {% if conversation.post.post_type == "LOST" %}At least 3 answered questions are needed before you can approve the owner.{% endif %}</p>
         <label class="search-field question-search"><span aria-hidden="true">⌕</span><input type="search" class="question-filter" placeholder="Search questions" aria-label="Search questions"></label>
         <div class="question-list chat-question-list" data-max="{{ questions_left }}">
           {% for t in question_bank %}<label class="question-option" data-categories="{% for c in t.categories.all %}{{ c.pk }} {% endfor %}" data-general="{{ t.is_general|yesno:'1,0' }}"><input type="checkbox" name="questions" value="{{ t.pk }}"><span><strong>{{ t.text }}</strong><small>{{ t.get_answer_type_display }}</small></span></label>{% endfor %}
         </div>
-        <button class="button button-primary button-small" type="submit">Send questions</button>
+        <button class="button button-primary" type="submit">Send questions</button>
       </form>
     </details>
     {% endif %}
     {% if can_send %}
-    <form class="chat-composer" id="chat-form" data-upload-url="{% url 'chat-upload' conversation.pk %}" data-status-url="{% url 'chat-upload-status' conversation.pk %}" data-photo-mb="{{ media_limits.photo_mb }}" data-video-mb="{{ media_limits.video_mb }}" data-video-seconds="{{ media_limits.video_seconds }}"{% if media_limits.left is not None %} data-media-left="{{ media_limits.left }}"{% endif %}>{% csrf_token %}<label class="button button-soft chat-attach" title="Send a photo or video">📎<span class="sr-only">Send a photo or video</span><input type="file" id="chat-file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,video/3gpp,video/x-matroska,.mkv,.m4v" multiple hidden></label><label for="chat-input" class="sr-only">Message</label><textarea id="chat-input" rows="2" maxlength="{{ chat_char_limit }}" placeholder="Write a message…" required></textarea><button class="button button-primary" type="submit">Send</button></form>
+    <div class="chat-bar">
+      <div class="chat-plus-menu" id="chat-plus-menu" role="menu" aria-label="Add to this chat" hidden>
+        <button type="button" class="chat-plus-item" role="menuitem" data-plus-media><span class="chat-plus-icon" aria-hidden="true">{% include "core/includes/icon.html" with name="image" %}</span><span><strong>Photo or video</strong><small>Photos up to {{ media_limits.photo_mb }} MB · videos up to {{ media_limits.video_mb }} MB and {{ media_limits.video_seconds }} s{% if media_limits.left is not None %} · {{ media_limits.left }} of 3 left{% endif %}</small></span></button>
+        {% if question_bank %}<button type="button" class="chat-plus-item" role="menuitem" data-open-questions><span class="chat-plus-icon" aria-hidden="true">{% include "core/includes/icon.html" with name="list-check" %}</span><span><strong>Ownership questions <span class="questions-left">({{ questions_left }} left)</span></strong><small>Ask questions only the owner can answer</small></span></button>{% endif %}
+      </div>
+      <form class="chat-composer" id="chat-form" data-upload-url="{% url 'chat-upload' conversation.pk %}" data-status-url="{% url 'chat-upload-status' conversation.pk %}" data-photo-mb="{{ media_limits.photo_mb }}" data-video-mb="{{ media_limits.video_mb }}" data-video-seconds="{{ media_limits.video_seconds }}"{% if media_limits.left is not None %} data-media-left="{{ media_limits.left }}"{% endif %}>{% csrf_token %}
+        <button type="button" class="chat-plus{% if question_bank and not questions %} chat-plus--hint{% endif %}" aria-haspopup="menu" aria-expanded="false" aria-controls="chat-plus-menu" aria-label="Add a photo or video{% if question_bank %} or ownership questions{% endif %}">{% include "core/includes/icon.html" with name="plus" %}</button>
+        <input type="file" id="chat-file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm,video/3gpp,video/x-matroska,.mkv,.m4v" multiple hidden>
+        <label for="chat-input" class="sr-only">Message</label><textarea id="chat-input" rows="1" maxlength="{{ chat_char_limit }}" placeholder="Write a message…" required></textarea>
+        <button class="button button-primary chat-send" type="submit">Send</button>
+      </form>
+    </div>
     <p class="chat-status" id="chat-status" role="status" aria-live="polite"></p>
-    <p class="fine-print">Photos up to {{ media_limits.photo_mb }} MB, videos up to {{ media_limits.video_mb }} MB and {{ media_limits.video_seconds }} seconds. Files are compressed before sending.{% if media_limits.left is not None %} Unverified accounts: {{ media_limits.left }} of 3 photos/videos left in this chat.{% endif %}</p>
     {% if is_unverified_sender %}<p class="fine-print">Unverified accounts: up to {{ chat_char_limit }} characters per message and a limited number of messages every few minutes. <a href="{% url 'verify-email' %}">Verify your email</a> to remove these limits.</p>{% endif %}
     <p class="chat-privacy">Messages are private to the participants. Administrators and verified moderators can review chats for safety.</p>
     {% else %}<div class="chat-readonly">This conversation is read-only. Its history remains until the post is permanently removed.</div>{% endif %}

@@ -23,12 +23,12 @@ class FinderAsksInFoundChatTests(FindItTestCase):
 
     def test_author_finder_sees_button_and_asks_other_person_answers(self):
         page = self.finder_client.get(f"/conversations/{self.conv.pk}/").content.decode()
-        self.assertIn("＋ Questions (5 left)", page)
+        self.assertIn('Ownership questions <span class="questions-left">(5 left)</span>', page)
         self.assertIn("You found this item.", page)
-        self.assertNotIn("＋ Questions", self.owner_client.get(f"/conversations/{self.conv.pk}/").content.decode())
+        self.assertNotIn("data-open-questions", self.owner_client.get(f"/conversations/{self.conv.pk}/").content.decode())
         self.ask(self.finder_client, self.templates[:2])
         self.assertEqual(self.conv.questions.count(), 2)
-        self.assertIn("＋ Questions (3 left)", self.finder_client.get(f"/conversations/{self.conv.pk}/").content.decode())
+        self.assertIn('<span class="questions-left">(3 left)</span>', self.finder_client.get(f"/conversations/{self.conv.pk}/").content.decode())
         self.assertTrue(InAppNotification.objects.filter(recipient=self.alice, is_priority=True).exists())
         for q in self.conv.questions.all():
             self.owner_client.post(f"/chat-questions/{q.pk}/answer/", {"answer": q.choices[0] if q.choices else "blue"})
@@ -46,7 +46,7 @@ class FinderAsksInFoundChatTests(FindItTestCase):
         bank = list(QuestionTemplate.objects.filter(is_active=True)[:6])
         self.ask(self.finder_client, bank)
         self.assertEqual(self.conv.questions.count(), 5)
-        self.assertNotIn("＋ Questions", self.finder_client.get(f"/conversations/{self.conv.pk}/").content.decode())
+        self.assertNotIn("data-open-questions", self.finder_client.get(f"/conversations/{self.conv.pk}/").content.decode())
 
 # ---- DES-006: Report an item wide layout (create / edit post, walk-in) ----
 from pathlib import Path
@@ -234,3 +234,65 @@ class TesterAccountsTests(TestCase):
     def test_password_file_is_ignored_by_git(self):
         ignore = Path(settings.BASE_DIR, ".gitignore").read_text(encoding="utf-8")
         self.assertIn("tester-passwords.txt", ignore.splitlines())
+
+
+# ---- DES-007: Messenger-style chat bar and the chat window over the post page ----
+class ChatBarTests(FindItTestCase):
+    def setUp(self):
+        super().setUp()
+        self.lost = self.create_post(self.alice, "LOST")
+        self.finder_client = self.client_for(self.finder)
+        self.finder_client.get(f"/p/{self.lost.pk}/?resume=message")
+        self.conv = Conversation.objects.get(post=self.lost, initiator=self.finder)
+
+    def page(self, client, **headers):
+        return client.get(f"/conversations/{self.conv.pk}/", **headers).content.decode()
+
+    def test_bar_is_plus_message_send_and_keeps_script_names(self):
+        page = self.page(self.finder_client)
+        bar = page[page.index('<div class="chat-bar">'):page.index('<p class="chat-status"')]
+        self.assertIn('class="chat-plus', bar)
+        self.assertIn('aria-haspopup="menu" aria-expanded="false" aria-controls="chat-plus-menu"', bar)
+        for name in ('id="chat-form"', 'id="chat-file"', 'id="chat-input"', "data-upload-url=", "data-status-url=",
+                     "data-photo-mb=", "data-video-mb=", "data-video-seconds="):
+            self.assertIn(name, bar)
+        self.assertNotIn("chat-attach", bar)          # the 📎 button moved into the ＋ menu
+        self.assertIn("Photo or video", bar)
+        self.assertIn('id="chat-status"', page)
+        for name in ('id="question-ask"', 'class="question-filter"', "chat-question-list", 'method="post"'):
+            self.assertIn(name, page)
+
+    def test_only_the_finder_has_ownership_questions_in_the_menu(self):
+        self.assertIn("data-open-questions", self.page(self.finder_client))
+        owner_page = self.page(self.client_for(self.alice))
+        self.assertIn("Photo or video", owner_page)
+        self.assertNotIn("data-open-questions", owner_page)
+
+    def test_chat_window_mode_has_no_sidebar(self):
+        full = self.page(self.finder_client)
+        framed = self.page(self.finder_client, HTTP_SEC_FETCH_DEST="iframe")
+        self.assertIn('class="app-shell"', full)
+        self.assertNotIn('class="app-shell"', framed)
+        self.assertIn('data-embed="true"', framed)
+        self.assertIn('id="chat-form"', framed)
+        self.assertIn('data-embed="true"', self.finder_client.get(f"/conversations/{self.conv.pk}/?embed=1").content.decode())
+
+    def test_frame_only_from_this_site(self):
+        response = self.finder_client.get(f"/conversations/{self.conv.pk}/")
+        self.assertEqual(response["X-Frame-Options"], "SAMEORIGIN")
+
+    def test_post_page_has_chat_window_and_launcher(self):
+        page = self.finder_client.get(f"/p/{self.lost.pk}/").content.decode()
+        self.assertIn('id="chat-overlay"', page)
+        self.assertIn(f'data-chat-url="/conversations/{self.conv.pk}/"', page)
+        self.assertNotIn('id="chat-panel"', page)   # the old small panel is gone
+
+    def test_found_post_message_poster_chat_gets_launcher(self):
+        found = self.create_post(self.finder, "FOUND")
+        alice = self.client_for(self.alice)
+        alice.get(f"/p/{found.pk}/?resume=message")
+        conv = Conversation.objects.get(post=found, initiator=self.alice)
+        self.assertIn(f'data-chat-url="/conversations/{conv.pk}/"', alice.get(f"/p/{found.pk}/").content.decode())
+
+    def test_question_list_rows_never_squeezed(self):
+        self.assertIn(".question-list { grid-auto-rows: max-content; }", CSS)

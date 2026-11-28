@@ -68,7 +68,7 @@
         {% elif latest_claim.status == "DECLINED" %}<p class="muted">The finder or staff declined this claim.{% if latest_claim.decline_reason %} Reason: “{{ latest_claim.decline_reason }}”{% endif %}</p>
         {% else %}<p class="muted">Your answers are private. The finder and authorized staff can review the form.</p>{% endif %}
         <div class="button-row">
-          {% if latest_claim.conversation %}<button type="button" class="button button-soft" data-chat-toggle>Open chat</button>{% endif %}
+          {% if latest_claim.conversation %}<a class="button button-soft" href="{% url 'chat-room' latest_claim.conversation.pk %}" data-chat-open>Open chat</a>{% endif %}
           {% if latest_claim.status == "RETURNED" %}<form method="post" action="{% url 'claimed' post.pk %}">{% csrf_token %}<button class="button button-primary" type="submit">Confirm I received it</button></form>{% endif %}
           {% if latest_claim.status == "SUBMITTED" or latest_claim.status == "APPROVED" or latest_claim.status == "RETURNED" %}<form method="post" action="{% url 'close-claim' latest_claim.pk %}">{% csrf_token %}<button class="button button-outline" type="submit">Withdraw my claim</button></form>{% endif %}
         </div>
@@ -232,7 +232,7 @@
             {% if application.decline_reason %}<small>Reason: {{ application.decline_reason }}</small>{% endif %}</div>
           <div class="application-links">
             {% if not application.is_lost_report %}<a class="text-action" href="{% url 'claim-review' application.pk %}">View form</a>{% endif %}
-            {% if application.conversation %}<a class="text-action" href="{% url 'chat-room' application.conversation.pk %}">Chat</a>{% endif %}
+            {% if application.conversation %}<a class="text-action" href="{% url 'chat-room' application.conversation.pk %}" data-chat-open>Chat</a>{% endif %}
           </div>
           {% if application.can_decide and application.status == "SUBMITTED" and not application.is_lost_report %}
           <form method="post" action="{% url 'approve-claim' application.pk %}">{% csrf_token %}<button class="button button-small button-primary" type="submit">Approve</button></form>
@@ -263,23 +263,20 @@
     </aside>
   </div>
   {% if panel_conversation %}
-  <button type="button" class="chat-launcher" data-chat-toggle aria-controls="chat-panel">💬 Chat{% if not panel_can_send %} (read-only){% endif %}</button>
-  <aside class="chat-panel" id="chat-panel" hidden data-panel-id="{{ panel_conversation.pk }}" aria-label="Chat with {% if post.post_type == 'FOUND' %}the finder{% else %}the owner{% endif %}">
-    <header class="chat-panel-head"><strong>{% if post.post_type == "FOUND" %}Chat with the finder{% else %}Chat with the owner{% endif %}</strong>
-      <div><a class="text-action" href="{% url 'chat-room' panel_conversation.pk %}">Full chat</a><button type="button" class="modal-close" data-chat-toggle aria-label="Hide chat">×</button></div></header>
-    <div class="chat-messages panel-messages" id="chat-messages" data-conversation="{{ panel_conversation.pk }}" data-can-send="{{ panel_can_send|yesno:'true,false' }}" data-has-older="{{ panel_has_older|yesno:'true,false' }}">
-      <p class="chat-history-status" data-history-status>{% if panel_has_older %}Scroll up for older messages{% endif %}</p>
-      {% for message in panel_messages %}
-      <article class="chat-message {% if message.sender_id == user.pk %}mine{% endif %}" data-message-id="{{ message.pk }}"><div class="message-bubble"><div class="message-meta"><strong>{{ message.sender.first_name|default:message.sender.username }}</strong><time>{{ message.sent_at|date:"M j · g:i a" }}</time></div>{% if message.text %}<p>{{ message.text|linebreaksbr }}</p>{% endif %}{% include "core/includes/chat_attachment.html" %}</div></article>
-      {% empty %}<div class="chat-empty"><p>No messages yet. Questions and answers appear in the full chat.</p></div>{% endfor %}
+  <button type="button" class="chat-launcher" data-chat-url="{% url 'chat-room' panel_conversation.pk %}">💬 Chat{% if not panel_can_send %} (read-only){% endif %}</button>
+  {% endif %}
+  {% if user.is_authenticated %}
+  {% comment %}DES-007: the chat opens in a big window over this post. The address bar shows the chat's own
+  link (/conversations/…/) while it is open; × (or Esc / Back) closes it and you are where you left off.{% endcomment %}
+  <div class="chat-overlay" id="chat-overlay" hidden role="dialog" aria-modal="true" aria-label="{% if post.post_type == 'FOUND' %}Chat about this found item{% else %}Chat about this lost item{% endif %}">
+    <div class="chat-overlay-backdrop" data-chat-close></div>
+    <div class="chat-overlay-window">
+      <button type="button" class="chat-overlay-close" data-chat-close aria-label="Close chat">×</button>
+      <iframe title="Private chat" name="findit-chat"></iframe>
+      <p class="chat-overlay-loading">Opening the chat…</p>
     </div>
-    <button type="button" class="button button-soft button-small chat-jump" data-chat-jump hidden>↓ Jump to latest</button>
-    {% if panel_can_send %}
-    <form class="chat-composer" id="chat-form"><label for="chat-input" class="sr-only">Message</label><textarea id="chat-input" rows="2" maxlength="{{ chat_char_limit }}" placeholder="Write a message…" required></textarea><button class="button button-primary button-small" type="submit">Send</button></form>
-    <p class="chat-status" id="chat-status" role="status" aria-live="polite"></p>
-    {% else %}<div class="chat-readonly">This chat is read-only. Its history stays visible.</div>{% endif %}
-  </aside>
+  </div>
   {% endif %}
 </section>
 {% endblock %}
-{% block scripts %}{% if panel_conversation %}<script src="{% static 'js/chat.js' %}" defer></script>{% endif %}{% endblock %}
+{% block scripts %}{% endblock %}

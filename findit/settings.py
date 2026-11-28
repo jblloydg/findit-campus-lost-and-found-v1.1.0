@@ -125,7 +125,9 @@ PRIVATE_MEDIA_ROOT = BASE_DIR / "private_media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CSRF_FAILURE_VIEW = "core.views.csrf_failure"
-X_FRAME_OPTIONS = "DENY"
+# DES-007: the chat window on a post page shows the chat page in a frame from this same site.
+# Other websites still cannot put Find-IT pages in a frame (clickjacking protection stays on).
+X_FRAME_OPTIONS = "SAMEORIGIN"
 SESSION_COOKIE_HTTPONLY = True
 
 # Logging: warnings and errors (with tracebacks) go to the console and to a rotating

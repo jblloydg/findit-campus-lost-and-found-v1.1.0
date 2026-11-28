@@ -372,8 +372,8 @@ def post_detail(request, post_id):
     if request.user.is_authenticated and request.user.pk != post.author_id:
         if post.post_type == ItemPost.Type.FOUND and latest_claim is not None:
             panel_conversation = getattr(latest_claim, "conversation", None)
-        elif post.post_type == ItemPost.Type.LOST:
-            panel_conversation = post.conversations.filter(initiator=request.user).first()
+        if panel_conversation is None:  # LOST post, or a FOUND post's "Message poster" chat (DES-007)
+            panel_conversation = post.conversations.filter(initiator=request.user, claim__isnull=True).first()
     # BUG-023: the author sees the chats about this post (or why there are none yet).
     author_chats = []
     if request.user.is_authenticated and request.user.pk == post.author_id:
@@ -388,11 +388,6 @@ def post_detail(request, post_id):
     for application in applications:
         application.claimant_unverified = is_unverified_student(application.claimant)
     viewer_is_student_other = request.user.is_authenticated and request.user.pk != post.author_id
-    from .chat_history import latest_page
-    panel_history = (
-        latest_page(panel_conversation.messages.select_related("sender", "attachment"), budget=4 * 1024)
-        if panel_conversation else ([], False)
-    )
     context = {
         "chat_char_limit": (
             SystemSettings.current().unverified_chat_max_chars
@@ -433,8 +428,6 @@ def post_detail(request, post_id):
         "status_request_form": StatusChangeRequestForm() if my_ticket and post.status == ItemPost.Status.TURNED_OVER else None,
         "my_pending_request": post.status_requests.filter(requester=request.user, decision="PENDING").first() if request.user.is_authenticated else None,
         "pending_status_requests": post.status_requests.filter(decision="PENDING").select_related("requester") if can_moderate else [],
-        "panel_messages": panel_history[0],
-        "panel_has_older": panel_history[1],
         "panel_can_send": bool(
             panel_conversation and panel_conversation.includes(request.user)
             and not panel_conversation.is_closed and not panel_conversation.is_paused
@@ -1139,6 +1132,13 @@ def chat_messages_json(request, conversation_id):
     return JsonResponse(payload)
 
 
+def _is_embedded(request):
+    """DES-007: the chat page is being shown inside the chat window over a post page.
+    Browsers say so with Sec-Fetch-Dest: iframe (also after a form inside the window redirects);
+    ?embed=1 is the fallback for older browsers."""
+    return request.GET.get("embed") == "1" or request.headers.get("Sec-Fetch-Dest") == "iframe"
+
+
 @never_cache
 @login_required
 def chat_room(request, conversation_id):
@@ -1178,7 +1178,10 @@ def chat_room(request, conversation_id):
     other = None
     if conversation.includes(request.user):
         other = conversation.recipient if conversation.initiator_id == request.user.pk else conversation.initiator
+    embedded = _is_embedded(request)
     return render(request, "core/chat_room.html", {
+        "base_template": "core/chat_embed_base.html" if embedded else "core/base.html",
+        "embedded": embedded,
         "other_person": other,
         "unverified_warning": bool(other and is_unverified_student(other)),
         "other_verified": bool(other and other.profile.is_verified),

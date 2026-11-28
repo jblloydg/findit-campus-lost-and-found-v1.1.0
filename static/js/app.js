@@ -61,7 +61,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // Live notifications (v1.1.1, CHG-004). The saved notifications on the server are the queue:
   // on every (re)connect the server sends the true unread counts, the browser asks for any
   // notices it missed, and each notice id is shown only once (no double counting).
-  if (document.body.getAttribute("data-user-authenticated") === "true" && window.WebSocket) {
+  if (document.body.getAttribute("data-user-authenticated") === "true" && window.WebSocket && document.body.getAttribute("data-embed") !== "true") {
     var noticeUrl = (window.location.protocol === "https:" ? "wss:" : "ws:") + "//" + window.location.host + "/ws/notifications/";
     var seenKey = "findit-seen-notices-" + document.body.getAttribute("data-user-id");
     var seen = {};
@@ -310,23 +310,76 @@ document.addEventListener("DOMContentLoaded", function () {
     btn.addEventListener("click", function () { var m = document.getElementById("closed-modal"); if (m) m.classList.remove("is-open"); });
   });
 
-  // Messenger-style chat panel: show/hide at any time; remembers its state per chat.
-  var chatPanel = document.getElementById("chat-panel");
-  if (chatPanel) {
-    var stateKey = "findit-chat-open-" + chatPanel.getAttribute("data-panel-id");
-    var launcher = document.querySelector(".chat-launcher");
-    var setOpen = function (open) {
-      chatPanel.hidden = !open;
-      if (launcher) launcher.hidden = open;
-      try { window.localStorage.setItem(stateKey, open ? "1" : "0"); } catch (e) {}
-      if (open) { var msgs = document.getElementById("chat-messages"); if (msgs) msgs.scrollTop = msgs.scrollHeight; }
+  // DES-007 (v2.1.0): the chat opens in a big window over the post page. The address bar shows the
+  // chat's own link (/conversations/<id>/) while it is open, so the chat has its usual address (for
+  // example for a moderator's review). ×, Esc, a tap outside or the Back button close it, and the
+  // post page is still where the person left it. Without JavaScript every link opens the full chat page.
+  var overlay = document.getElementById("chat-overlay");
+  if (overlay && window.history && window.history.pushState) {
+    var frame = overlay.querySelector("iframe");
+    var postUrl = window.location.pathname + window.location.search;
+    var chatPath = /^\/conversations\/[0-9a-f-]+\/$/;
+    var lastFocus = null, pushedUrl = null, frameChat = null;
+    var openChat = function (url) {
+      lastFocus = document.activeElement;
+      overlay.hidden = false;
+      document.body.classList.add("chat-overlay-open");
+      var target = url.split("#")[0];
+      if (frameChat && target === frameChat) {
+        showChatAddress(frameChat);               // already loaded: just show it again
+      } else {
+        overlay.classList.add("is-loading");
+        frame.src = target + (target.indexOf("?") === -1 ? "?" : "&") + "embed=1";
+      }
+      var close = overlay.querySelector(".chat-overlay-close");
+      if (close) close.focus();
     };
-    document.querySelectorAll("[data-chat-toggle]").forEach(function (btn) {
-      btn.addEventListener("click", function () { setOpen(chatPanel.hidden); });
+    var showChatAddress = function (path) {
+      if (window.location.pathname !== path) { window.history.pushState({ finditChat: path }, "", path); pushedUrl = path; }
+    };
+    var closeChat = function (fromBack) {
+      if (overlay.hidden) return;
+      overlay.hidden = true;
+      document.body.classList.remove("chat-overlay-open");
+      if (!fromBack && pushedUrl && window.location.pathname === pushedUrl) { pushedUrl = null; window.history.back(); }
+      else if (window.location.pathname + window.location.search !== postUrl) window.history.replaceState(null, "", postUrl);
+      pushedUrl = null;
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    };
+    frame.addEventListener("load", function () {
+      overlay.classList.remove("is-loading");
+      var where;
+      try { where = frame.contentWindow.location; } catch (e) { return; }
+      if (!where || where.href === "about:blank") return;
+      if (chatPath.test(where.pathname)) {
+        frameChat = where.pathname;
+        if (!overlay.hidden) showChatAddress(frameChat);
+      } else {
+        // The chat could not be opened (e.g. blocked, or the post closed): show that page normally.
+        window.location.href = where.pathname + where.search;
+      }
     });
-    var remembered = null;
-    try { remembered = window.localStorage.getItem(stateKey); } catch (e) {}
-    if (remembered === "1" || params0.get("chat") === "open") setOpen(true);
+    document.addEventListener("click", function (event) {
+      var opener = event.target.closest && event.target.closest("[data-chat-open], [data-chat-start], [data-chat-url]");
+      if (opener && !event.ctrlKey && !event.metaKey && !event.shiftKey && event.button === 0) {
+        event.preventDefault();
+        openChat(opener.getAttribute("data-chat-url") || opener.getAttribute("href"));
+        return;
+      }
+      if (event.target.closest && event.target.closest("[data-chat-close]")) closeChat(false);
+    });
+    document.addEventListener("keydown", function (event) { if (event.key === "Escape" && !overlay.hidden) closeChat(false); });
+    window.addEventListener("message", function (event) {
+      if (event.origin === window.location.origin && event.data && event.data.type === "findit-chat-close") closeChat(false);
+    });
+    window.addEventListener("popstate", function (event) {
+      if (!overlay.hidden) { pushedUrl = null; closeChat(true); }
+      else if (event.state && event.state.finditChat) openChat(event.state.finditChat);
+    });
+    if (params0.get("chat") === "open") {
+      var launcher = document.querySelector("[data-chat-url]");
+      if (launcher) openChat(launcher.getAttribute("data-chat-url"));
+    }
   }
 
   // Turn-in QR: the SVG is already in the page, so it still shows without internet.

@@ -73,6 +73,44 @@ The team could not find how a finder contacts the owner of a LOST post.
   the other demo accounts (shown in `demo-logins.txt` / FindIT.cmd menu 2).
 - Test it: sign in as Tester A in a normal window and as Tester B in a private window; open Messages.
 
+## DES-007 — Messenger-style chat bar and the chat window
+**Chat bar** (full chat page and chat window): **＋ · message · Send**, nothing else.
+- The round **＋** opens a small menu (a pop-up above the bar on PC, a bottom sheet on phones):
+  **Photo or video** (the old 📎 button moved here; same limits, previews, progress, waiting / processing /
+  failed states) and, **only for the finder**, **Ownership questions (N left)**, which opens the same
+  question picker as before as a card above the bar (title row closes it).
+- For a finder who has not sent questions yet, the ＋ has a soft green ring (it pulses 3 times unless the
+  phone asks for less motion), and the hint line says *Tap ＋ → Ownership questions*.
+- The message field grows with the text (up to about 6 lines). Esc, a tap outside or picking an item
+  closes the menu; arrow keys move in it; focus goes back to ＋ (`aria-expanded`, `role="menu"`).
+- "Jump to latest" stays hidden in an empty chat (the global `[hidden]` rule from BUG-019 already fixed
+  this; checked again).
+
+**Chat window over the post page** (owner: "partial cover, the post stays where they left off"):
+- On a post, **💬 Chat**, **I found this – message the owner**, **Message poster**, **Open chat** (claim card),
+  the claim list's **Chat** links and the author's **Chats about this post** open the chat in a big window
+  over the post (PC: up to 60rem × 52rem with the post dimmed around it; phone: slides up, leaving the top
+  bar visible).
+- While it is open the address bar shows the chat's own link **`/conversations/<id>/`**, so the chat has
+  the same address as always (a moderator can open that link for a manual review). **×**, **Esc**, a tap on the
+  dimmed post, or the phone's **Back** button close it, and the post is exactly where it was (same scroll
+  position). Ctrl/⌘-click or a reload opens the normal full chat page.
+- Inside the window the chat is the full chat (search, question cards, ＋ menu, photos/videos, report links);
+  ordinary links open in the main window.
+- How: the chat page has a compact "window" mode without the sidebar (`templates/core/chat_embed_base.html`,
+  chosen when the browser loads it in a frame — `Sec-Fetch-Dest: iframe` — or with `?embed=1`).
+- Security: `X-Frame-Options` changed from DENY to **SAMEORIGIN** — Find-IT can show its own pages in a
+  frame; other websites still cannot (clickjacking protection stays on).
+- The old small chat panel on the post page was removed (it could only send text), so the post page no
+  longer loads chat messages itself (one database query less).
+
+**Also fixed:** in a scrolling question list (chat picker and Report an item), rows were squeezed to the
+2.75rem minimum and the small "Choose from a list" line spilled out of the boxes; rows now keep their height.
+
+Files: `templates/core/chat_room.html`, `templates/core/chat_embed_base.html` (new), `templates/core/post_detail.html`,
+`templates/core/includes/icon.html` (image icon), `static/js/chat.js`, `static/js/app.js`, `static/css/findit.css`,
+`core/views.py` (`_is_embedded`, `chat_room`, `post_detail`), `findit/settings.py` (`X_FRAME_OPTIONS`).
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 
