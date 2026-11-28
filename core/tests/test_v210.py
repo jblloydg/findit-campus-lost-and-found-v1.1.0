@@ -113,3 +113,29 @@ class MessagesIconAllSizesTests(FindItTestCase):
     def test_icon_and_count_in_top_bar(self):
         page = self.client_for(self.alice).get("/home/").content.decode()
         self.assertIn('class="icon-button icon-messages"', page)
+
+
+# ---- BUG-023: "we posted and still no chat" — explain how a chat starts ----
+class HowChatStartsTests(FindItTestCase):
+    def test_messages_empty_state_explains_second_account(self):
+        page = self.client_for(self.alice).get("/messages/").content.decode()
+        self.assertIn("No chats yet", page)
+        self.assertIn("another person", page)
+        self.assertIn("You can't message your own post", page)
+
+    def test_author_sees_no_chats_yet_then_the_chat(self):
+        lost = self.create_post(self.alice, "LOST")
+        author = self.client_for(self.alice)
+        page = author.get(f"/p/{lost.pk}/").content.decode()
+        self.assertIn("Chats about this post", page)
+        self.assertIn("No one has messaged you about this post yet", page)
+        self.client_for(self.finder).get(f"/p/{lost.pk}/?resume=message")
+        conv = Conversation.objects.get(post=lost, initiator=self.finder)
+        page = author.get(f"/p/{lost.pk}/").content.decode()
+        self.assertNotIn("No one has messaged you about this post yet", page)
+        self.assertIn(f"/conversations/{conv.pk}/", page)
+        self.assertIn("May have found your item", page)
+
+    def test_other_people_do_not_see_the_author_list(self):
+        lost = self.create_post(self.alice, "LOST")
+        self.assertNotIn("Chats about this post", self.client_for(self.finder).get(f"/p/{lost.pk}/").content.decode())

@@ -1170,3 +1170,15 @@ a.stat-card:hover, a.stat-card.is-active { color: var(--ink); border-color: var(
   .post-form-submit .form-actions { flex-direction: row; }
   .post-form-submit .form-actions .button { flex: 1 1 0; width: auto; }
 }
+
+/* ===== v2.1.0 BUG-023: how a chat starts (Messages page, author's own post) ===== */
+.chat-start-hint { font-size: var(--step--1); }
+.empty-icon svg { width: 1.4rem; height: 1.4rem; }
+.empty-actions { justify-content: center; }
+.author-chats { display: grid; gap: 0.45rem; margin: 0.25rem 0 0.75rem; }
+.author-chat-row { display: flex; align-items: center; gap: 0.65rem; min-height: var(--tap); padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-2); color: var(--ink); text-decoration: none; }
+.author-chat-row:hover { border-color: var(--sage); background: var(--sage-wash); }
+.author-chat-row > span { display: grid; min-width: 0; }
+.author-chat-row small { color: var(--muted); font-size: var(--step--2); }
+.author-chats-empty { font-size: var(--step--1); line-height: 1.5; }

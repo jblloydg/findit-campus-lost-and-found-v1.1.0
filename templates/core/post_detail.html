@@ -130,6 +130,16 @@
         {% elif not user.is_authenticated and can_interact %}
           <button class="button button-outline button-full" data-login-next="{{ request.path }}?resume=message">Sign in to message</button>
         {% endif %}
+        {% if user.is_authenticated and user.pk == post.author_id %}
+        <div class="author-chats" id="author-chats">
+          <span class="eyebrow">Chats about this post</span>
+          {% for chat in author_chats %}
+          <a class="author-chat-row" href="{% url 'chat-room' chat.pk %}" data-chat-open>{% include "core/includes/avatar.html" with person=chat.other_person size="sm" %}<span><strong>{{ chat.other_person.first_name|default:chat.other_person.username }}</strong><small>{% if chat.claim_id %}Claim chat{% elif post.post_type == "LOST" %}May have found your item{% else %}Asked about this item{% endif %} · {{ chat.updated_at|date:"M j" }}</small></span></a>
+          {% empty %}
+          <p class="muted author-chats-empty">No one has messaged you about this post yet. {% if post.post_type == "LOST" %}When someone who found your item taps <strong>“I found this – message the owner”</strong>{% else %}When someone taps <strong>“Message poster”</strong> or claims this item{% endif %}, the chat opens here and under <a href="{% url 'messages' %}">Messages</a>. You can't message your own post.</p>
+          {% endfor %}
+        </div>
+        {% endif %}
         <p class="action-note">Keep all coordination inside Find-IT. Meet only within school premises.</p>
         {% if can_manage %}
           <hr>

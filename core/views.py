@@ -374,6 +374,15 @@ def post_detail(request, post_id):
             panel_conversation = getattr(latest_claim, "conversation", None)
         elif post.post_type == ItemPost.Type.LOST:
             panel_conversation = post.conversations.filter(initiator=request.user).first()
+    # BUG-023: the author sees the chats about this post (or why there are none yet).
+    author_chats = []
+    if request.user.is_authenticated and request.user.pk == post.author_id:
+        author_chats = list(
+            post.conversations.filter(Q(initiator=request.user) | Q(recipient=request.user))
+            .select_related("initiator", "recipient").order_by("-updated_at")[:10]
+        )
+        for chat in author_chats:
+            chat.other_person = chat.initiator if chat.recipient_id == request.user.pk else chat.recipient
     if can_moderate and post.status == ItemPost.Status.TURNED_OVER:
         account_list = User.objects.filter(profile__role=Profile.Role.STUDENT, is_active=True).order_by("first_name")
     for application in applications:
@@ -414,6 +423,7 @@ def post_detail(request, post_id):
         "shared_by_author": post.shares.filter(user_id=post.author_id).exists(),
         "share_count": post.shares.count(),
         "panel_conversation": panel_conversation,
+        "author_chats": author_chats,
         "show_matches": show_matches,
         "possible_matches": possible_matches,
         "my_ticket": my_ticket,

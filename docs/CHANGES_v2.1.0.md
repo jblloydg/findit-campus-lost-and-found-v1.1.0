@@ -34,6 +34,21 @@ was hidden by one CSS line, so Messages was only inside the ☰ menu. The line i
 red count now show on every screen size (44 × 44 px tap target at 360 px; no sideways scrolling).
 File: `static/css/findit.css`.
 
+## BUG-023 — "We posted and still no chat"
+The team made posts and waited for a chat. A chat only starts when **another account** taps the message
+button on your post; you cannot message your own post. Nothing in the app said so. Now:
+- **Messages page:** a line under the title says when a chat appears; with no chats, a new empty state explains
+  it and offers **Browse lost items** / **Browse found items**.
+- **Your own post** (Next step box): **Chats about this post** lists every chat about it (who, claim chat or
+  "May have found your item", date). With none yet it says *No one has messaged you about this post yet* and
+  which button the other person must tap.
+Files: `core/views.py` (`post_detail`: `author_chats`), `templates/core/post_detail.html`, `templates/core/messages.html`,
+`static/css/findit.css`. No database change.
+
+**How the team tests a chat:** use two accounts — a normal browser window signed in as one student and a
+private/incognito window signed in as another. Post with account A; open the post with account B and tap the
+message button; the chat opens for B and appears under Messages (and on the post) for A.
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 
