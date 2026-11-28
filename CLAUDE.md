@@ -86,7 +86,7 @@ Run the bug hunt again after any big change (e.g. chat, media) and once more on 
 ```powershell
 python manage.py migrate            # never run makemigrations on a server; commit new migrations
 python manage.py seed_demo          # fictional demo data (local only); random passwords -> demo-logins.txt
-python manage.py test core          # 224 tests (v1.1.2); keep them passing, add tests for each fix
+python manage.py test core          # 235 tests (v1.1.2); keep them passing, add tests for each fix
 python manage.py makemigrations --check --dry-run   # must say "No changes detected" before committing
 python manage.py backup_now [--list] / restore_backup NAME
 ```

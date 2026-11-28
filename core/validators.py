@@ -7,6 +7,24 @@ ALLOWED_PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 
+def _check_real_picture(file, message):
+    """SEC-001: the file must really be a JPEG, PNG or WebP picture (not just named like one),
+    because only those are ever opened when the photo is re-encoded."""
+    from PIL import Image
+
+    from .images import ALLOWED_FORMATS
+
+    position = file.tell() if hasattr(file, "tell") else 0
+    try:
+        file.seek(0)
+        with Image.open(file, formats=ALLOWED_FORMATS) as image:
+            image.verify()
+    except Exception:
+        raise ValidationError(message)
+    finally:
+        file.seek(position)
+
+
 def validate_photo(file):
     # A photo already saved on an existing post was checked when it was
     # uploaded. Skip it so editing an old post never needs to reopen the file
@@ -21,6 +39,7 @@ def validate_photo(file):
     content_type = getattr(file, "content_type", "")
     if content_type and content_type not in ALLOWED_PHOTO_TYPES:
         raise ValidationError("Upload a JPG, PNG, or WebP exterior photo.")
+    _check_real_picture(file, "Upload a JPG, PNG, or WebP exterior photo.")
 
 
 MAX_PROFILE_PHOTO_BYTES = 2 * 1024 * 1024
@@ -33,6 +52,8 @@ def validate_profile_photo(file):
     content_type = getattr(file, "content_type", "")
     if content_type and content_type not in ALLOWED_PHOTO_TYPES:
         raise ValidationError("Upload a JPG, PNG, or WebP profile picture.")
+    if not getattr(file, "_committed", False):
+        _check_real_picture(file, "Upload a JPG, PNG, or WebP profile picture.")
 
 
 MAX_REPORT_ATTACHMENT_BYTES = 5 * 1024 * 1024

@@ -3,6 +3,10 @@
 Safety
 * Only photos (JPG, PNG, WebP) and videos (MP4, MOV, WebM, 3GP, MKV) are accepted, and every
   file is **re-encoded**: photos become JPEG (Pillow), videos become H.264/AAC MP4 (ffmpeg).
+  SEC-001 (v1.1.2): videos are recognised by their first bytes (MP4/MOV/3GP or MKV/WebM only),
+  ffmpeg may read only local files with the reader Find-IT chooses, every extra stream
+  (subtitles, data, attachments, chapters, metadata) is dropped, a faint grain turns hidden
+  bits in the frames into noise, and the finished MP4 is checked before it is kept.
   A file that cannot be re-encoded as a real photo/video is refused, so hidden payloads
   ("trojan" files) never reach the other person. Only the re-encoded copy is stored; the
   received file is deleted as soon as processing ends. Chat media are private files served
@@ -172,10 +176,43 @@ def slowdown_seconds(conversation, user):
 # Re-encoding
 # ---------------------------------------------------------------------------
 
-def _probe(ffmpeg, path):
+# SEC-001 (v1.1.2): which video files may reach ffmpeg at all, and how ffmpeg runs.
+# The container is recognised from the file's first bytes (never from its name), and ffmpeg is
+# told exactly which reader to use, so playlist/"concat" files that point at other files or
+# websites are never opened. ffmpeg may only read local files.
+MP4_FAMILY_BOXES = {b"ftyp", b"moov", b"mdat", b"free", b"wide", b"skip", b"pnot"}  # MP4 / MOV / 3GP
+MATROSKA_MAGIC = b"\x1a\x45\xdf\xa3"  # MKV / WebM
+SAFE_INPUT = ["-nostdin", "-protocol_whitelist", "file,pipe"]
+ALLOWED_OUTPUT_TAGS = {"major_brand", "minor_version", "compatible_brands", "encoder", "handler_name", "vendor_id"}
+VIDEO_NOISE = "noise=alls=2:allf=t"  # tiny moving grain: hidden bits in the frames become noise
+PROBE_TIMEOUT_SECONDS = 30
+POSTER_TIMEOUT_SECONDS = 60
+
+
+def detect_container(path):
+    """Return the ffmpeg reader for an allowed video file, or refuse it (SEC-001)."""
+    with open(path, "rb") as handle:
+        head = handle.read(12)
+    if len(head) >= 8 and head[4:8] in MP4_FAMILY_BOXES:
+        return "mov"
+    if head.startswith(MATROSKA_MAGIC):
+        return "matroska"
+    raise MediaRefused("That file is not a video we can play.")
+
+
+def _run(command, timeout):
+    """Run ffmpeg as its own program: no shell, a time limit, and lower priority than the website."""
+    options = {}
+    if os.name == "nt":
+        options["creationflags"] = getattr(subprocess, "BELOW_NORMAL_PRIORITY_CLASS", 0)
+    elif shutil.which("nice"):
+        command = [shutil.which("nice"), "-n", "10", *command]
+    return subprocess.run(command, capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL, **options)
+
+
+def _probe(ffmpeg, path, reader=None):
     """Duration (s), width, height and whether there is sound, read from ffmpeg's report."""
-    result = subprocess.run([ffmpeg, "-hide_banner", "-i", path], capture_output=True, text=True, timeout=30)
-    report = result.stderr
+    report = _report(ffmpeg, path, reader)
     duration = re.search(r"Duration: (\d+):(\d+):(\d+(?:\.\d+)?)", report)
     video = re.search(r"Stream #[^\n]*Video:[^\n]*?(\d{2,5})x(\d{2,5})", report)
     if not duration or not video:
@@ -184,44 +221,75 @@ def _probe(ffmpeg, path):
     return seconds, int(video.group(1)), int(video.group(2)), "Audio:" in report
 
 
+def _report(ffmpeg, path, reader=None):
+    command = [ffmpeg, "-hide_banner", *SAFE_INPUT]
+    if reader:
+        command += ["-f", reader]
+    return _run(command + ["-i", path], PROBE_TIMEOUT_SECONDS).stderr
+
+
+def check_clean_mp4(ffmpeg, path):
+    """SEC-001: keep the result only if it is exactly what Find-IT makes: an MP4 with one
+    H.264 video stream, at most one AAC audio stream, nothing else, and no personal metadata."""
+    report = _report(ffmpeg, path, "mov")
+    if "Input #0, mov,mp4" not in report:
+        raise MediaRefused("That video could not be processed. Try another video.")
+    streams = re.findall(r"Stream #0:\d+[^:]*: (\w+): (\w+)", report)
+    videos = [codec for kind, codec in streams if kind == "Video"]
+    audios = [codec for kind, codec in streams if kind == "Audio"]
+    if videos != ["h264"] or audios not in ([], ["aac"]) or len(streams) != len(videos) + len(audios):
+        raise MediaRefused("That video could not be processed. Try another video.")
+    tags = set(re.findall(r"^\s{4,}(\w+)\s*:", report.split("Input #0", 1)[1], re.MULTILINE)) - {"Metadata"}
+    if not tags <= ALLOWED_OUTPUT_TAGS:
+        raise MediaRefused("That video could not be processed. Try another video.")
+    with open(path, "rb") as handle:
+        if handle.read(8)[4:8] != b"ftyp":
+            raise MediaRefused("That video could not be processed. Try another video.")
+
+
 def _encode_video(attachment, limits):
     ffmpeg = _ffmpeg()
     if not ffmpeg:
         raise MediaRefused("Videos cannot be processed on this computer yet (the converter is missing).")
     with tempfile.TemporaryDirectory(prefix="findit-video-") as work:
-        source = os.path.join(work, "in" + os.path.splitext(attachment.upload.name)[1])
+        source = os.path.join(work, "input.video")  # the sender's file name is never used
         with attachment.upload.open("rb") as handle, open(source, "wb") as out:
             shutil.copyfileobj(handle, out)
-        seconds, width, height, has_audio = _probe(ffmpeg, source)
+        reader = detect_container(source)
+        seconds, width, height, has_audio = _probe(ffmpeg, source, reader)
         if seconds > limits["video_seconds"] + 0.5:
             raise MediaRefused(f"Videos can be up to {limits['video_seconds']} seconds long.")
         side = limits["video_side"]
         kbps = limits["video_kbps"]
         target = os.path.join(work, "out.mp4")
         scale = f"scale='if(gt(iw,ih),min({side},iw),-2)':'if(gt(iw,ih),-2,min({side},ih))'"
-        command = [ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", source, "-map", "0:v:0"]
+        command = [ffmpeg, "-hide_banner", "-loglevel", "error", "-y", *SAFE_INPUT, "-f", reader, "-i", source,
+                   "-map", "0:v:0"]
         if has_audio:
             command += ["-map", "0:a:0?"]
         command += [
-            "-t", str(limits["video_seconds"]), "-vf", scale + ",format=yuv420p", "-c:v", "libx264",
+            "-sn", "-dn", "-map_chapters", "-1", "-map_metadata", "-1",
+            "-fflags", "+bitexact", "-flags:v", "+bitexact", "-flags:a", "+bitexact",
+            "-t", str(limits["video_seconds"]), "-vf", f"{scale},{VIDEO_NOISE},format=yuv420p", "-c:v", "libx264",
             "-preset", "veryfast", "-crf", "28", "-maxrate", f"{kbps}k", "-bufsize", f"{kbps * 2}k",
-            "-threads", "2", "-map_metadata", "-1", "-movflags", "+faststart",
+            "-threads", "2", "-movflags", "+faststart", "-f", "mp4",
         ]
         command += ["-c:a", "aac", "-b:a", "64k", "-ac", "1"] if has_audio else ["-an"]
         command.append(target)
-        done = subprocess.run(command, capture_output=True, text=True, timeout=FFMPEG_TIMEOUT_SECONDS)
+        done = _run(command, FFMPEG_TIMEOUT_SECONDS)
         if done.returncode != 0 or not os.path.exists(target) or os.path.getsize(target) == 0:
             raise MediaRefused("That video could not be processed. Try another video.")
+        check_clean_mp4(ffmpeg, target)
         poster = os.path.join(work, "poster.jpg")
-        subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-ss", str(min(0.5, seconds / 2)),
-                        "-i", target, "-frames:v", "1", poster], capture_output=True, timeout=60)
-        out_seconds, out_w, out_h, _ = _probe(ffmpeg, target)
+        _run([ffmpeg, "-hide_banner", "-loglevel", "error", "-y", *SAFE_INPUT, "-ss", str(min(0.5, seconds / 2)),
+              "-f", "mov", "-i", target, "-frames:v", "1", "-map_metadata", "-1", poster], POSTER_TIMEOUT_SECONDS)
+        out_seconds, out_w, out_h, _ = _probe(ffmpeg, target, "mov")
         with open(target, "rb") as handle:
             data = handle.read()
         preview = None
         if os.path.exists(poster):
             with open(poster, "rb") as handle:
-                preview = compress(io.BytesIO(handle.read()), **PREVIEW)
+                preview = compress(io.BytesIO(handle.read()), **PREVIEW)  # photo rules apply to posters too
         return data, preview, out_w, out_h, out_seconds
 
 
