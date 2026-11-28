@@ -175,6 +175,11 @@ Files: `core/models.py`, `core/services.py` (`open_staff_help`, `add_staff_help_
 `core/context_processors.py`, templates `staff_help_list.html`, `staff_help_new.html`, `staff_help_thread.html`,
 `includes/sidebar.html`, `post_detail.html`, `chat_room.html`, `staff_dashboard.html`, `findit.css`.
 
+## BUG-022 — Same name and time, live or after a reload
+A message showed "Sam Second · Nov 28, 3:30 PM" when it arrived live but "Sam · Nov 28 · 3:30 p.m." after a reload.
+Live messages (and live photos/videos) now use the first name and the page's format. Checked with two browsers:
+identical. Files: `core/consumers.py`, `core/chat_media.py`, `static/js/chat.js`.
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 

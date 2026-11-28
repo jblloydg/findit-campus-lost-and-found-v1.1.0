@@ -395,7 +395,7 @@ def _broadcast_message(attachment):
     message = attachment.message
     payload = {
         "type": "chat.message", "id": message.pk,
-        "sender": attachment.uploader.get_full_name() or attachment.uploader.username,
+        "sender": attachment.uploader.first_name or attachment.uploader.username,  # BUG-022
         "sender_id": attachment.uploader_id, "text": "", "sent_at": message.sent_at.isoformat(),
         "client_id": message.client_id, "attachment": attachment_json(attachment),
     }

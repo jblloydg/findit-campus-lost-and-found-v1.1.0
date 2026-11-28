@@ -415,3 +415,19 @@ class StaffInboxTests(FindItTestCase):
         self.assertIn('href="/help/"', student.get("/home/").content.decode())                  # sidebar
         self.assertIn(f'href="/help/new/?post={post.pk}"', student.get(f"/p/{post.pk}/").content.decode())  # post page
         self.assertIn('href="/help/"', self.client_for(self.staff).get("/staff/").content.decode())  # staff sidebar + workspace
+
+
+# ---- BUG-022: a chat message shows the same name and time live and after a reload ----
+class SameNameAndTimeTests(SimpleTestCase):
+    def test_live_sender_is_first_name_like_the_page(self):
+        consumers = Path(settings.BASE_DIR, "core", "consumers.py").read_text(encoding="utf-8")
+        media = Path(settings.BASE_DIR, "core", "chat_media.py").read_text(encoding="utf-8")
+        self.assertIn("self.sender_name = (user.first_name or user.username)", consumers)
+        self.assertNotIn("uploader.get_full_name()", media)
+
+    def test_script_time_format_matches_the_page(self):
+        js = Path(settings.BASE_DIR, "static", "js", "chat.js").read_text(encoding="utf-8")
+        page = Path(settings.BASE_DIR, "templates", "core", "chat_room.html").read_text(encoding="utf-8")
+        self.assertIn('date:"M j · g:i a"', page)
+        self.assertIn('" · " + hour + ":"', js)
+        self.assertIn('"a.m." : "p.m."', js)

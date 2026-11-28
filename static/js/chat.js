@@ -85,9 +85,15 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // ---- drawing ----
+  // BUG-022: the same format as the page itself ("Nov 28 · 3:30 p.m."), so a message looks the same
+  // when it arrives live and after a reload.
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   function formatTime(value) {
     var date = new Date(value);
-    return date.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    if (isNaN(date.getTime())) return "";
+    var hour = date.getHours() % 12 || 12;
+    return MONTHS[date.getMonth()] + " " + date.getDate() + " · " + hour + ":" +
+      String(date.getMinutes()).padStart(2, "0") + " " + (date.getHours() < 12 ? "a.m." : "p.m.");
   }
   function bubble(sender, timeText, text, mine) {
     var article = document.createElement("article");
