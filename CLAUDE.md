@@ -18,7 +18,7 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 
 ## Branches and versions
 - `main` = the stable released version. Branch **`stable/v1.1.0`** is the frozen v1.1.0 rollback point (this session could not push tags; add tag `v1.1.0` from GitHub Releases if wanted).
-- Work for the next version happens on **`release/1.1.2`** (branched from the finished v1.1.1 on `main`). v1.1.2 = bug fixes for v1.1.1 found by testers; it must keep running on local devices (one Windows PC, no hosting). Frozen copies: `stable/v1.1.0`, `stable/v1.1.1`.
+- Work for the next version happens on **`release/1.1.2`** (in both the public repo and the owner's private copy, see below) (branched from the finished v1.1.1 on `main`). v1.1.2 = bug fixes for v1.1.1 found by testers; it must keep running on local devices (one Windows PC, no hosting). Frozen copies: `stable/v1.1.0`, `stable/v1.1.1`.
 - One bug or change = one commit (message starts with its ID, e.g. `BUG-003: …`), so any fix can be reverted alone.
 - **Version plan:** v1.1.1 = V2-I school verification + bug fixes → v2.0.0 interface overhaul → v2.1.0 its bug fixes → v3.0.0 online hosting + PostgreSQL + all of V2-J (performance and uptime evidence). Don't start hosting/PostgreSQL/Redis/SMTP/V2-J work before v3.0.0 unless asked; keep the code PostgreSQL-compatible meanwhile. Details in `docs/ROADMAP.md`.
 - When the owner approves a version: merge its `release/…` branch into `main` and add a frozen `stable/v<version>` branch (tags can be added on GitHub). Never rewrite or delete history.
@@ -47,9 +47,11 @@ This repository and its release branches are shared publicly. **Never** put any 
 - instructions for creating or managing the owner's Developer account;
 - real people's names, Student IDs, emails or other personal data;
 - any other sensitive instruction the owner marks as private.
-They belong only in the owner's **private copy** (a private repository or the owner's PC).
+They belong only in the owner's **private copy** (a private repository or the owner's PC). If a task needs one, ask the owner instead of writing it here.
 
-**Two copies of every release (owner's rule since v1.1.2):** this **public** repository has the full program without the private parts; the owner's **private** repository has the same branches (`main`, `release/<version>`, `stable/v<version>`) plus the private notes. Changes flow **public → private only**: do the work here, then merge each public branch into the private branch of the same name. **Never push or merge a private branch into this repository.** When a version is approved, update and freeze both copies (merge into `main`, add `stable/v<version>` in both). If a task needs one, ask the owner instead of writing it here. Demo passwords are made per PC (`core/demo_logins.py`). `core/tests/test_v112.py::NoSensitiveDataInSharedFilesTests` scans every tracked file and must pass; extend its patterns when something new must stay private. Check for leaks in every version's bug hunt.
+**Two copies of every release (owner's rule since v1.1.2):** this **public** repository has the full program without the private parts; the owner's **private** repository has the same branches (`main`, `release/<version>`, `stable/v<version>`) plus the private notes. Changes flow **public → private only**: do the work here, then merge each public branch into the private branch of the same name. **Never push or merge a private branch into this repository.** When a version is approved, update and freeze both copies (merge into `main`, add `stable/v<version>` in both).
+
+Demo passwords are made per PC (`core/demo_logins.py`). `core/tests/test_v112.py::NoSensitiveDataInSharedFilesTests` scans every tracked file and must pass; extend its patterns when something new must stay private. Check for leaks in every version's bug hunt.
 
 ## Reports required for EVERY version (owner's rule since v1.1.1)
 Before a version is pushed for approval, it must include, in plain text (readable in any Claude session):
@@ -84,7 +86,7 @@ Run the bug hunt again after any big change (e.g. chat, media) and once more on 
 ```powershell
 python manage.py migrate            # never run makemigrations on a server; commit new migrations
 python manage.py seed_demo          # fictional demo data (local only); random passwords -> demo-logins.txt
-python manage.py test core          # 202 tests; keep them passing, add tests for each fix
+python manage.py test core          # 224 tests (v1.1.2); keep them passing, add tests for each fix
 python manage.py makemigrations --check --dry-run   # must say "No changes detected" before committing
 python manage.py backup_now [--list] / restore_backup NAME
 ```
