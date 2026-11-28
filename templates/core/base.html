@@ -19,9 +19,9 @@
   <div class="app-main">
     <header class="app-topbar">
       <button type="button" class="icon-button menu-toggle" data-drawer-open aria-controls="app-sidebar" aria-expanded="false" aria-label="Open menu">{% include "core/includes/icon.html" with name="menu" %}</button>
-      <form class="topbar-search" method="get" action="{% url 'home' %}" role="search">
+      <form class="topbar-search" method="get" action="{% url 'global-search' %}" role="search">
         {% include "core/includes/icon.html" with name="search" %}
-        <input type="search" name="q" value="{{ request.GET.q }}" placeholder="Search lost and found items…" aria-label="Search lost and found items">
+        <input type="search" name="q" value="{% if request.resolver_match.url_name == 'global-search' %}{{ request.GET.q }}{% endif %}" placeholder="Search everything…" aria-label="Search everything: posts, chats, pages">
       </form>
       <div class="topbar-actions">
         <a class="button button-primary new-post-full" href="{% url 'create-post' %}">{% include "core/includes/icon.html" with name="plus-circle" %}New post</a>

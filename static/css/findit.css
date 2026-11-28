@@ -1294,3 +1294,19 @@ body.chat-overlay-open { overflow: hidden; }
 .form-page-narrow { width: min(100% - 2 * var(--gutter), 44rem); }
 .contact-staff-link { display: inline-flex; align-items: center; gap: 0.4rem; min-height: var(--tap); }
 .contact-staff-link svg { width: 1.05rem; height: 1.05rem; }
+
+/* ===== v2.1.0 CHG-020: general search (top bar) ===== */
+.global-search-form { grid-template-columns: minmax(0, 1fr) auto; }
+.search-group { margin-top: clamp(1.25rem, 3vw, 2rem); }
+.search-group h2 { margin-bottom: 0.6rem; font-size: var(--step-1); }
+.search-group .section-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+.search-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.search-chips .chip { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0.4rem 0.9rem; border: 1px solid var(--line); border-radius: var(--pill); background: var(--paper); color: var(--ink); text-decoration: none; font-size: var(--step--1); font-weight: 600; }
+.search-chips .chip:hover { border-color: var(--sage); background: var(--sage-wash); }
+.search-list { display: grid; gap: 0.5rem; }
+.search-row { display: flex; align-items: center; gap: 0.8rem; min-height: var(--tap); padding: 0.6rem 0.8rem; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255,255,255,.94); color: var(--ink); text-decoration: none; }
+.search-row:hover { border-color: var(--sage); background: var(--sage-wash); }
+.search-thumb { flex: 0 0 3rem; width: 3rem; height: 3rem; border-radius: var(--radius-sm); background: var(--sage-pale); object-fit: cover; }
+.search-row-text { display: grid; gap: 0.15rem; min-width: 0; }
+.search-row-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-row-text small { color: var(--muted); font-size: var(--step--2); }

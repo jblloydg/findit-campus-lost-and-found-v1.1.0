@@ -2432,3 +2432,85 @@ def staff_help_thread(request, thread_id):
     return render(request, "core/staff_help_thread.html", {
         "thread": thread, "help_messages": thread.messages.select_related("sender"), "staff_view": staff_view,
     })
+
+
+# ---- CHG-020 (v2.1.0): the top bar is a general search over everything you can open ----
+# (The search on the dashboard stays the specific one: it filters the listings below it.)
+SEARCH_PAGES = [
+    # (label, words people might type, url name, query, who can see it)
+    ("Dashboard", "home dashboard listings browse", "home", "", "all"),
+    ("Lost items", "lost items browse missing", "home", "?type=LOST", "all"),
+    ("Found items", "found items browse", "home", "?type=FOUND", "all"),
+    ("Report a lost item", "report lost post new create", "create-post", "?type=LOST", "all"),
+    ("Report a found item", "report found post new create guard house", "create-post", "?type=FOUND", "all"),
+    ("My posts", "my posts listings mine", "my-posts", "", "all"),
+    ("My claims", "my claims claim applications", "my-claims", "", "all"),
+    ("Messages", "messages chats chat conversations inbox", "messages", "", "all"),
+    ("Notifications", "notifications updates alerts bell", "notifications", "", "all"),
+    ("My reports", "my reports report problem", "my-reports", "", "all"),
+    ("Report a problem", "report problem bug issue help", "general-report-create", "", "all"),
+    ("Contact staff", "contact staff help guard support inbox", "staff-help", "", "student"),
+    ("My profile", "profile account me photo", "my-profile", "", "all"),
+    ("Edit profile", "edit profile name photo", "edit-profile", "", "all"),
+    ("Change password", "change password security", "change-password", "", "all"),
+    ("Verify my email", "verify email verification verified", "verify-email", "", "all"),
+    ("Blocked people", "blocked people block unblock", "blocked-people", "", "all"),
+    ("Staff workspace", "staff workspace dashboard guard", "staff-dashboard", "", "staff"),
+    ("Scan turn-in QR", "scan qr turn in code guard house", "staff-scan", "", "staff"),
+    ("Walk-in item", "walk in walk-in guard house record", "walk-in", "", "staff"),
+    ("Staff inbox", "staff inbox help requests contact", "staff-help", "", "staff"),
+    ("Chat & item reports", "reports chat safety moderation", "admin-reports", "", "review"),
+    ("System reports", "system reports general problems", "general-reports", "", "review"),
+    ("ID reviews", "id reviews student id conflict", "id-reviews", "", "review"),
+    ("Admin dashboard", "admin dashboard numbers", "admin-dashboard", "", "admin"),
+    ("Accounts", "accounts users people students staff", "staff-accounts", "", "admin"),
+    ("Moderator verification", "moderator verification verify staff", "moderator-verifications", "", "admin"),
+    ("Categories", "categories category", "admin-categories", "", "admin"),
+    ("Question bank", "questions question bank ownership", "admin-questions", "", "admin"),
+    ("System settings", "settings system limits", "admin-settings", "", "admin"),
+    ("Backups", "backups backup restore", "backup-status", "", "admin"),
+    ("Audit trail", "audit trail log history", "audit-log", "", "admin"),
+    ("System status", "system status health", "system-status", "", "admin"),
+]
+
+
+@login_required
+def global_search(request):
+    from .models import StaffHelpThread
+    from .permissions import can_review_reports
+    q = request.GET.get("q", "").strip()[:100]
+    staff = is_staff_or_admin(request.user)
+    results = {"posts": [], "categories": [], "chats": [], "help": [], "pages": [], "post_total": 0}
+    if len(q) >= 2:
+        posts = ItemPost.objects.filter(is_archived=False).filter(
+            Q(title__icontains=q) | Q(description__icontains=q) | Q(category__name__icontains=q)
+        ).select_related("category").prefetch_related("photos").order_by("-created_at")
+        results["post_total"] = posts.count()
+        results["posts"] = list(posts[:12])
+        results["categories"] = list(Category.objects.filter(name__icontains=q, is_active=True)[:8])
+        name = Q(post__title__icontains=q) | Q(initiator__first_name__icontains=q) | Q(recipient__first_name__icontains=q)
+        results["chats"] = list(
+            Conversation.objects.filter(Q(initiator=request.user) | Q(recipient=request.user)).filter(name)
+            .select_related("post", "initiator", "recipient").order_by("-updated_at")[:8]
+        )
+        for chat in results["chats"]:
+            chat.other_person = chat.recipient if chat.initiator_id == request.user.pk else chat.initiator
+        threads = StaffHelpThread.objects.filter(Q(subject__icontains=q) | Q(post__title__icontains=q))
+        if not staff:
+            threads = threads.filter(requester=request.user)
+        results["help"] = list(threads.select_related("requester")[:8])
+        role = "admin" if is_admin(request.user) else "review" if can_review_reports(request.user) else "staff" if staff else "student"
+        allowed = {"all", role, "student" if role == "student" else "staff"}
+        if role == "admin":
+            allowed |= {"staff", "review"}
+        if role == "review":
+            allowed |= {"staff"}
+        words = q.lower().split()
+        for label, keywords, url_name, query, who in SEARCH_PAGES:
+            if who not in allowed:
+                continue
+            haystack = f"{label} {keywords}".lower()
+            if all(word in haystack for word in words):
+                results["pages"].append({"label": label, "url": reverse(url_name) + query})
+    total = sum(len(v) for k, v in results.items() if k != "post_total")
+    return render(request, "core/search.html", {"q": q, "results": results, "total": total})

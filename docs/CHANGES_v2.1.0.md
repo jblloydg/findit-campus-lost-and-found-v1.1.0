@@ -190,6 +190,17 @@ whose Windows version reads AVIF (on a PC with an older Pillow, AVIF is simply r
 Files: `core/images.py`, `core/validators.py`, `core/forms.py`, `core/chat_media.py`, `static/js/app.js`, `static/js/chat.js`,
 `templates/core/chat_room.html`, `requirements.txt`.
 
+## CHG-020 — Two search bars with two jobs
+The team saw two search bars doing the same search. Owner: the top one is general, the one on the dashboard is specific.
+- **Top bar → Search everything** (`/search/`): results grouped as **Pages** (Find-IT pages for your role, e.g. type
+  "claims" → My claims; admins also find Question bank, Backups …), **Posts** (with "See all in listings"),
+  **Categories**, **Your chats** (by item or the other person's name) and **Your requests to staff** (staff: the staff inbox).
+  Only things the person may open are shown.
+- **Dashboard search → Filter these listings**: unchanged behaviour (title/description/category text together with
+  type, category, status and dates); the field and button now say *Filter*.
+Files: `core/views.py` (`global_search`, `SEARCH_PAGES`), `core/urls.py`, `templates/core/search.html` (new), `base.html`,
+`home.html`, `findit.css`.
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 

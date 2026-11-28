@@ -39,6 +39,7 @@ urlpatterns = [
         template_name="core/password_reset_complete.html",
     ), name="password_reset_complete"),
     path("home/", views.home, name="home"),
+    path("search/", views.global_search, name="global-search"),
     path("p/<uuid:post_id>/", views.post_detail, name="post-detail"),
     path("posts/new/", views.create_post, name="create-post"),
     path("posts/<uuid:post_id>/edit/", views.edit_post, name="edit-post"),

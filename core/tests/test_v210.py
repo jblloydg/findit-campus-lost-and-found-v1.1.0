@@ -472,3 +472,34 @@ class AvifPhotoTests(FindItTestCase):
         self.assertEqual(kind_of("phone.avif"), ChatAttachment.Kind.PHOTO)
         data = compress(io.BytesIO(_avif().read()), max_side=1600, max_bytes=300 * 1024)
         self.assertTrue(data.startswith(b"\xff\xd8\xff"))
+
+
+# ---- CHG-020: top bar = general search (everything); dashboard search = filter of the listings ----
+class GeneralSearchTests(FindItTestCase):
+    def test_top_bar_goes_to_general_search_and_dashboard_filters(self):
+        page = self.client_for(self.alice).get("/home/").content.decode()
+        self.assertIn('class="topbar-search" method="get" action="/search/"', page)
+        self.assertIn('aria-label="Filter these listings"', page)
+
+    def test_finds_posts_chats_and_pages_for_this_person(self):
+        post = self.create_post(self.alice, "LOST", title="Purple calculator")
+        self.client_for(self.finder).get(f"/p/{post.pk}/?resume=message")
+        page = self.client_for(self.finder).get("/search/?q=purple").content.decode()
+        self.assertIn(f"/p/{post.pk}/", page)                 # post
+        conv = Conversation.objects.get(post=post, initiator=self.finder)
+        self.assertIn(f"/conversations/{conv.pk}/", page)      # the finder's chat about it
+        self.assertNotIn(f"/conversations/{conv.pk}/", self.client_for(self.bob).get("/search/?q=purple").content.decode())
+        self.assertIn('href="/my-claims/"', self.client_for(self.bob).get("/search/?q=claims").content.decode())
+
+    def test_staff_and_admin_pages_only_for_them(self):
+        self.assertNotIn("Question bank", self.client_for(self.alice).get("/search/?q=question").content.decode())
+        self.assertIn("Question bank", self.client_for(self.admin).get("/search/?q=question").content.decode())
+        self.assertIn("Scan turn-in QR", self.client_for(self.staff).get("/search/?q=scan").content.decode())
+        self.assertNotIn("Scan turn-in QR", self.client_for(self.alice).get("/search/?q=scan").content.decode())
+
+    def test_short_or_hostile_queries_are_safe(self):
+        client = self.client_for(self.alice)
+        for q in ("a", "", "%", "' OR 1=1 --", "<script>alert(1)</script>", "x" * 500):
+            response = client.get("/search/", {"q": q})
+            self.assertEqual(response.status_code, 200, q)
+            self.assertNotIn("<script>alert(1)</script>", response.content.decode())
