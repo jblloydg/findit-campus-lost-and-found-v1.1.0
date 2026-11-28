@@ -243,6 +243,8 @@ a.category-tag:hover { color: var(--ink); background: var(--sage-pale); }
   background: var(--paper); box-shadow: var(--shadow);
 }
 .panel + .panel { margin-top: var(--space-4); }
+.accounts-panel { margin-top: var(--space-4); } /* BUG-011: list panels on Accounts, Backups, Moderators, My reports */
+.accounts-panel .result-heading { margin-top: 0; }
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem 1rem; margin-bottom: 1rem; }
 .section-heading h2 { margin-top: 0.3rem; font-size: var(--step-2); }
 .section-heading .text-action, .section-heading .button { flex: 0 0 auto; }
@@ -261,6 +263,7 @@ a.category-tag:hover { color: var(--ink); background: var(--sage-pale); }
   color: var(--ink); background-color: #fff; font-size: max(1rem, var(--step-0)); max-width: 100%;
 }
 .stack-form { display: grid; gap: 1rem; }
+.compact-form { gap: 0.5rem; } /* BUG-011: small action forms (claims, turn-in, status requests) */
 .stack-form label, .settings-panel label, .admin-review-form label, .field-label {
   display: grid; gap: 0.4rem; color: var(--ink); font-size: var(--step--1); font-weight: 600;
 }
