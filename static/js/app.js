@@ -317,11 +317,12 @@ document.addEventListener("DOMContentLoaded", function () {
   var overlay = document.getElementById("chat-overlay");
   if (overlay && window.history && window.history.pushState) {
     var frame = overlay.querySelector("iframe");
-    var postUrl = window.location.pathname + window.location.search;
+    var postUrl = window.location.pathname + window.location.search;   // the page under the window
     var chatPath = /^\/conversations\/[0-9a-f-]+\/$/;
     var lastFocus = null, pushedUrl = null, frameChat = null;
     var openChat = function (url) {
       lastFocus = document.activeElement;
+      if (overlay.hidden && !chatPath.test(window.location.pathname)) postUrl = window.location.pathname + window.location.search;
       overlay.hidden = false;
       document.body.classList.add("chat-overlay-open");
       var target = url.split("#")[0];
@@ -360,7 +361,11 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
     document.addEventListener("click", function (event) {
-      var opener = event.target.closest && event.target.closest("[data-chat-open], [data-chat-start], [data-chat-url]");
+      var opener = event.target.closest && event.target.closest("[data-chat-open], [data-chat-start], [data-chat-url], a[href^='/conversations/']");
+      // DES-008: any link to a chat, on any page, opens the chat window (not links to a chat's sub-pages).
+      if (opener && opener.matches("a[href^='/conversations/']:not([data-chat-open]):not([data-chat-start])")
+          && !chatPath.test(opener.getAttribute("href").split(/[?#]/)[0])) opener = null;
+      if (opener && opener.target) opener = null;
       if (opener && !event.ctrlKey && !event.metaKey && !event.shiftKey && event.button === 0) {
         event.preventDefault();
         openChat(opener.getAttribute("data-chat-url") || opener.getAttribute("href"));

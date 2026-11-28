@@ -328,3 +328,19 @@ class SignInHelpTests(FindItTestCase):
         post.save(update_fields=["is_shared"])
         page = self.client.get(f"/p/{post.pk}/").content.decode()
         self.assertIn(f"/login/?next=/p/{post.pk}/", page)
+
+
+# ---- DES-008: the chat window opens over whatever page you are on ----
+class ChatWindowEverywhereTests(FindItTestCase):
+    def test_window_on_ordinary_pages_but_not_on_the_full_chat_page(self):
+        client = self.client_for(self.finder)
+        for url in ("/home/", "/messages/", "/notifications/", "/my-posts/"):
+            self.assertIn('id="chat-overlay"', client.get(url).content.decode(), url)
+        lost = self.create_post(self.alice, "LOST")
+        client.get(f"/p/{lost.pk}/?resume=message")
+        conv = Conversation.objects.get(post=lost, initiator=self.finder)
+        self.assertNotIn('id="chat-overlay"', client.get(f"/conversations/{conv.pk}/").content.decode())
+        self.assertIn(f'href="/conversations/{conv.pk}/"', client.get("/messages/").content.decode())
+
+    def test_signed_out_pages_have_no_window(self):
+        self.assertNotIn('id="chat-overlay"', self.client.get("/login/").content.decode())

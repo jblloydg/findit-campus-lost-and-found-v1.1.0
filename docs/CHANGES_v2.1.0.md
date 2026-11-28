@@ -123,6 +123,13 @@ Checked every way of signing in in Chrome (login page, landing page, the pop-up 
 - The top **Log in** button on a post page went to the dashboard after signing in; it now comes back to the post.
 Files: `core/auth.py`, `core/views.py` (`login_view`), `templates/core/base.html`.
 
+## DES-008 — The chat window opens over any page
+Owner: "just a chat window overlaying the interface the web is on". Any link to a chat — a row in
+**Messages**, a chat notice in **Notifications**, a chat link in **My claims**, the post page buttons — opens
+the chat window over the page you are on. The address bar shows the chat's link while it is open;
+**× / Esc / Back** close it and you are back on that page as you left it. A reload or Ctrl/⌘-click opens the
+full chat page. Files: `templates/core/base.html` (the window), `templates/core/post_detail.html`, `static/js/app.js`.
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 
