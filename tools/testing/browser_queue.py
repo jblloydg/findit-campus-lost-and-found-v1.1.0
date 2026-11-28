@@ -25,11 +25,11 @@ with sync_playwright() as pw:
     # 1) Server goes down.
     srv.terminate(); srv.wait(); page.wait_for_timeout(1500)
     print("after drop:", page.inner_text("#chat-status"))
-    page.fill("#chat-input", "Queued while offline 1"); page.click("#chat-form button")
-    page.fill("#chat-input", "Queued while offline 1"); page.click("#chat-form button")  # double press, same text
+    page.fill("#chat-input", "Queued while offline 1"); page.click("#chat-form .chat-send")
+    page.fill("#chat-input", "Queued while offline 1"); page.click("#chat-form .chat-send")  # double press, same text
     print("pending bubbles:", page.locator(".is-pending").count())
     # 2) Reload while the server is still down? Can't load a page then, so queue one more and keep the page.
-    page.fill("#chat-input", "Queued while offline 2"); page.click("#chat-form button")
+    page.fill("#chat-input", "Queued while offline 2"); page.click("#chat-form .chat-send")
     print("pending bubbles:", page.locator(".is-pending").count(), "| status:", page.inner_text("#chat-status"))
     # 3) Server comes back; the chat reconnects by itself and sends the queue.
     srv = start(); page.wait_for_timeout(12000)
