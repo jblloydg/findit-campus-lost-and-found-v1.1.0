@@ -1,13 +1,13 @@
 @echo off
 rem ==========================================================================
-rem  Find-IT v1.1.1 - one-click menu for Windows
+rem  Find-IT v1.1.2 - one-click menu for Windows
 rem  Double-click this file. The first time it installs everything by itself
 rem  (needs internet once). Then pick a number from the menu.
 rem  Doing nothing for 20 seconds starts Find-IT automatically - only the
 rem  first time the menu shows (BUG-009: it used to repeat every 20 seconds).
 rem ==========================================================================
 setlocal EnableExtensions
-title Find-IT v1.1.1
+title Find-IT v1.1.2
 cd /d "%~dp0"
 set "PY=%~dp0.venv\Scripts\python.exe"
 
@@ -22,7 +22,7 @@ set "AUTOSTART=1"
 :menu
 cls
 echo.
-echo   ==================  Find-IT v1.1.1  ==================
+echo   ==================  Find-IT v1.1.2  ==================
 echo.
 echo     1  Start Find-IT  ^(opens your browser^)
 echo     2  Show the demo sign-ins for this PC

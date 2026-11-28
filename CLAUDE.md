@@ -47,7 +47,9 @@ This repository and its release branches are shared publicly. **Never** put any 
 - instructions for creating or managing the owner's Developer account;
 - real people's names, Student IDs, emails or other personal data;
 - any other sensitive instruction the owner marks as private.
-They belong only in the owner's **private copy** (a private repository or the owner's PC). If a task needs one, ask the owner instead of writing it here. Demo passwords are made per PC (`core/demo_logins.py`). `core/tests/test_v112.py::NoSensitiveDataInSharedFilesTests` scans every tracked file and must pass; extend its patterns when something new must stay private. Check for leaks in every version's bug hunt.
+They belong only in the owner's **private copy** (a private repository or the owner's PC).
+
+**Two copies of every release (owner's rule since v1.1.2):** this **public** repository has the full program without the private parts; the owner's **private** repository has the same branches (`main`, `release/<version>`, `stable/v<version>`) plus the private notes. Changes flow **public → private only**: do the work here, then merge each public branch into the private branch of the same name. **Never push or merge a private branch into this repository.** When a version is approved, update and freeze both copies (merge into `main`, add `stable/v<version>` in both). If a task needs one, ask the owner instead of writing it here. Demo passwords are made per PC (`core/demo_logins.py`). `core/tests/test_v112.py::NoSensitiveDataInSharedFilesTests` scans every tracked file and must pass; extend its patterns when something new must stay private. Check for leaks in every version's bug hunt.
 
 ## Reports required for EVERY version (owner's rule since v1.1.1)
 Before a version is pushed for approval, it must include, in plain text (readable in any Claude session):

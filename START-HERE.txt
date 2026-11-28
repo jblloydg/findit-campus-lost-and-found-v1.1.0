@@ -1,4 +1,4 @@
-FIND-IT v1.1.1 - HOW TO RUN IT ON YOUR WINDOWS PC
+FIND-IT v1.1.2 - HOW TO RUN IT ON YOUR WINDOWS PC
 =================================================
 
 You only need to do steps 1-2 once.

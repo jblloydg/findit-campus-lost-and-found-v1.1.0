@@ -1,4 +1,4 @@
-# Find-IT v1.1.1
+# Find-IT v1.1.2
 
 Campus lost-and-found web app for Davao Oriental State University.
 
@@ -16,6 +16,7 @@ The local demo uses fictional accounts and a local SQLite database. It does not 
 - Student, staff, and administrator workflows, status history, notifications, staff chat review, and administrator reports.
 - Responsive pages styled to match the navy and teal Padlet wireframes.
 - **New in 1.1.1:** optional email verification (✔ Verified badge, Test inbox for local testing), sign-in with email, Student ID rules with ID reviews, lower limits and a warning for unverified students, and Report & block. See **HANDOFF.md → Changes in 1.1.1**.
+- **New in 1.1.2 (bug fixes and security):** the start window no longer reopens the browser every 20 seconds; the design shows on every Windows PC; notifications only open Find-IT's own pages; the post page category link works; demo passwords are made fresh on each PC and are never published. See **docs/CHANGES_v1.1.2.md**.
 
 Version 1.1.0 combines four development sessions; see **HANDOFF.md** for what came from each, the decisions taken where they differed, setup steps and quick checks.
 
@@ -27,7 +28,26 @@ Version 1.1.0 combines four development sessions; see **HANDOFF.md** for what ca
 2. Double-click **`FindIT.cmd`**. The first time it installs everything by itself (it can even install Python for you).
 3. Press **1** (or wait 20 seconds). Your browser opens http://127.0.0.1:8000/. Keep the black window open; close it to stop.
 
-The menu also shows the demo sign-ins (2), resets the demo data (3), runs the automatic checks (4), makes a backup (5) and more. Run `make_desktop_shortcut.cmd` once for a Desktop icon.
+The menu also shows the demo sign-ins for your PC (2), resets the demo data (3), runs the automatic checks (4) and makes a backup (5). The 20-second automatic start happens only the first time the menu shows. Run `make_desktop_shortcut.cmd` once for a Desktop icon.
+
+**Opened it twice?** The second window says Find-IT is already running and opens your browser once. Close that extra window (or press 0); keep the first one open.
+
+## Get the latest version with Git Bash
+
+One time only: download a copy that can update itself, and make a one-word shortcut.
+
+~~~bash
+cd ~
+git clone https://github.com/jblloydg/findit-campus-lost-and-found-v1.1.0.git
+echo "alias findit='cd ~/findit-campus-lost-and-found-v1.1.0 && git pull --ff-only && start FindIT.cmd'" >> ~/.bashrc
+source ~/.bashrc
+~~~
+
+Every time after that, open Git Bash and type **`findit`**. It downloads the newest released version (`main`) and opens the Find-IT window. Your database, photos, backups and demo sign-ins are never touched by an update (Git ignores them).
+
+- If `git pull` says it cannot fast-forward, a file in that folder was edited by hand: run `git stash`, then `findit` again.
+- If `start` does not work in your Git Bash, use `cmd.exe //c start "" FindIT.cmd` in the alias instead.
+- To try a version before it is released, switch branch once: `git checkout release/1.1.2` (back with `git checkout main`).
 
 <details><summary>Manual steps for developers (PowerShell)</summary>
 
@@ -44,12 +64,23 @@ python manage.py seed_demo           # fictional demo data, local only
 
 ## Fictional demo accounts
 
-The demo data makes fictional accounts (students, a security guard, a verified moderator and an
-administrator) **for local testing only**. Their passwords are made at random on each PC the first
-time the demo data is created, and are never stored in this repository. To see the sign-ins for
-your PC, open **FindIT.cmd → menu 2** (or the file `demo-logins.txt` in the Find-IT folder, which
-Git ignores). Students sign in with their email; a student whose Student ID is ✔ Verified can also
-type the Student ID. The demo data refuses to run on an online site (DEBUG off).
+The demo data makes these fictional accounts **for local testing only** (never on an online site).
+Their passwords are made at random on each PC the first time the demo data is created and are
+never stored in this repository: **open FindIT.cmd → menu 2** to see the passwords for your PC
+(they are also in `demo-logins.txt` in the Find-IT folder, which Git ignores).
+
+| Role | Sign-in | Password |
+| --- | --- | --- |
+| Student / finder (verified) | alex.finder@example.com or 2026-0001 | menu 2 |
+| Student / claimant (verified) | jamie.claimant@example.com or 2026-0002 | menu 2 |
+| Student / second claimant (verified) | sam.second@example.com or 2026-0003 | menu 2 |
+| Student / declined claimant (verified) | riley.third@example.com or 2026-0004 | menu 2 |
+| Student, **not verified** (shows the limits and warning) | casey.unverified@example.com | menu 2 |
+| Staff (security guard) | security.demo | menu 2 |
+| Staff (verified moderator) | moderator.demo | menu 2 |
+| Administrator | findit-admin | menu 2 |
+
+Students sign in with their email; a student whose Student ID is ✔ Verified can also type the Student ID.
 
 ## Main routes
 
