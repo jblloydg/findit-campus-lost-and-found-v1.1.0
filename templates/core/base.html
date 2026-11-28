@@ -61,7 +61,7 @@
   </a>
   {% block public_nav %}{% endblock %}
   <div class="public-actions">
-    <a class="button button-ghost-light" href="{% url 'login' %}">Log in</a>
+    <a class="button button-ghost-light" href="{% url 'login' %}{% if request.resolver_match.url_name == 'post-detail' %}?next={{ request.get_full_path|urlencode }}{% endif %}">Log in</a>
     <a class="button button-soft" href="{% url 'signup' %}">Create account</a>
   </div>
 </header>

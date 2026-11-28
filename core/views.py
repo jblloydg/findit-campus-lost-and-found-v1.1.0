@@ -64,6 +64,9 @@ from .services import (
 User = get_user_model()
 
 
+from .auth import STUDENT_ID_PATTERN  # noqa: E402  (BUG-024 sign-in hint)
+
+
 def _safe_next(request, fallback="home"):
     target = request.POST.get("next") or request.GET.get("next") or ""
     if target and url_has_allowed_host_and_scheme(target, {request.get_host()}):
@@ -107,7 +110,13 @@ def login_view(request):
             messages.success(request, f"Welcome back, {user.first_name or user.username}.")
             return redirect(_safe_next(request, fallback=_role_home(user)))
         record_login_failure(username, ip)
-        messages.error(request, "Sign-in failed. Check the details below.")
+        if STUDENT_ID_PATTERN.fullmatch(username.strip()):
+            # BUG-024: the team typed a Student ID on new (not yet verified) accounts and only saw
+            # "Sign-in failed". Shown for every Student ID, so it does not reveal whether an account exists.
+            messages.error(request, "Sign-in failed. A Student ID only works after your email is verified, "
+                                    "so sign in with your email address instead.")
+        else:
+            messages.error(request, "Sign-in failed. Check the details below.")
     return render(request, "core/login.html", {
         "form": form,
         "next": request.POST.get("next") or request.GET.get("next", ""),

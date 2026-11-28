@@ -296,3 +296,35 @@ class ChatBarTests(FindItTestCase):
 
     def test_question_list_rows_never_squeezed(self):
         self.assertIn(".question-list { grid-auto-rows: max-content; }", CSS)
+
+
+# ---- BUG-024: sign-in problems the team ran into ----
+from .base import PASSWORD
+
+
+class SignInHelpTests(FindItTestCase):
+    def test_staff_username_any_case(self):
+        response = self.client.post("/login/", {"username": "Guard.Test", "password": PASSWORD})
+        self.assertEqual(response.status_code, 302)
+
+    def test_student_cannot_use_internal_username_in_any_case(self):
+        response = self.client.post("/login/", {"username": "2026-0001".upper(), "password": PASSWORD})
+        self.assertEqual(response.status_code, 302)  # verified Student ID still works
+        self.make_user("2026-0099", verified=False)
+        self.client.logout()
+        response = self.client.post("/login/", {"username": "2026-0099", "password": PASSWORD}, follow=True)
+        self.assertContains(response, "A Student ID only works after your email is verified")
+        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertEqual(self.client.post("/login/", {"username": "2026-0099".lower(), "password": PASSWORD}).status_code, 200)
+
+    def test_wrong_student_id_shows_the_same_hint(self):
+        # The hint is shown for any Student ID, so it does not reveal whether an account exists.
+        response = self.client.post("/login/", {"username": "2026-9999", "password": "nope-nope"}, follow=True)
+        self.assertContains(response, "A Student ID only works after your email is verified")
+
+    def test_top_log_in_on_a_post_comes_back_to_the_post(self):
+        post = self.create_post(self.finder, "FOUND")
+        post.is_shared = True
+        post.save(update_fields=["is_shared"])
+        page = self.client.get(f"/p/{post.pk}/").content.decode()
+        self.assertIn(f"/login/?next=/p/{post.pk}/", page)

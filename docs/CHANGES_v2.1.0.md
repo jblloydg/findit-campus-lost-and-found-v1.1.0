@@ -111,6 +111,18 @@ Files: `templates/core/chat_room.html`, `templates/core/chat_embed_base.html` (n
 `templates/core/includes/icon.html` (image icon), `static/js/chat.js`, `static/js/app.js`, `static/css/findit.css`,
 `core/views.py` (`_is_embedded`, `chat_room`, `post_detail`), `findit/settings.py` (`X_FRAME_OPTIONS`).
 
+## BUG-024 — Sign-in problems the team ran into
+Checked every way of signing in in Chrome (login page, landing page, the pop-up on a post, phone and PC,
+`127.0.0.1` and `localhost`): signing in works. What confused people, now fixed:
+- New student accounts are **not verified**, and a Student ID only works after the email is verified
+  (decision 12). Typing the Student ID only said "Sign-in failed". Now: *A Student ID only works after your
+  email is verified, so sign in with your email address instead.* (Shown for any Student ID, so it does not
+  reveal whether an account exists.)
+- Staff/admin usernames were case-sensitive (`Security.Demo` failed). Now any case works (only when exactly
+  one account matches).
+- The top **Log in** button on a post page went to the dashboard after signing in; it now comes back to the post.
+Files: `core/auth.py`, `core/views.py` (`login_view`), `templates/core/base.html`.
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 
