@@ -17,6 +17,7 @@ Every fix is its own commit (`git log --oneline`), so any single one can be reve
 | ID | Bug | Fix |
 | --- | --- | --- |
 | BUG-009 | `FindIT.cmd` opened the login page again about every 20 seconds when nobody pressed a key (seen when Find-IT was opened twice). | The 20-second auto-start now runs only the first time the menu shows. If Find-IT is already running, the extra window opens the browser once and waits; close it or press 0. |
+| BUG-010 | Some PCs showed Find-IT with no design (plain text page). Cause: a Windows registry setting changed by another program made the design file look like plain text, so the browser refused it. | Find-IT now always sends its design and script files with the standard types. PCs that were fine are not affected. |
 | BUG-008 | Post page: the category tag was empty and its link filtered by name; a dormant location could be shown. | The tag shows the category name and opens Browse filtered by that category. Location shows only when `FINDIT_LOCATION_ENABLED=1`. |
 
 ## Security
@@ -37,7 +38,7 @@ None so far.
 None so far.
 
 ## Tests
-`python manage.py test core`: 222 tests (202 from v1.1.1 + 20 new in `core/tests/test_v112.py`).
+`python manage.py test core`: 224 tests (202 from v1.1.1 + 22 new in `core/tests/test_v112.py`).
 
 ## Not included / still open
 - `FindIT.cmd` still has to be run once on a real Windows PC (it cannot be run in Claude's Linux workspace).

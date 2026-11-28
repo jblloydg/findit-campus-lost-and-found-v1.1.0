@@ -8,7 +8,7 @@ from pathlib import Path
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from core import demo_logins
@@ -182,3 +182,34 @@ class NoSensitiveDataInSharedFilesTests(SimpleTestCase):
                 if pattern.search(text) and name not in self.ALLOWED.get(pattern.pattern, set()):
                     problems.append(f"{name}: {what}")
         self.assertEqual(problems, [], "Sensitive data in shared files (move it to the owner's private copy)")
+
+
+class StaticFileTypeTests(TestCase):
+    """BUG-010: the design (CSS) and scripts keep their correct type even when a Windows PC's
+    registry says .css/.js are plain text (browsers refuse a stylesheet sent as text/plain)."""
+
+    def serve(self, path):
+        from django.contrib.staticfiles.views import serve
+        from django.test import RequestFactory
+        with override_settings(DEBUG=True):
+            response = serve(RequestFactory().get(f"/static/{path}"), path)
+        response.close()
+        return response["Content-Type"]
+
+    def test_broken_registry_types_are_corrected(self):
+        import mimetypes
+        from core.apps import use_standard_file_types
+        try:
+            mimetypes.add_type("text/plain", ".css")  # what a broken Windows registry does
+            mimetypes.add_type("text/plain", ".js")
+            self.assertTrue(self.serve("css/app.css").startswith("text/plain"))  # the bug, reproduced
+            use_standard_file_types()  # what Find-IT does when it starts
+            self.assertTrue(self.serve("css/app.css").startswith("text/css"))
+            self.assertTrue(self.serve("js/app.js").startswith("text/javascript"))
+        finally:
+            use_standard_file_types()
+
+    def test_pages_link_the_stylesheet(self):
+        from django.test import Client
+        html = Client().get(reverse("login")).content.decode()
+        self.assertIn('rel="stylesheet" href="/static/css/app.css', html)
