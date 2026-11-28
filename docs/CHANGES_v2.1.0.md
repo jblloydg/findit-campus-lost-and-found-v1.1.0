@@ -201,6 +201,11 @@ The team saw two search bars doing the same search. Owner: the top one is genera
 Files: `core/views.py` (`global_search`, `SEARCH_PAGES`), `core/urls.py`, `templates/core/search.html` (new), `base.html`,
 `home.html`, `findit.css`.
 
+## CHG-021 — More open LOST demo posts
+`seed_demo` now also makes three **open** LOST posts (Brown leather wallet, Silver house keys with blue tag, Gray hoodie;
+fictional, by demo students), so testers can try **I found this – message the owner** right away. On a PC that already has
+demo data, run FindIT.cmd menu 3 or `python manage.py seed_demo` once. File: `core/management/commands/seed_demo.py`.
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 

@@ -130,6 +130,7 @@ class Command(BaseCommand):
             self._walk_in(staff)
             self._verification_examples(riley, known, login_rows)
             self._tester_chats(testers)
+            self._open_lost_posts(users)
         path = demo_logins.save(login_rows)
         self.stdout.write(f"Demo sign-ins for this PC saved in {path.name} (FindIT.cmd menu 2 shows them).")
         self.stdout.write(self.style.WARNING(
@@ -267,6 +268,15 @@ class Command(BaseCommand):
                 message="Demo: I think this Student ID is mine; the verified account is not me.",
             )
             self.stdout.write("Created demo account: morgan.shared@example.com (ID conflict + open ID review)")
+
+    def _open_lost_posts(self, users):
+        """v2.1.0: a few OPEN lost posts so testers can try "I found this – message the owner"."""
+        for username, title, category, description, color in (
+            ("2026-0003", "Brown leather wallet", "Wallets & purses", "Small brown leather wallet, lost near the canteen.", (120, 80, 50)),
+            ("2026-0004", "Silver house keys with blue tag", "Keys", "Three keys on a ring with a blue plastic tag.", (150, 160, 175)),
+            ("2026-0002", "Gray hoodie", "Clothing & footwear", "Plain gray hoodie left in a classroom in the IT building.", (130, 130, 135)),
+        ):
+            self._post(users[username], title, ItemPost.Type.LOST, category, description, color)
 
     def _tester_accounts(self, login_rows):
         """CHG-014: the owner's tester accounts from tester-accounts.txt (private copy only; none without it).

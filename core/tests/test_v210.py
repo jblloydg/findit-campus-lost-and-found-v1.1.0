@@ -503,3 +503,16 @@ class GeneralSearchTests(FindItTestCase):
             response = client.get("/search/", {"q": q})
             self.assertEqual(response.status_code, 200, q)
             self.assertNotIn("<script>alert(1)</script>", response.content.decode())
+
+
+class OpenLostDemoPostsTests(TestCase):
+    """v2.1.0 instruction 4: demo data has several OPEN lost posts to try the finder flow on."""
+    def test_seed_makes_open_lost_posts(self):
+        folder = tempfile.mkdtemp(prefix="findit-lost-")
+        try:
+            with override_settings(DEBUG=True, FINDIT_DEMO_LOGINS_FILE=os.path.join(folder, "d.txt"),
+                                   FINDIT_TESTER_ACCOUNTS_FILE=os.path.join(folder, "none.txt")):
+                call_command("seed_demo", stdout=StringIO())
+        finally:
+            shutil.rmtree(folder, ignore_errors=True)
+        self.assertGreaterEqual(ItemPost.objects.filter(post_type="LOST", status="OPEN").count(), 3)
