@@ -1,6 +1,7 @@
 import os, sys
 # Run from the project folder: python tools/testing/media_browser.py  (see tools/testing/README.md)
 sys.path.insert(0, os.getcwd())
+from core.demo_logins import password_for  # CHG-008: demo passwords come from demo-logins.txt
 SERVER_CMD = [sys.executable, "manage.py", "runserver", "127.0.0.1:8765", "--noreload"]
 CHROME = {"executable_path": os.environ["CHROME_PATH"]} if os.environ.get("CHROME_PATH") else {}
 import os, subprocess, time, json, sqlite3
@@ -15,7 +16,7 @@ with sync_playwright() as pw:
     b = pw.chromium.launch(**CHROME, args=["--no-proxy-server"])
     ctx = b.new_context(viewport={"width": 390, "height": 800}); p = ctx.new_page()
     p.on("pageerror", lambda e: errors.append(str(e)))
-    p.goto(BASE + "/login/"); p.fill("input[name=username]", "sam.second@example.com"); p.fill("input[name=password]", "DemoFindIt!2026"); p.click("form.stack-form button[type=submit]")
+    p.goto(BASE + "/login/"); p.fill("input[name=username]", "sam.second@example.com"); p.fill("input[name=password]", password_for("sam.second@example.com")); p.click("form.stack-form button[type=submit]")
     p.goto(BASE + "/messages/"); href = p.locator("a[href^='/conversations/']").first.get_attribute("href"); p.goto(BASE + href); p.wait_for_timeout(1000)
     cdp = ctx.new_cdp_session(p); cdp.send("Emulation.setCPUThrottlingRate", {"rate": 4})
     # 1) too-big photo is refused before uploading

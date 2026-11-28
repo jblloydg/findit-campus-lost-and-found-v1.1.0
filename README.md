@@ -15,7 +15,7 @@ The local demo uses fictional accounts and a local SQLite database. It does not 
 - Duplicate-submit protection on every form, daily backups with command-line restore, and an automated test suite.
 - Student, staff, and administrator workflows, status history, notifications, staff chat review, and administrator reports.
 - Responsive pages styled to match the navy and teal Padlet wireframes.
-- **New in 1.1.1:** optional email verification (✔ Verified badge, Test inbox for local testing), sign-in with email, Student ID rules with ID reviews, lower limits and a warning for unverified students, Report & block, and a protected Developer account. See **HANDOFF.md → Changes in 1.1.1**.
+- **New in 1.1.1:** optional email verification (✔ Verified badge, Test inbox for local testing), sign-in with email, Student ID rules with ID reviews, lower limits and a warning for unverified students, and Report & block. See **HANDOFF.md → Changes in 1.1.1**.
 
 Version 1.1.0 combines four development sessions; see **HANDOFF.md** for what came from each, the decisions taken where they differed, setup steps and quick checks.
 
@@ -27,7 +27,7 @@ Version 1.1.0 combines four development sessions; see **HANDOFF.md** for what ca
 2. Double-click **`FindIT.cmd`**. The first time it installs everything by itself (it can even install Python for you).
 3. Press **1** (or wait 20 seconds). Your browser opens http://127.0.0.1:8000/. Keep the black window open; close it to stop.
 
-The menu also shows the demo sign-ins (2), resets the demo data (3), runs the automatic checks (4), makes a backup (5) and creates the Developer account (6). Run `make_desktop_shortcut.cmd` once for a Desktop icon.
+The menu also shows the demo sign-ins (2), resets the demo data (3), runs the automatic checks (4), makes a backup (5) and more. Run `make_desktop_shortcut.cmd` once for a Desktop icon.
 
 <details><summary>Manual steps for developers (PowerShell)</summary>
 
@@ -44,22 +44,12 @@ python manage.py seed_demo           # fictional demo data, local only
 
 ## Fictional demo accounts
 
-**Students sign in with their email.** A student whose Student ID is ✔ Verified can also type the Student ID.
-
-| Role | Sign-in | Password |
-| --- | --- | --- |
-| Student / finder (verified) | alex.finder@example.com or 2026-0001 | DemoFindIt!2026 |
-| Student / claimant (verified) | jamie.claimant@example.com or 2026-0002 | DemoFindIt!2026 |
-| Student / second claimant (verified) | sam.second@example.com or 2026-0003 | DemoFindIt!2026 |
-| Student / declined claimant (verified) | riley.third@example.com or 2026-0004 | DemoFindIt!2026 |
-| Student, **not verified** (shows the limits and warning) | casey.unverified@example.com | DemoFindIt!2026 |
-| Staff (security guard) | security.demo | DemoStaff!2026 |
-| Staff (verified moderator) | moderator.demo | DemoStaff!2026 |
-| Administrator | findit-admin | DemoAdmin!2026 |
-
-These accounts are created only when you run **seed_demo**, which refuses to run on an online site (DEBUG off). Their passwords are public demo credentials.
-
-**Developer account (yours, not a demo account):** run `python manage.py create_developer` (or menu option 6). You type the password privately; it is never in the code. Only the Developer can make or remove administrators and open `/django-admin/`. `createsuperuser` no longer creates administrators.
+The demo data makes fictional accounts (students, a security guard, a verified moderator and an
+administrator) **for local testing only**. Their passwords are made at random on each PC the first
+time the demo data is created, and are never stored in this repository. To see the sign-ins for
+your PC, open **FindIT.cmd → menu 2** (or the file `demo-logins.txt` in the Find-IT folder, which
+Git ignores). Students sign in with their email; a student whose Student ID is ✔ Verified can also
+type the Student ID. The demo data refuses to run on an online site (DEBUG off).
 
 ## Main routes
 

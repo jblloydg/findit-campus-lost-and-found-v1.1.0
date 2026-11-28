@@ -1,6 +1,7 @@
 import os, sys
 # Run from the project folder: python tools/testing/media_open.py  (see tools/testing/README.md)
 sys.path.insert(0, os.getcwd())
+from core.demo_logins import password_for  # CHG-008: demo passwords come from demo-logins.txt
 SERVER_CMD = [sys.executable, "manage.py", "runserver", "127.0.0.1:8765", "--noreload"]
 CHROME = {"executable_path": os.environ["CHROME_PATH"]} if os.environ.get("CHROME_PATH") else {}
 import os, subprocess, time, json, sys
@@ -11,7 +12,7 @@ srv = subprocess.Popen(SERVER_CMD); time.sleep(5)
 with sync_playwright() as pw:
     b = pw.chromium.launch(**CHROME, args=["--no-proxy-server"])
     ctx = b.new_context(viewport={"width": 390, "height": 800}); p = ctx.new_page()
-    p.goto(BASE + "/login/"); p.fill("input[name=username]", "sam.second@example.com"); p.fill("input[name=password]", "DemoFindIt!2026"); p.click("form.stack-form button[type=submit]")
+    p.goto(BASE + "/login/"); p.fill("input[name=username]", "sam.second@example.com"); p.fill("input[name=password]", password_for("sam.second@example.com")); p.click("form.stack-form button[type=submit]")
     cdp = ctx.new_cdp_session(p); cdp.send("Emulation.setCPUThrottlingRate", {"rate": 4})
     cdp.send("Network.enable"); cdp.send("Network.emulateNetworkConditions", {"offline": False, "latency": 150, "downloadThroughput": 1_500_000 / 8 * 1, "uploadThroughput": 750_000 / 8})
     sizes = {"page": 0, "media": 0, "media_files": 0}

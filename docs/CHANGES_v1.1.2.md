@@ -22,8 +22,13 @@ Every fix is its own commit (`git log --oneline`), so any single one can be reve
 ## Security
 | ID | Change |
 | --- | --- |
+| CHG-008 | **No private data in the shared repository.** Demo passwords are no longer in the code or docs: each PC gets random ones the first time the demo data is made, saved in `demo-logins.txt` (ignored by Git) and shown by FindIT.cmd menu 2. Older databases get new ones the first time menu 2 is opened. Developer-account instructions are only in the owner's private notes. A test scans every shared file for leaks, and CLAUDE.md makes this a rule for every version. |
 | SEC-002 | Notifications only ever open a page of Find-IT itself. Full web addresses, `//other.site`, backslash tricks such as `/\other.site` and `javascript:` links are refused, both when a notice is created and when it is tapped. |
 | SEC-001 (planned, waiting for the owner's approval) | Photos and videos: anything hidden inside (steganography, appended files, extra streams, metadata, playlist tricks) ends up as plain color noise, never as readable data. |
+
+## Changed for testers
+- Demo passwords are different on every PC: FindIT.cmd → menu 2 shows yours. The old published passwords stop working once menu 2 or the demo data is run on v1.1.2.
+- Developer test scripts in `tools/testing/` read the passwords from `demo-logins.txt`.
 
 ## Database migrations
 None so far.
@@ -32,7 +37,7 @@ None so far.
 None so far.
 
 ## Tests
-`python manage.py test core`: 210 tests (202 from v1.1.1 + 8 new in `core/tests/test_v112.py`).
+`python manage.py test core`: 222 tests (202 from v1.1.1 + 20 new in `core/tests/test_v112.py`).
 
 ## Not included / still open
 - `FindIT.cmd` still has to be run once on a real Windows PC (it cannot be run in Claude's Linux workspace).

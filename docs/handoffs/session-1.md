@@ -452,7 +452,7 @@ Run the tests with `python manage.py test core`.
 
 ### 6. See the features working
 
-These are the public fictional demo logins: student `2026-0001` and `2026-0002` (password `DemoFindIt!2026`), staff `security.demo` (`DemoStaff!2026`), and admin `findit-admin` (`DemoAdmin!2026`).
+These are the fictional demo logins: student `2026-0001` and `2026-0002` (passwords: FindIT.cmd menu 2), staff `security.demo` (password: FindIT.cmd menu 2), and admin `findit-admin` (password: FindIT.cmd menu 2).
 
 1. **Moderator not yet verified.** Sign in as `security.demo`. The Staff workspace says moderator authorization is required. Opening **/staff/reports/** gives *Forbidden*.
 2. **Verify a moderator.** In another browser or a private window, sign in as `findit-admin` and click **Admin** in the navigation.
@@ -650,9 +650,9 @@ These are the public fictional demo logins from the original README.
 
 | Role | Sign-in name | Password |
 | --- | --- | --- |
-| Student | 2026-0001 | DemoFindIt!2026 |
-| Staff | security.demo | DemoStaff!2026 |
-| Administrator | findit-admin | DemoAdmin!2026 |
+| Student | 2026-0001 | see FindIT.cmd menu 2 |
+| Staff | security.demo | see FindIT.cmd menu 2 |
+| Administrator | findit-admin | see FindIT.cmd menu 2 |
 
 1. **Register.** Open **/signup/**. Try the Student ID `20260003` and see the format error. Try `2026-0001` and see the duplicate-ID error. Try the email `alex.finder@example.com` and see the duplicate-email error. Then sign up with `2026-0003`, a new email, and a strong password. You are signed in as a **Student**.
 2. **Show/Hide.** On **/login/**, type a password and click **Show**, then **Hide**.
@@ -787,7 +787,7 @@ python manage.py test core
 
 #### 6. See the feature working
 
-1. Sign in with the fictional demo account **2026-0001** and the password **DemoFindIt!2026**. This is the public demo login from the original README.
+1. Sign in with the fictional demo account **2026-0001** (password: FindIT.cmd menu 2).
 2. On **Browse items**, each card now has a teal category tag and a 📍 location tag. The bottle shows *Bottle or container* and *Library 2nd floor*. The umbrella shows *Umbrella* and *Canteen*.
 3. In the **All categories** dropdown, choose **Umbrella** and click **Search**. Only the umbrella remains.
 4. Click **Clear all filters**. Type `library` in the **Any location** box and click **Search**. Only the bottle remains.

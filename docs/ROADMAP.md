@@ -32,7 +32,7 @@ The V2 list was written before v1.1.0. The four sessions already built most of i
 
 ### What v1.1.1 contains
 - **V2-I school account verification**: optional email code (printed locally + Test inbox), sign-in with email, Student ID rules (shared until verified, 14-day grace, 3 IDs = disabled), ID reviews, unverified limits and warning, Report & block.
-- **Developer role** (only it makes admins; `create_developer` command).
+- **Developer role** (only it makes admins).
 - **Easier start** (`FindIT.cmd` menu, `START-HERE.txt`).
 - **Chat:** message and notification queues (never lost or doubled), Messenger-style history (byte-sized pages, scroll to load, search), photos and videos in chats (re-encoded, private, limited).
 - **Speed:** smooth chat on slow phones, no overload with many users, photos compressed on upload.

@@ -41,6 +41,14 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
    - **Tests:** a photo and a video with hidden data in pixel lowest bits, an appended ZIP, extra data/subtitle/attachment streams, metadata, and an HLS/concat "video" — the stored copy must contain none of it (compare bytes and extract the lowest bits). Log as SEC-001 and include it in the v1.1.2 test report.
    - Plain explanation for the paper: hidden data in a picture cannot run by itself; the danger is a program that later reads it. Re-encoding turns that hidden data into ordinary color noise, so there is nothing left to read.
 
+## Private data stays out of the shared repository (owner's rule since v1.1.2 — EVERY version)
+This repository and its release branches are shared publicly. **Never** put any of these in a file, commit message, handoff, report or test here:
+- passwords of any kind (demo, test or real), sign-in lists with passwords, keys, `.env` values;
+- instructions for creating or managing the owner's Developer account;
+- real people's names, Student IDs, emails or other personal data;
+- any other sensitive instruction the owner marks as private.
+They belong only in the owner's **private copy** (a private repository or the owner's PC). If a task needs one, ask the owner instead of writing it here. Demo passwords are made per PC (`core/demo_logins.py`). `core/tests/test_v112.py::NoSensitiveDataInSharedFilesTests` scans every tracked file and must pass; extend its patterns when something new must stay private. Check for leaks in every version's bug hunt.
+
 ## Reports required for EVERY version (owner's rule since v1.1.1)
 Before a version is pushed for approval, it must include, in plain text (readable in any Claude session):
 1. **`docs/CHANGES_v<version>.md`** — what changed: features, speed changes, bugs fixed, migrations, new packages, what is not included. Model: `docs/CHANGES_v1.1.1.md`.
@@ -52,7 +60,7 @@ Run the bug hunt again after any big change (e.g. chat, media) and once more on 
 1. **Session 4's design has priority** whenever sessions named or behaved differently.
 2. **Claim states:** Submitted → Approved → Returned → Completed, plus Declined, Closed, Expired. Several claims can be approved; public counts, private rank; the finder picks who gets the item. Decline reason optional, shown to the claimant. Re-apply once. 7-day inactivity expiry (incl. Approved). **No automatic answer checking — people judge answers.**
 3. **Ownership questions** are picked from an admin question bank: 3–5 per found post (defaults fill to 3) + a required claimant description (no minimum length).
-4. **Roles:** Student, Staff, Admin, plus **Developer** (v1.1.1, above Admin: the only one who makes/removes admins and opens `/django-admin/`; created only with `manage.py create_developer`, never via a web page, no email reset; superusers are not admins). **Security guards = plain Staff:** approve/decline claims, guard house, finder status requests, view claim answer forms. **Verified moderators (Staff verified by an admin) + Admins only:** read other people's private chats, pause chats, review reports.
+4. **Roles:** Student, Staff, Admin, plus **Developer** (v1.1.1, above Admin: the only one who makes/removes admins and opens `/django-admin/`; never created or edited via a web page; superusers are not admins). How the owner creates and manages it is in the owner's private notes only. **Security guards = plain Staff:** approve/decline claims, guard house, finder status requests, view claim answer forms. **Verified moderators (Staff verified by an admin) + Admins only:** read other people's private chats, pause chats, review reports.
 5. **Share mode:** posts are visible signed-out only after someone signed in presses Copy link; then permanently.
 6. **Posts:** category required (admin-managed), 1–20 photos required, title/description optional, captcha above 10 photos (django-simple-captcha, randomized, **no audio**), posts-per-hour limit (admin setting).
 7. **Guard house:** only staff change the status (QR scan / code / manual). The QR link opens for anyone, but only staff see Confirm. Claims and chats stay open there; the finder sends status requests (reason required, photo optional). No storage location, no condition notes (main campus only).
@@ -73,13 +81,12 @@ Run the bug hunt again after any big change (e.g. chat, media) and once more on 
 ## Commands
 ```powershell
 python manage.py migrate            # never run makemigrations on a server; commit new migrations
-python manage.py seed_demo          # fictional demo data (local only)
+python manage.py seed_demo          # fictional demo data (local only); random passwords -> demo-logins.txt
 python manage.py test core          # 202 tests; keep them passing, add tests for each fix
-python manage.py create_developer   # the owner's Developer account (password typed privately)
 python manage.py makemigrations --check --dry-run   # must say "No changes detected" before committing
 python manage.py backup_now [--list] / restore_backup NAME
 ```
-Demo sign-ins: students by email, e.g. `alex.finder@example.com` (or verified ID `2026-0001`) / `DemoFindIt!2026` (students 0001–0004 verified, `casey.unverified@example.com` not verified), `security.demo` (guard), `moderator.demo` (verified moderator) / `DemoStaff!2026`, `findit-admin` / `DemoAdmin!2026`.
+Demo sign-ins: made at random on each PC by `seed_demo`, saved in `demo-logins.txt` (ignored by Git), shown by FindIT.cmd menu 2. Students sign in by email (e.g. `alex.finder@example.com`); staff `security.demo` (guard), `moderator.demo` (verified moderator); admin `findit-admin`. Test scripts read passwords with `core.demo_logins.password_for()`.
 
 ## Where things are
 - `core/models.py`, `forms.py`, `services.py` (all state changes go through services), `views.py`, `urls.py`, `permissions.py`

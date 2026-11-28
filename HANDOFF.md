@@ -65,11 +65,11 @@ Commits (each can be reverted on its own): `V2-I …` (feature), `BUG-001`, `V2-
 ### F. Developer account and admin protection
 
 - New role **Developer**, above Administrator. Only the Developer can **make or remove administrators**, change an administrator's role or status, and open **`/django-admin/`**. Admins can still create and manage staff and students.
-- The Developer is created only on the computer itself: **`python manage.py create_developer`** (or FindIT.cmd menu 6). It asks for the password privately (hidden typing, at least 12 characters). **No password or account is in the code or repository**; only a hash is stored in the database. Forgot it: `python manage.py create_developer --reset-password`. Its password can **never** be reset by email.
+- The Developer account is created and managed only on the owner's own computer (never through a web page, never reset by email). The steps are in the owner's private notes, not in this repository.
 - The Developer account is hidden from administrators' account lists and cannot be edited through any web page.
 - `createsuperuser` no longer makes administrators. Being a Django superuser gives no Find-IT role by itself.
-- `seed_demo` refuses to run when DEBUG is off, so the public demo passwords can never reach an online site. The demo `findit-admin` is no longer a Django superuser.
-- **For hosting later (v3.0.0):** run `create_developer` once on the server, or restore a backup (`backup_now` / `restore_backup`) that already contains the account. Two-step sign-in (authenticator app) is planned for v3.0.0.
+- `seed_demo` refuses to run when DEBUG is off, so demo accounts can never reach an online site. (From v1.1.2 their passwords are random per PC, see `demo-logins.txt`.) The demo `findit-admin` is no longer a Django superuser.
+- **For hosting later (v3.0.0):** the owner sets up the Developer account on the server (steps in the private notes). Two-step sign-in (authenticator app) is planned for v3.0.0.
 
 ### G. SQL injection
 
@@ -133,7 +133,7 @@ Run `python manage.py migrate` (FindIT.cmd does it for you). Never run `makemigr
 
 ### Files
 
-New: `core/verification.py`, `core/auth.py`, `core/mail.py`, `core/templatetags/findit_tags.py`, `core/management/commands/create_developer.py`, `core/migrations/0012_v111_school_verification.py`, `core/tests/test_v111.py`, templates `verify_email.html`, `student_id_change.html`, `id_review_form.html`, `id_reviews.html`, `id_review_detail.html`, `report_block.html`, `blocked_people.html`, `test_inbox.html`, `includes/unverified_warning.html`, `START-HERE.txt`.
+New: `core/verification.py`, `core/auth.py`, `core/mail.py`, `core/templatetags/findit_tags.py`, an owner-only management command, `core/migrations/0012_v111_school_verification.py`, `core/tests/test_v111.py`, templates `verify_email.html`, `student_id_change.html`, `id_review_form.html`, `id_reviews.html`, `id_review_detail.html`, `report_block.html`, `blocked_people.html`, `test_inbox.html`, `includes/unverified_warning.html`, `START-HERE.txt`.
 Changed: `core/models.py`, `forms.py`, `views.py`, `urls.py`, `permissions.py`, `services.py`, `signals.py`, `consumers.py`, `middleware.py`, `context_processors.py`, `management/commands/seed_demo.py`, `findit/settings.py`, `findit/urls.py`, `static/js/chat.js`, `static/css/app.css`, several templates, `FindIT.cmd`, `README.md`, tests `base.py` and `test_session1.py` (updated for sign-in by email and the Developer rule).
 
 ### See it working (after menu 3 "Reset the demo data", then menu 1)
@@ -271,15 +271,7 @@ Open **http://127.0.0.1:8000/**. To start over: stop the site, delete `db.sqlite
 
 ### Demo accounts (fictional, local only)
 
-| Role | Sign-in | Password |
-| --- | --- | --- |
-| Student (finder) | 2026-0001 | DemoFindIt!2026 |
-| Student (claimant, approved #1) | 2026-0002 | DemoFindIt!2026 |
-| Student (claimant, submitted) | 2026-0003 | DemoFindIt!2026 |
-| Student (claimant, declined) | 2026-0004 | DemoFindIt!2026 |
-| Staff — security guard | security.demo | DemoStaff!2026 |
-| Staff — **verified moderator** | moderator.demo | DemoStaff!2026 |
-| Administrator | findit-admin | DemoAdmin!2026 |
+`seed_demo` makes the demo accounts with random passwords for this PC and saves them in `demo-logins.txt` (ignored by Git). FindIT.cmd menu 2 shows them.
 
 Password-reset emails print in the terminal locally (session 1).
 

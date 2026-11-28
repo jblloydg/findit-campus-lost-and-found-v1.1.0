@@ -19,10 +19,9 @@ You only need to do steps 1-2 once.
    - Press 1 (or wait 20 seconds) to start. Your browser opens
      http://127.0.0.1:8000/ by itself.
    - KEEP THE BLACK WINDOW OPEN while you use Find-IT. Close it to stop.
-   - Press 2 in the menu to see the demo sign-ins.
-     Students sign in with their EMAIL, for example:
-         alex.finder@example.com   password DemoFindIt!2026
-     Admin:  findit-admin           password DemoAdmin!2026
+   - Press 2 in the menu to see the demo sign-ins for this PC.
+     Students sign in with their EMAIL. The passwords are made at random on
+     each PC and are only shown here, never online. Do not share them online.
 
 4. TESTING EMAIL VERIFICATION
    - Emails are not really sent yet (that comes with online hosting in v3.0.0).
@@ -32,11 +31,11 @@ You only need to do steps 1-2 once.
 OPTIONAL
    - Run make_desktop_shortcut.cmd once to get a "Find-IT" icon on your Desktop.
    - Menu 3 = start over with fresh demo data (a backup is made first).
-   - Menu 4 = automatic checks. Menu 5 = backup. Menu 6 = Developer account.
+   - Menu 4 = automatic checks. Menu 5 = backup.
 
 SOMETHING WENT WRONG?
-   - "Find-IT already seems to be running": another black window is open; use it
-     or close it.
+   - "Find-IT is already running": another black window is open. The browser
+     opens once; close the extra window (or press 0) and keep the first one.
    - Packages could not be installed: check the internet and double-click again.
    - Anything else: take a screenshot of the black window and send it to the
      developers (docs/BUG_REPORTS.md explains how to report a problem).

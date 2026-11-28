@@ -18,3 +18,6 @@ Desktop.ini
 backups/
 *.dump
 logs/
+
+# Demo sign-ins made on this PC (CHG-008: never in Git)
+demo-logins.txt

@@ -16,6 +16,7 @@ from django.db import transaction
 from django.utils import timezone
 from PIL import Image, ImageDraw
 
+from core import demo_logins
 from core.models import (
     Category, ClaimAnswer, ModeratorVerification, ClaimApplication, Comment, Conversation, GuardhouseIntake, ItemPost, PostPhoto,
     PostShare, PostStatusEvent, Profile, QuestionTemplate, StatusChangeRequest,
@@ -28,17 +29,18 @@ from core.services import (
 User = get_user_model()
 
 # Fictional people with reserved example.com addresses (RFC 2606), never real students.
-# (username, first name, last name, email, role, password)
+# (username, first name, last name, email, role, label). Passwords are NOT here (CHG-008):
+# each PC gets random ones, saved in demo-logins.txt (see core/demo_logins.py).
 ACCOUNTS = [
-    ("2026-0001", "Alex", "Finder", "alex.finder@example.com", Profile.Role.STUDENT, "DemoFindIt!2026"),
-    ("2026-0002", "Jamie", "Claimant", "jamie.claimant@example.com", Profile.Role.STUDENT, "DemoFindIt!2026"),
-    ("2026-0003", "Sam", "Second", "sam.second@example.com", Profile.Role.STUDENT, "DemoFindIt!2026"),
-    ("2026-0004", "Riley", "Third", "riley.third@example.com", Profile.Role.STUDENT, "DemoFindIt!2026"),
+    ("2026-0001", "Alex", "Finder", "alex.finder@example.com", Profile.Role.STUDENT, "Student, finder (verified)"),
+    ("2026-0002", "Jamie", "Claimant", "jamie.claimant@example.com", Profile.Role.STUDENT, "Student, claimant (verified)"),
+    ("2026-0003", "Sam", "Second", "sam.second@example.com", Profile.Role.STUDENT, "Student, second claimant (verified)"),
+    ("2026-0004", "Riley", "Third", "riley.third@example.com", Profile.Role.STUDENT, "Student, declined claimant (verified)"),
     # v1.1.1: a student who has NOT verified yet, to show the limits and the red warning.
-    ("2026-0005", "Casey", "Unverified", "casey.unverified@example.com", Profile.Role.STUDENT, "DemoFindIt!2026"),
-    ("security.demo", "Campus", "Guard", "security.demo@example.com", Profile.Role.STAFF, "DemoStaff!2026"),
-    ("moderator.demo", "Mika", "Moderator", "moderator.demo@example.com", Profile.Role.STAFF, "DemoStaff!2026"),
-    ("findit-admin", "Find-IT", "Admin", "findit-admin@example.com", Profile.Role.ADMIN, "DemoAdmin!2026"),
+    ("2026-0005", "Casey", "Unverified", "casey.unverified@example.com", Profile.Role.STUDENT, "Student, NOT verified"),
+    ("security.demo", "Campus", "Guard", "security.demo@example.com", Profile.Role.STAFF, "Staff, security guard"),
+    ("moderator.demo", "Mika", "Moderator", "moderator.demo@example.com", Profile.Role.STAFF, "Staff, verified moderator"),
+    ("findit-admin", "Find-IT", "Admin", "findit-admin@example.com", Profile.Role.ADMIN, "Administrator"),
 ]
 
 
@@ -56,18 +58,33 @@ def demo_photo(label, color):
 class Command(BaseCommand):
     help = "Create fictional local demo accounts and example listings. Do not use these credentials online."
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--logins-only", action="store_true",
+            help="Only (re)make the demo accounts' passwords and demo-logins.txt; no example listings.",
+        )
+
     def handle(self, *args, **options):
         if not settings.DEBUG:
-            # The demo passwords are public. Never put them on an online (DEBUG off) site.
+            # Demo accounts are for a local PC only. Never put them on an online (DEBUG off) site.
             raise CommandError("seed_demo only runs on a local PC (DEBUG on). It must never run on an online site.")
         users = {}
-        for username, first_name, last_name, email, role, password in ACCOUNTS:
+        known = demo_logins.load()
+        login_rows = []
+        logins_only = options.get("logins_only")
+        for username, first_name, last_name, email, role, label in ACCOUNTS:
+            if logins_only and not User.objects.filter(username=username).exists():
+                continue  # --logins-only never adds accounts, it only gives existing demo accounts new passwords
             user, created = User.objects.get_or_create(
                 username=username, defaults={"first_name": first_name, "last_name": last_name, "email": email},
             )
-            if created:
+            password = known.get(username)
+            if created or not password or not user.check_password(password):
+                # New account, or one still using an old published password: give it a new random one.
+                password = demo_logins.new_password()
                 user.set_password(password)
                 user.save(update_fields=["password"])
+            login_rows.append((label, username, email, username if role == Profile.Role.STUDENT and username != "2026-0005" else "", password))
             profile, _ = Profile.objects.get_or_create(user=user)
             profile.role = role
             if role == Profile.Role.STUDENT:
@@ -82,6 +99,10 @@ class Command(BaseCommand):
             profile.save()
             users[username] = User.objects.select_related("profile").get(pk=user.pk)
             self.stdout.write(f"{'Created' if created else 'Ready'} demo account: {username} ({role})")
+        if logins_only:
+            path = demo_logins.save(login_rows)
+            self.stdout.write(f"Demo sign-ins for this PC saved in {path.name}.")
+            return
 
         # Session 1: an administrator-verified moderator (a Staff account with moderator authorization).
         moderator = users["moderator.demo"]
@@ -95,6 +116,8 @@ class Command(BaseCommand):
             self._lost_post_verification(alex, jamie)
             self._guardhouse_item(alex, sam, staff)
             self._walk_in(staff)
+        path = demo_logins.save(login_rows)
+        self.stdout.write(f"Demo sign-ins for this PC saved in {path.name} (FindIT.cmd menu 2 shows them).")
         self.stdout.write(self.style.WARNING(
             "Fictional accounts and example listings are for a local demo only. Never deploy with demo data enabled."
         ))
