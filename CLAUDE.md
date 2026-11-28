@@ -44,6 +44,12 @@ One layout that adapts to phone, tablet and desktop. No fixed px for size or pla
   4. Add a few **open LOST posts** to `seed_demo` (fictional data only), so the team can test the finder flow — there is only one LOST post now.
 - **Rule: whoever is the finder in a chat can send ownership questions** — LOST post: the person who messaged the author; FOUND post: the author (claim chat or a chat started with "Message poster"). The other side only answers. Done: **CHG-011** (`chat_roles()`, tests `core/tests/test_v210.py`).
 - Also done: **BUG-020** sidebar highlighted "Report found item" while making a Lost post.
+**Make chat easy to see (checked 2026-11-28 after the team said "there is no chat"):** chat works in v2.0.0 (tested PC + phone: Message poster → chat → message delivered → the author sees it under Messages, no script errors). Why it looked missing — fix in v2.1.0:
+- On phones and tablets (≤ 48em / 768 px) the top-bar **Messages icon is hidden** (`findit.css`: `.topbar-actions .icon-messages { display: none; }`); Messages is only in the ☰ menu. Show the Messages icon (with its unread badge) on every screen size.
+- A chat only exists after **another account** taps "Message poster" on your post (you cannot message your own post). Testing needs two accounts (two browsers or a private window); write this in the team's test steps.
+- "Message poster" is far down the post page on phones (see the finder-flow items above).
+- Small display bug: a message shows "Sam · 3:30 p.m." after reload but "Sam Second · 3:30 PM" when it arrives live — use the same name and time format for both (`templates/core/chat_room.html` vs `static/js/chat.js`).
+
 **Chat bar like Messenger (owner, 2026-11-28 — to build in v2.1.0):**
 - One round **＋ button** at the left of the chat bar (like Messenger's ＋). Tapping it opens a small, neat menu (a pop-up above the bar on PC, a bottom sheet on phones) with big tap rows and icons:
   - **Photo or video** — the current 📎 media upload moves *inside* the ＋ menu (no separate media button in the bar). Same limits, previews, upload progress and waiting/processing/failed states as now.
