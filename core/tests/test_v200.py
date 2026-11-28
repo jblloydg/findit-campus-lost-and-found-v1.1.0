@@ -94,3 +94,32 @@ class VersionLabelOnPagesTests(TestCase):
             self.assertIn(f'version-label--footer">Find-IT v{FINDIT_VERSION}<', html, name)
         html = self.client.get("/no-such-page/").content.decode()  # 404 uses the same frame
         self.assertIn(f"Find-IT v{FINDIT_VERSION}", html)
+
+
+class LocalDataNeverTrackedTests(SimpleTestCase):
+    """BUG-018: SQLite's WAL mode (PERF-002) makes db.sqlite3-wal / -shm next to the database.
+    They hold the same data as the database (sessions, demo accounts), so Git must never track them."""
+
+    LOCAL = re.compile(r"(^|/)(db\.sqlite3(-wal|-shm|-journal)?|.*\.sqlite3(-wal|-shm|-journal)?|demo-logins\.txt|\.env)$"
+                       r"|^(media|private_media|backups|tools/testing/out)/")
+
+    def git(self, *args):
+        import subprocess
+        try:
+            return subprocess.run(["git", *args], cwd=BASE, capture_output=True, text=True, check=False)
+        except OSError:
+            self.skipTest("Git is not available in this folder.")
+
+    def test_no_local_data_files_tracked(self):
+        result = self.git("ls-files")
+        if result.returncode:
+            self.skipTest("Not a Git folder.")
+        tracked = [name for name in result.stdout.split() if self.LOCAL.search(name)]
+        self.assertEqual(tracked, [])
+
+    def test_sqlite_helper_files_are_ignored(self):
+        for name in ("db.sqlite3", "db.sqlite3-wal", "db.sqlite3-shm", "demo-logins.txt", "tools/testing/out/x.png"):
+            result = self.git("check-ignore", "-q", "--no-index", name)
+            if result.returncode == 128:
+                self.skipTest("Not a Git folder.")
+            self.assertEqual(result.returncode, 0, f"{name} is not in .gitignore")

@@ -21,3 +21,9 @@ logs/
 
 # Demo sign-ins made on this PC (CHG-008: never in Git)
 demo-logins.txt
+
+# SQLite helper files (WAL mode, v1.1.1 PERF-002) — part of the local database, never commit (BUG-018)
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
+tools/testing/out/
