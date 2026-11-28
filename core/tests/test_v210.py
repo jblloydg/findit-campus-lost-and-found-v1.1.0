@@ -339,3 +339,23 @@ class GuardhouseWhilePostingTests(FindItTestCase):
         page = self.client_for(self.finder).get(f"/p/{post.pk}/").content.decode()
         top = page[page.index('class="primary-actions top-actions"'):page.index('class="item-facts"')]
         self.assertIn("I'm bringing it to the guard house", top)
+
+
+# ---- CHG-017: a post at the guard house can still be messaged (its author can help the owner) ----
+class ChatAtGuardHouseTests(FindItTestCase):
+    def test_owner_can_message_the_author_of_a_guard_house_post(self):
+        post = self.create_post(self.finder, "FOUND")
+        ItemPost.objects.filter(pk=post.pk).update(status=ItemPost.Status.TURNED_OVER)
+        owner = self.client_for(self.alice)
+        page = owner.get(f"/p/{post.pk}/").content.decode()
+        self.assertIn("Message poster", page)
+        response = owner.get(f"/p/{post.pk}/?resume=message")
+        conv = Conversation.objects.get(post=post, initiator=self.alice)
+        self.assertRedirects(response, f"/conversations/{conv.pk}/", fetch_redirect_response=False)
+
+    def test_claimed_or_closed_posts_still_take_no_new_chats(self):
+        for status in (ItemPost.Status.CLAIMED, ItemPost.Status.CLOSED):
+            post = self.create_post(self.finder, "FOUND")
+            ItemPost.objects.filter(pk=post.pk).update(status=status)
+            self.client_for(self.alice).get(f"/p/{post.pk}/?resume=message")
+            self.assertFalse(Conversation.objects.filter(post=post).exists(), status)

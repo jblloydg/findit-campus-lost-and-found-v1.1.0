@@ -292,9 +292,8 @@ def _can_view_archived(post, user):
 
 
 def _conversation_for_post(post, user):
-    if post.is_archived or post.status in {
-        ItemPost.Status.TURNED_OVER, ItemPost.Status.CLAIMED, ItemPost.Status.CLOSED
-    }:
+    # CHG-017 (v2.1.0): a post at the guard house can still be messaged, so its author can help the owner.
+    if post.is_archived or post.status in {ItemPost.Status.CLAIMED, ItemPost.Status.CLOSED}:
         return None
     if post.post_type == ItemPost.Type.FOUND:
         claim = post.claims.filter(claimant=user, status__in=ClaimApplication.ACTIVE_STATUSES).first()
@@ -358,6 +357,8 @@ def post_detail(request, post_id):
             ItemPost.Status.TURNED_OVER, ItemPost.Status.CLAIMED, ItemPost.Status.CLOSED
         }
     )
+    # CHG-017: messaging stays possible while the item is at the guard house (comments and new posts' claims follow can_interact).
+    can_message = not post.is_archived and post.status not in {ItemPost.Status.CLAIMED, ItemPost.Status.CLOSED}
     applications = []
     account_list = []
     if can_manage:
@@ -420,6 +421,7 @@ def post_detail(request, post_id):
         "can_edit": can_edit,
         "can_moderate": can_moderate,
         "can_interact": can_interact,
+        "can_message": can_message,
         "applications": applications,
         "account_list": account_list,
         "resume": resume,

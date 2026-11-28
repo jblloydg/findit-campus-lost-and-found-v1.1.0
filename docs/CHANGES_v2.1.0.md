@@ -145,6 +145,12 @@ Guard house box far down the post. Now:
 Files: `templates/core/post_form.html`, `templates/core/includes/post_primary_actions.html`, `templates/core/post_detail.html`,
 `core/views.py` (`create_post`), `static/js/app.js`, `static/css/findit.css`.
 
+## CHG-017 — Chats stay possible when the item is at the guard house
+Owner: if the owner of a lost item contacts the author of an "At Guard House" post, the chat must still work so the
+author can help. Before, new chats were refused once the item reached the guard house (only existing ones stayed open).
+Now the message button stays on the post and starts a chat; only **Claimed** and **Closed** posts take no new chats.
+Files: `core/views.py` (`_conversation_for_post`, `post_detail` → `can_message`), `post_primary_actions.html`.
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 
