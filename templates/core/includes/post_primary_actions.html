@@ -1,0 +1,17 @@
+{% comment %}CHG-013: the post page's main action buttons (Claim / message). Shown in the side box on PC
+and right under the title on phones and tablets (where the side box is far down the page).{% endcomment %}
+{% if post.post_type == "FOUND" and post.can_accept_claims and not user_claim and can_interact %}
+  {% if user.is_authenticated %}
+    {% if user.pk != post.author_id %}<a class="button button-primary button-full" href="#claim-form">Claim this item</a>{% else %}<p class="muted">This is your found-item post.</p>{% endif %}
+  {% else %}<button class="button button-primary button-full" data-login-next="{{ request.path }}?resume=claim#claim-form">Claim this item</button>{% endif %}
+{% endif %}
+{% if user.is_authenticated and user.pk != post.author_id and can_interact %}
+  {% if post.post_type == "LOST" %}
+  <a class="button button-primary button-full finder-action" href="{% url 'post-detail' post.pk %}?resume=message" data-chat-start>{% include "core/includes/icon.html" with name="message" %}I found this – message the owner</a>
+  <p class="finder-hint">Opens a private chat. Use ＋ → Ownership questions there to check it's really theirs.</p>
+  {% else %}
+  <a class="button button-outline button-full" href="{% url 'post-detail' post.pk %}?resume=message" data-chat-start>Message poster</a>
+  {% endif %}
+{% elif not user.is_authenticated and can_interact %}
+  <button class="button {% if post.post_type == 'LOST' %}button-primary{% else %}button-outline{% endif %} button-full" data-login-next="{{ request.path }}?resume=message">{% if post.post_type == "LOST" %}Sign in to message the owner{% else %}Sign in to message{% endif %}</button>
+{% endif %}

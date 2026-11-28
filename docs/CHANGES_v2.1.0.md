@@ -49,6 +49,16 @@ Files: `core/views.py` (`post_detail`: `author_chats`), `templates/core/post_det
 private/incognito window signed in as another. Post with account A; open the post with account B and tap the
 message button; the chat opens for B and appears under Messages (and on the post) for A.
 
+## CHG-013 — "I found this – message the owner"
+The team could not find how a finder contacts the owner of a LOST post.
+- On **LOST** posts the button "Message poster" is now **I found this – message the owner** (green, with a chat
+  icon) and a one-line hint: the chat opens privately and the ＋ menu there has *Ownership questions*.
+  Signed out: **Sign in to message the owner**. **FOUND** posts keep **Claim this item** / **Message poster**.
+- On **phones and tablets** the main buttons now appear **right under the title** (390 × 844 phone: about
+  600 px from the top, in the first screen — before about 1,350 px, below photos and comments). On PC they stay
+  in the Next step box on the right. Same buttons, one shared file
+  (`templates/core/includes/post_primary_actions.html`), so they can never differ.
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 

@@ -32,6 +32,7 @@
         {% if claim_counts.claiming or claim_counts.approved %}<p class="claim-counts"><strong>{{ claim_counts.claiming }}</strong> {% if post.post_type == "LOST" %}verifying{% else %}claiming{% endif %} · <strong>{{ claim_counts.approved }}</strong> approved</p>{% endif %}
         <p class="detail-author">Posted by <strong>{{ post.author.first_name|default:post.author.username }}</strong> {{ post.author|verified_mark }}{% if post.approximate_date %} · Approx. {{ post.approximate_date|date:"M j, Y" }}{% endif %}</p>
         {% if post.category or location_enabled and post.location %}<p class="item-tags">{% if post.category %}<a class="category-tag" href="{% url 'home' %}?category={{ post.category_id }}">{{ post.category.name }}</a>{% endif %}{% if location_enabled and post.location %}<span class="location-tag">📍 {{ post.location }}</span>{% endif %}</p>{% endif %}
+        <div class="primary-actions top-actions">{% include "core/includes/post_primary_actions.html" %}</div>
         {% if user.is_authenticated and user.pk != post.author_id %}<a class="text-action report-listing-link" href="{% url 'general-report-create' %}?post={{ post.pk }}">⚑ Report this listing</a>{% endif %}
         {% if can_block_author %}<a class="text-action report-listing-link danger-link" href="{% url 'report-block' post.author_id %}?next={{ request.path|urlencode }}">⛔ Report &amp; block the poster</a>{% endif %}
         {% if is_blocked %}<p class="form-callout warning-callout"><strong>Blocked</strong><span>One of you blocked the other, so claims, comments and messages between you are turned off.</span></p>{% endif %}
@@ -120,16 +121,7 @@
     <aside class="detail-aside">
       <div class="panel action-panel">
         <span class="eyebrow">Next step</span>
-        {% if post.post_type == "FOUND" and post.can_accept_claims and not user_claim and can_interact %}
-          {% if user.is_authenticated %}
-            {% if user.pk != post.author_id %}<a class="button button-primary button-full" href="#claim-form">Claim this item</a>{% else %}<p class="muted">This is your found-item post.</p>{% endif %}
-          {% else %}<button class="button button-primary button-full" data-login-next="{{ request.path }}?resume=claim#claim-form">Claim this item</button>{% endif %}
-        {% endif %}
-        {% if user.is_authenticated and user.pk != post.author_id and can_interact %}
-          <a class="button button-outline button-full" href="{% url 'post-detail' post.pk %}?resume=message">Message poster</a>
-        {% elif not user.is_authenticated and can_interact %}
-          <button class="button button-outline button-full" data-login-next="{{ request.path }}?resume=message">Sign in to message</button>
-        {% endif %}
+        <div class="primary-actions aside-actions">{% include "core/includes/post_primary_actions.html" %}</div>
         {% if user.is_authenticated and user.pk == post.author_id %}
         <div class="author-chats" id="author-chats">
           <span class="eyebrow">Chats about this post</span>

@@ -139,3 +139,35 @@ class HowChatStartsTests(FindItTestCase):
     def test_other_people_do_not_see_the_author_list(self):
         lost = self.create_post(self.alice, "LOST")
         self.assertNotIn("Chats about this post", self.client_for(self.finder).get(f"/p/{lost.pk}/").content.decode())
+
+
+# ---- CHG-013: clear finder action on LOST posts, near the top on phones ----
+class FinderActionButtonTests(FindItTestCase):
+    def test_lost_post_says_i_found_this(self):
+        lost = self.create_post(self.alice, "LOST")
+        page = self.client_for(self.finder).get(f"/p/{lost.pk}/").content.decode()
+        self.assertIn("I found this – message the owner", page)
+        self.assertNotIn("Message poster", page)
+        # once under the title (phones) and once in the side box (PC); CSS shows one of them
+        self.assertEqual(page.count("I found this – message the owner</a>"), 2)
+        self.assertIn('class="primary-actions top-actions"', page)
+
+    def test_found_post_keeps_message_poster(self):
+        found = self.create_post(self.finder, "FOUND")
+        page = self.client_for(self.alice).get(f"/p/{found.pk}/").content.decode()
+        self.assertIn("Message poster", page)
+        self.assertNotIn("I found this – message the owner", page)
+
+    def test_author_has_no_finder_button(self):
+        lost = self.create_post(self.alice, "LOST")
+        self.assertNotIn("I found this – message the owner</a>", self.client_for(self.alice).get(f"/p/{lost.pk}/").content.decode())
+
+    def test_button_still_opens_the_chat(self):
+        lost = self.create_post(self.alice, "LOST")
+        response = self.client_for(self.finder).get(f"/p/{lost.pk}/?resume=message")
+        conv = Conversation.objects.get(post=lost, initiator=self.finder)
+        self.assertRedirects(response, f"/conversations/{conv.pk}/", fetch_redirect_response=False)
+
+    def test_css_shows_top_copy_only_on_small_screens(self):
+        self.assertIn(".top-actions { display: none; }", CSS)
+        self.assertRegex(CSS, r"@media \(max-width: 56em\) \{\s*\.top-actions \{ display: grid")
