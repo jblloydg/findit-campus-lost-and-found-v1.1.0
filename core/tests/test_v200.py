@@ -157,3 +157,16 @@ class MasterInstructionCssTests(SimpleTestCase):
                 if re.search(r"\d+px", rest) and ".sr-only" not in line and "--shadow" not in line:
                     bad.append(line.strip()[:90])
         self.assertEqual(bad, [])
+
+
+class HiddenAttributeTests(SimpleTestCase):
+    """BUG-019: the found-item question picker showed on LOST posts because
+    .question-editor { display: grid } overrode the hidden attribute."""
+
+    def test_hidden_always_wins(self):
+        css = (BASE / "static" / "css" / "findit.css").read_text(encoding="utf-8")
+        self.assertRegex(css, r"(?m)^\[hidden\]\s*\{\s*display:\s*none\s*!important;\s*\}")
+
+    def test_question_picker_is_hidden_for_lost_by_script(self):
+        js = (BASE / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('questionBlock.hidden = typeSelect.value !== "FOUND"', js)

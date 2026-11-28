@@ -82,6 +82,8 @@
 
 /* ---------- 2. Base ---------- */
 *, *::before, *::after { box-sizing: border-box; }
+/* BUG-019: anything the page or a script marks hidden is never shown, even if its class sets display (e.g. .question-editor { display: grid }). */
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
   margin: 0;
