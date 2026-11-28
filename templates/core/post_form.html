@@ -40,6 +40,7 @@
       <label>{{ form.approximate_time.label }}{{ form.approximate_time }}<small class="form-help">{{ form.approximate_time.help_text }}</small></label>
     </div>
     {% if form.approximate_date.errors %}<div class="field-error">{{ form.approximate_date.errors }}</div>{% endif %}{% if form.approximate_time.errors %}<div class="field-error">{{ form.approximate_time.errors }}</div>{% endif %}
+    {% if form.location %}<label>{{ form.location.label }}{{ form.location }}<small class="form-help">{{ form.location.help_text }}</small></label>{% if form.location.errors %}<div class="field-error">{{ form.location.errors }}</div>{% endif %}{% endif %}
     <div id="verification-questions" class="question-editor">
       <div><span class="eyebrow">Private ownership check · found items</span><h2>Pick ownership questions</h2>
         <p class="muted">Claimants answer these privately. Pick up to 5. If you pick fewer than 3 (or none), default questions are added automatically. Claimants also write their own description.</p></div>

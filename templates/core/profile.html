@@ -42,7 +42,7 @@
         {% endif %}
         Someone else verified your Student ID, or you lost access to your old account? <a href="{% url 'id-review-new' %}">Request an ID review</a>.
       </p>
-      {% if id_cases %}<div class="staff-list"><h3>My ID reviews</h3>{% for c in id_cases %}<div class="staff-row"><div><strong>{{ c.reference }} · {{ c.student_id }}</strong><small>{{ c.get_status_display }} · {{ c.created_at|date:"M j, Y" }}{% if c.decision_note %} · {{ c.decision_note }}{% endif %}</small></div></div>{% endfor %}</div>{% endif %}
+      {% if id_cases %}<div class="staff-list"><h3>My ID reviews</h3>{% for c in id_cases %}<div class="staff-row"><div><strong>{{ c.reference }} · {{ c.student_id }}</strong><small>{{ c.get_status_display }} · {{ c.created_at|date:"M j, Y" }}{% if c.decision_note %} · {{ c.decision_note }}{% endif %}</small></div>{% if c.is_open %}<form method="post" action="{% url 'id-review-withdraw' c.pk %}">{% csrf_token %}<button class="button button-outline button-small" type="submit">Withdraw</button></form>{% endif %}</div>{% endfor %}</div>{% endif %}
     {% endif %}
     <p class="form-help"><a href="{% url 'blocked-people' %}">Blocked people ({{ blocked_count }})</a> · Your role and account status cannot be changed here.</p>
     <div class="form-actions">

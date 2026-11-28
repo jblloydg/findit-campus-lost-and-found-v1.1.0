@@ -62,7 +62,7 @@ python manage.py create_developer   # the owner's Developer account (password ty
 python manage.py makemigrations --check --dry-run   # must say "No changes detected" before committing
 python manage.py backup_now [--list] / restore_backup NAME
 ```
-Demo sign-ins: students by email, e.g. `alex.finder@example.com` (or verified ID `2026-0001`) / `DemoFindIt!2026` (students 0001–0004 verified, `casey.unverified@example.com` not verified), `security.demo` (guard), `moderator.demo` (verified moderator) / `DemoStaff!2026`, `findit-admin` / `DemoAdmin!2026`.
+Demo sign-ins: students by email, e.g. `alex.finder@example.com` (or verified ID `2026-0001`) / `DemoFindIt!2026` (students 0001–0004 verified, `casey.unverified@example.com` not verified, `morgan.shared@example.com` not verified with a Student ID conflict and an open ID review; `2026-0016` Drew is a red-flagged, inactive example), `security.demo` (guard), `moderator.demo` (verified moderator) / `DemoStaff!2026`, `findit-admin` / `DemoAdmin!2026`.
 
 ## Where things are
 - `core/models.py`, `forms.py`, `services.py` (all state changes go through services), `views.py`, `urls.py`, `permissions.py`

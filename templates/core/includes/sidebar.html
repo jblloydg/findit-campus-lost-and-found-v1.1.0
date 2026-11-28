@@ -45,6 +45,8 @@
     <a class="nav-link{% if nav == 'admin-questions' or nav == 'admin-question-new' %} is-active{% endif %}" href="{% url 'admin-questions' %}">{% include "core/includes/icon.html" with name="help" %}Question bank</a>
     <a class="nav-link{% if nav == 'admin-settings' %} is-active{% endif %}" href="{% url 'admin-settings' %}">{% include "core/includes/icon.html" with name="settings" %}System settings</a>
     <a class="nav-link{% if nav == 'backup-status' %} is-active{% endif %}" href="{% url 'backup-status' %}">{% include "core/includes/icon.html" with name="database" %}Backups</a>
+    <a class="nav-link{% if nav == 'audit-log' %} is-active{% endif %}" href="{% url 'audit-log' %}">{% include "core/includes/icon.html" with name="history" %}Audit trail</a>
+    <a class="nav-link{% if nav == 'system-status' %} is-active{% endif %}" href="{% url 'system-status' %}">{% include "core/includes/icon.html" with name="check" %}System status</a>
     {% endif %}
 
     {% if test_inbox_enabled %}

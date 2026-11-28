@@ -977,6 +977,23 @@ a.stat-card:hover, a.stat-card.is-active { color: var(--ink); border-color: var(
 .error-page { margin-top: clamp(1rem, 4vw, 2.5rem); }
 .error-page h1 { margin: 0.4rem 0 0.6rem; font-size: var(--step-3); }
 
+/* v2.0.0 additions: developer view, red flags, audit trail, system status, video badge */
+.developer-callout { border-color: #d6d0f0; border-left: 0.25rem solid var(--violet); background: var(--violet-bg); }
+.flagged-panel { border-color: #efc8c1; }
+.flagged-panel h2 .priority-count { margin-left: 0.4rem; vertical-align: middle; }
+.verification-panel { margin-top: 1rem; }
+.audit-filters { margin-bottom: 1rem; }
+.nowrap { white-space: nowrap; }
+.staff-list > h3 { margin-top: 1rem; }
+.status-summary { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.status-summary.is-ok { border-color: #b9dcc6; background: #f2f9f4; }
+.status-summary.is-warn { border-color: #efc8c1; background: #fff8f7; }
+.status-summary h2 { font-size: var(--step-2); }
+.status-row h3 { margin: 0; }
+.status-row .status-pill { flex: 0 0 auto; min-width: 4rem; justify-content: center; }
+.chat-media-wrap { display: inline-grid; gap: 0.3rem; max-width: 100%; }
+.media-badge { justify-self: start; padding: 0.1rem 0.55rem; border-radius: var(--pill); color: var(--muted); background: rgba(16, 38, 31, .06); font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.04em; }
+
 /* ==========================================================================
    12. RESPONSIVE
    Breakpoints in em so they follow the reader's zoom:

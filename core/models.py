@@ -1032,3 +1032,9 @@ class ChatAttachment(models.Model):
 
     def __str__(self):
         return f"{self.get_kind_display()} in {self.conversation_id}"
+
+    @property
+    def duration_label(self):
+        """v2.0.0 video badge: 42 seconds -> "0:42"."""
+        seconds = int(round(self.duration_seconds or 0))
+        return f"{seconds // 60}:{seconds % 60:02d}"

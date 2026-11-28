@@ -4,7 +4,20 @@
 <section class="page-wrap">
   <a class="back-link" href="{% url 'admin-dashboard' %}">← Admin dashboard</a>
   <div class="page-heading"><div><span class="eyebrow">Administrator only</span><h1>Accounts</h1><p class="muted">Create staff accounts, edit any account, and activate or deactivate access. Students register themselves; only administrators can create staff or change roles.</p></div>
-    <div class="button-row"><a class="button button-soft" href="{% url 'moderator-verifications' %}">Moderator verification</a></div></div>
+    <div class="button-row"><a class="button button-soft" href="{% url 'moderator-verifications' %}">Moderator verification</a><a class="button button-outline" href="{% url 'audit-log' %}">Audit log</a></div></div>
+  {% if acting_is_developer %}<div class="form-callout developer-callout"><strong>Developer view</strong><span>You are signed in as the Developer. Only you can give or remove the <strong>Administrator</strong> role (open an account and change its role). Administrators do not see this option.</span></div>{% endif %}
+  {% if flagged_count %}
+  <section class="panel flagged-panel">
+    <div class="section-heading"><div><span class="eyebrow">Needs attention</span><h2>Red-flagged accounts <span class="priority-count">{{ flagged_count }}</span></h2><p class="muted">Accounts that used three different Student IDs are flagged and disabled automatically. Check them, then edit or keep them inactive.</p></div><a class="button button-soft button-small" href="{% url 'staff-accounts' %}?verify=flagged">Show all red-flagged</a></div>
+    {% for account in flagged_accounts %}
+    <div class="staff-row">{% include "core/includes/avatar.html" with person=account size="sm" %}
+      <div><strong><a href="{% url 'edit-account' account.pk %}">{% firstof account.get_full_name account.username %}</a></strong><small>{{ account.email|default:account.username }} · flagged {{ account.profile.flagged_at|date:"M j, Y · g:i a" }}{% if account.profile.flag_reason %} · {{ account.profile.flag_reason }}{% endif %}</small></div>
+      <span class="subtle-chip {% if account.is_active %}account-active{% else %}account-suspended{% endif %}">{% if account.is_active %}Active{% else %}Inactive{% endif %}</span>
+      <a class="button button-outline button-small" href="{% url 'edit-account' account.pk %}">Review</a>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
   <div class="two-column">
     <section class="panel"><h2>Create staff account</h2><form method="post" class="stack-form" novalidate>{% csrf_token %}
       {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
@@ -31,18 +44,19 @@
       <label class="search-field"><span aria-hidden="true">⌕</span><input type="search" name="q" value="{{ q }}" placeholder="Name, Student ID, username, or email" aria-label="Search accounts"></label>
       <label class="select-field"><span class="sr-only">Role</span><select name="role"><option value="">All roles</option>{% for value,label in role_choices %}<option value="{{ value }}" {% if role_filter == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
       <label class="select-field"><span class="sr-only">Status</span><select name="status"><option value="">Any status</option><option value="active" {% if status_filter == "active" %}selected{% endif %}>Active</option><option value="inactive" {% if status_filter == "inactive" %}selected{% endif %}>Inactive</option></select></label>
+      <label class="select-field"><span class="sr-only">Verification</span><select name="verify"><option value="">Any verification</option><option value="flagged" {% if verify_filter == "flagged" %}selected{% endif %}>Red-flagged</option><option value="verified" {% if verify_filter == "verified" %}selected{% endif %}>Verified students</option><option value="unverified" {% if verify_filter == "unverified" %}selected{% endif %}>Not verified students</option><option value="conflict" {% if verify_filter == "conflict" %}selected{% endif %}>Student ID conflict</option></select></label>
       <button class="button button-outline" type="submit">Filter</button>
-      {% if q or role_filter or status_filter %}<a class="text-action" href="{% url 'staff-accounts' %}">Clear</a>{% endif %}
+      {% if q or role_filter or status_filter or verify_filter %}<a class="text-action" href="{% url 'staff-accounts' %}">Clear</a>{% endif %}
     </form>
     <div class="table-scroll">
       <table class="accounts-table">
-        <thead><tr><th>Name</th><th>Student ID / username</th><th>Email</th><th>Role</th><th>Status</th><th>Registered</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Name</th><th>Student ID / username</th><th>Email</th><th>Role</th><th>Verification</th><th>Status</th><th>Registered</th><th>Actions</th></tr></thead>
         <tbody>
           {% for account in page_obj %}
-          <tr><td>{{ account.get_full_name|default:"—" }}</td><td>{{ account.username }}</td><td>{{ account.email|default:"—" }}</td><td><span class="subtle-chip role-{% if account.is_superuser %}admin{% else %}{{ account.profile.role }}{% endif %}">{% if account.is_superuser %}Administrator{% else %}{{ account.profile.get_role_display }}{% endif %}</span></td><td><span class="subtle-chip {% if account.is_active %}account-active{% else %}account-suspended{% endif %}">{% if account.is_active %}Active{% else %}Inactive{% endif %}</span></td><td>{{ account.date_joined|date:"M j, Y" }}</td>
+          <tr><td>{{ account.get_full_name|default:"—" }}</td><td>{{ account.username }}</td><td>{{ account.email|default:"—" }}</td><td><span class="subtle-chip role-{% if account.is_superuser %}admin{% else %}{{ account.profile.role }}{% endif %}">{% if account.is_superuser %}Administrator{% else %}{{ account.profile.get_role_display }}{% endif %}</span></td><td>{% include "core/includes/verification_chip.html" with person=account %}</td><td><span class="subtle-chip {% if account.is_active %}account-active{% else %}account-suspended{% endif %}">{% if account.is_active %}Active{% else %}Inactive{% endif %}</span></td><td>{{ account.date_joined|date:"M j, Y" }}</td>
             <td class="row-actions"><a class="button button-soft button-small" href="{% url 'edit-account' account.pk %}">Edit</a>
               {% if account.pk != user.pk and not account.is_superuser %}<form method="post" action="{% url 'staff-account-status' account.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">{% if account.is_active %}<button class="button button-outline button-small" type="submit" name="action" value="suspend">Deactivate</button>{% else %}<button class="button button-soft button-small" type="submit" name="action" value="activate">Activate</button>{% endif %}</form>{% endif %}</td></tr>
-          {% empty %}<tr><td colspan="7"><div class="empty-state compact-empty"><div class="empty-icon">⌕</div><h3>No accounts match</h3><p>Try another search or clear the filters.</p></div></td></tr>{% endfor %}
+          {% empty %}<tr><td colspan="8"><div class="empty-state compact-empty"><div class="empty-icon">⌕</div><h3>No accounts match</h3><p>Try another search or clear the filters.</p></div></td></tr>{% endfor %}
         </tbody>
       </table>
     </div>

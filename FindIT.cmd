@@ -79,6 +79,7 @@ echo     Student, claimant          jamie.claimant@example.com  or 2026-0002   D
 echo     Student, second claimant   sam.second@example.com      or 2026-0003   DemoFindIt!2026
 echo     Student, declined          riley.third@example.com     or 2026-0004   DemoFindIt!2026
 echo     Student, NOT verified      casey.unverified@example.com             DemoFindIt!2026
+echo     Student, ID conflict       morgan.shared@example.com                DemoFindIt!2026
 echo     Staff, security guard      security.demo                            DemoStaff!2026
 echo     Staff, verified moderator  moderator.demo                           DemoStaff!2026
 echo     Administrator              findit-admin                             DemoAdmin!2026

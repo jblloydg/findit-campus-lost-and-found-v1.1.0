@@ -8,8 +8,8 @@
   <nav class="quick-links" aria-label="Administrator shortcuts">
     <a class="quick-link" href="{% url 'staff-accounts' %}"><span class="stat-tile-icon">{% include "core/includes/icon.html" with name="users" %}</span><span><strong>Accounts</strong><small>Create staff, edit roles</small></span></a>
     <a class="quick-link" href="{% url 'moderator-verifications' %}"><span class="stat-tile-icon">{% include "core/includes/icon.html" with name="user-check" %}</span><span><strong>Moderator verification</strong><small>Verify staff moderators</small></span></a>
-    <a class="quick-link" href="{% url 'admin-reports' %}"><span class="stat-tile-icon">{% include "core/includes/icon.html" with name="alert" %}</span><span><strong>Chat &amp; item reports</strong><small>Review safety reports</small></span></a>
-    <a class="quick-link" href="{% url 'general-reports' %}"><span class="stat-tile-icon">{% include "core/includes/icon.html" with name="history" %}</span><span><strong>System reports</strong><small>Technical and other reports</small></span></a>
+    <a class="quick-link" href="{% url 'audit-log' %}"><span class="stat-tile-icon">{% include "core/includes/icon.html" with name="history" %}</span><span><strong>Audit trail</strong><small>Recorded staff actions</small></span></a>
+    <a class="quick-link" href="{% url 'system-status' %}"><span class="stat-tile-icon">{% include "core/includes/icon.html" with name="shield" %}</span><span><strong>System status</strong><small>Database, backups, queues</small></span></a>
   </nav>
 
   <section class="panel dash-section">
@@ -24,6 +24,15 @@
     </div>
   </section>
 
+  <section class="panel dash-section">
+    <div class="section-heading"><div><span class="eyebrow">Students &amp; Student IDs</span><h2>Verification</h2></div><a class="button button-soft button-small" href="{% url 'id-reviews' %}">Open ID reviews</a></div>
+    <div class="stat-grid-4">
+      <a class="stat-card stat-resolved" href="{% url 'staff-accounts' %}?verify=verified"><span>Verified students</span><strong>{{ account_counts.verified_students }}</strong><small>of {{ account_counts.students }} students</small></a>
+      <a class="stat-card stat-review" href="{% url 'staff-accounts' %}?verify=unverified"><span>Not verified yet</span><strong>{{ account_counts.unverified_students }}</strong></a>
+      <a class="stat-card stat-danger" href="{% url 'staff-accounts' %}?verify=flagged"><span>Red-flagged accounts</span><strong>{{ account_counts.flagged }}</strong></a>
+      <a class="stat-card stat-submitted" href="{% url 'id-reviews' %}"><span>Open ID reviews</span><strong>{{ open_id_reviews }}</strong></a>
+    </div>
+  </section>
   <section class="panel dash-section">
     <div class="section-heading"><div><span class="eyebrow">Moderators</span><h2>Moderator verification</h2></div><a class="button button-soft button-small" href="{% url 'moderator-verifications' %}">Review verifications</a></div>
     <div class="staff-stats stat-grid-4">
