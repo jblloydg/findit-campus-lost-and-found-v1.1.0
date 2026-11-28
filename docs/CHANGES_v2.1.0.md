@@ -28,6 +28,12 @@ No Python, JavaScript or database changes.
 | PC 1280 × 800 | 2.5 | 1.6 | 0.9 (no scrolling) |
 | Phone 390 × 844 | 2.6 | 1.7 (button always visible) | 1.7 (button always visible) |
 
+## BUG-021 — Messages icon on phones and tablets
+The team said "there is no chat". Chat worked, but on screens up to 768 px the Messages icon in the top bar
+was hidden by one CSS line, so Messages was only inside the ☰ menu. The line is removed: the icon and its
+red count now show on every screen size (44 × 44 px tap target at 360 px; no sideways scrolling).
+File: `static/css/findit.css`.
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 

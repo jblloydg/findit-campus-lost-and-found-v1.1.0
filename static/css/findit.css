@@ -1044,7 +1044,6 @@ a.stat-card:hover, a.stat-card.is-active { color: var(--ink); border-color: var(
   .new-post-full { display: none; }
   .new-post-round { display: inline-grid; color: #fff; background: var(--emerald); }
   .new-post-round:hover { color: #fff; background: var(--emerald-dark); }
-  .topbar-actions .icon-messages { display: none; }
   .profile-menu summary { padding: 0.15rem; border-color: transparent; background: transparent; }
   .profile-menu .role-chip, .profile-menu .profile-caret { display: none; }
   .steps-grid { grid-template-columns: minmax(0, 1fr); }

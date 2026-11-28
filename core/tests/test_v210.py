@@ -103,3 +103,13 @@ class PostFormLayoutPageTests(FindItTestCase):
         })
         self.assertEqual(response.status_code, 302)
         self.assertTrue(ItemPost.objects.filter(title="Blue umbrella", post_type="LOST").exists())
+
+
+# ---- BUG-021: Messages icon in the top bar on every screen size ----
+class MessagesIconAllSizesTests(FindItTestCase):
+    def test_icon_never_hidden_by_css(self):
+        self.assertNotRegex(CSS, r"\.icon-messages\s*\{[^}]*display:\s*none")
+
+    def test_icon_and_count_in_top_bar(self):
+        page = self.client_for(self.alice).get("/home/").content.decode()
+        self.assertIn('class="icon-button icon-messages"', page)
