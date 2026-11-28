@@ -1,91 +1,138 @@
-# Find-IT v2.0.0 (draft) — What changed (report)
+# Find-IT v2.0.0 — Patch notes (what changed and why)
 
-Draft report for the v2.0.0 interface overhaul, built on branch **`design/v2-interface`**
-(from `design/v2-campus-background`, which is from `main` = v1.1.1). Not merged into `main`;
-waiting for the owner's approval. Tests and measurements: `docs/TEST_REPORT_v2.0.0.md`;
-bug log: `docs/BUG_REPORTS.md`; background details: `docs/design/CAMPUS_BACKGROUND.md`.
+**v2.0.0 = v1.1.2 + the front-end team's v2.0.0 interface**, checked against the owner's v2.0.0 list
+and the v2.0.0 Master Instruction, with the bugs found on the way fixed.
+Tests and measurements: `docs/TEST_REPORT_v2.0.0.md`. Every change has its own commit and a line in
+`docs/BUG_REPORTS.md`. Background photo details: `docs/design/CAMPUS_BACKGROUND.md`.
 
-## Branches (rollback)
-- `main` — v1.1.1, unchanged.
-- `design/v2-campus-background` — DES-001 (background kit), BUG-008, DES-002 (background on the v1.1.1 pages).
-- `design/v2-interface` — this work (DES-003) on top of that.
-Every change is its own commit, so each can be reverted alone.
+## Summary
+- **New look on every page:** dark-green sidebar (a slide-in menu on phones), the DOrSU monument
+  photo behind every page, forest / emerald / sage / off-white colours, new fonts. One layout that
+  adapts from phone to desktop.
+- **Every backend feature now has a page:** the 9 items that had a backend but no screen (13 points).
+- **Version label** "Find-IT v2.0.0" on every page, read from `VERSION`.
+- **Master Instruction bugs fixed:** buttons and links too small to tap, text smaller than 12 px,
+  fixed px on the error page (BUG-015, BUG-016, BUG-017).
+- **Privacy fix:** the database's helper files could be committed by mistake (BUG-018).
+- **Everything from v1.1.2 is kept:** SEC-001 (photo/video hardening), SEC-002 (notification links),
+  CHG-008 (random demo passwords), BUG-008/009/010.
+- No database migrations, no new packages. Tests: 266 (228 in v1.1.2).
 
-## What the owner asked for
-"Make every page look like the v2 screenshots (green sidebar design), with the DOrSU monument
-photo as the background of every page." The owner chose: **all pages**, **follow the screenshots**,
-**new branch in this repo**. Decided exception: the screenshots' example ID `2024-0122` is the
-owner's real account (CLAUDE.md decision 10), so `2020-0001` is used instead.
+## Where it came from (branches)
+| Branch | What it is |
+| --- | --- |
+| `main` | Released v1.1.2 until the owner approves v2.0.0. |
+| `stable/v1.1.2` | Frozen v1.1.2, the rollback point. |
+| `release/2.0.0` | **This version.** Replaces the earlier v2 draft that was on this branch (normal merge, nothing deleted). |
+| `design/v2-interface` | The front-end team's work. Their BASTA-KAY zip is exactly this branch (0 different files). Based on the final v1.1.1. |
+| `archive/v2-alt-design` | The earlier, different v2 design that was on `release/2.0.0`. Kept unchanged so nothing is lost; not used. |
 
-## New look (DES-003)
+**Why the team's design and not the earlier draft:** the owner chose it (it is the front-end team's
+official v2.0.0). Because their copy started from v1.1.1, v1.1.2 was merged into it (CHG-009).
+
+## 1. Integration of v1.1.2 (CHG-009)
+The merge had 4 conflicts. How each was settled, and why:
+
+| File | Decision | Why |
+| --- | --- | --- |
+| `FindIT.cmd` | v1.1.2's version | The team's copy still printed the **old fixed demo passwords** (CHG-008 removed them) and lacked the BUG-009 menu fix. |
+| `core/management/commands/seed_demo.py` | Both | The team added two example students (Drew: red-flagged; Morgan: Student ID conflict + open ID review). In their copy these got the old fixed password; now they get a **random password per PC** in `demo-logins.txt`, like every demo account. |
+| `CLAUDE.md`, `tools/testing/README.md` | Both | Both sides added useful lines; the password text was left out. |
+
+Also adjusted: the BUG-010 tests and `page_load.py` now look for `findit.css` (the new stylesheet
+replaced `app.css`), and one sentence in the team's draft test report that described the Developer
+account was rewritten (the leak-check test caught it). A line-by-line check confirmed every line
+v1.1.2 added is still there.
+
+## 2. The new interface (front-end team: DES-001 … DES-004)
 | Part | What changed |
 | --- | --- |
-| Whole app | New stylesheet `static/css/findit.css` **replaces** `app.css` (removed). Same class names, so all 70 templates and `app.js` / `chat.js` / `scan.js` keep working. Forest / emerald / sage / off-white palette, Geist + Instrument Serif (italic accents) + Geist Mono (small uppercase labels). All sizes in rem / % / clamp() (master instruction); fixed px only for 1px borders and shadows. |
-| Fonts | Self-hosted in `static/fonts/` (SIL Open Font License, free), so the app also works with no internet on campus. |
-| Background | The DOrSU monument photo (`campus-bg.css`, DES-001) behind every page: dark green on public pages, light off-white on signed-in pages, and clearly visible in the dashboard and log-in banners. |
-| Signed-in layout | New dark-green **sidebar** (`templates/core/includes/sidebar.html`): Overview (Dashboard, Lost items, Found items), Report an item, My activity (with red/green counts), Staff (guards), review links (verified moderators + admins), Administrator (admins), Test inbox (local only). Name and role at the bottom with "Hand-offs happen on school premises only." **Top bar:** search, New post, Messages and Notifications with counts, profile menu. |
-| Phones and tablets | Below 1024 px the sidebar becomes a slide-in **drawer** (menu button; closes with ×, Escape or a tap outside; keyboard focus moves into it). Top bar shrinks to menu, search, round + button, bell, profile picture. |
-| Landing page | Rebuilt like the screenshot: hero ("Lost something? *Found something?*") with log-in card, "02 — How it works" (3 steps + status chips), "03 — Privacy by design" (4 cards), "A safer hand-off" band, dark footer. |
-| Log in, sign-up, password reset | One card with the green "Campus lost & found, *returned safely.*" banner. |
-| Dashboard | "Hello, *name*." banner with Report lost / Report found buttons, 4 tiles (Active posts, Open claims, Messages need you, Unread updates), All posts / Lost / Found tabs, filters, listing cards (type + status chips, category chip, author + date). |
-| Lost items / Found items | Same page filtered, with their own heading and "Report lost/found item" button. |
-| Admin dashboard | Section names (Accounts, Moderators, Safety, Listings & platform) instead of A–D, shortcut cards, dark "Total users" tile, stat cells with coloured edges. |
-| Every other page | Restyled through the shared stylesheet (cards, chips, tables, forms, chat bubbles, modals, QR scanner, reports). |
+| Whole app | New stylesheet `static/css/findit.css` replaces `app.css` (same class names, so all pages and `app.js` / `chat.js` / `scan.js` keep working). Sizes in rem / % / `clamp()`. Fonts are files in `static/fonts/` (free licence), so it works without internet. |
+| Background | The DOrSU monument photo behind every page (`static/css/campus-bg.css`): dark green on public pages, light off-white when signed in. |
+| Signed-in frame | Dark-green **sidebar** (Overview, Report an item, My activity with counts, Staff, review links, Administrator, Test inbox). **Top bar:** search, New post, Messages, Notifications, profile menu. Below 1024 px (64em) the sidebar is a slide-in menu. |
+| Redesigned pages | Landing, Log in, Sign up, the 4 password-reset pages, 500 page, Dashboard / Browse (with Lost items and Found items), Admin dashboard, Accounts, Edit account, new Audit trail and System status pages. |
+| All other pages | New colours, fonts, cards, chips and frame from the shared stylesheet; their layout is the v1.1.1 layout (see "Not included"). |
 
-## Small code changes (behaviour unchanged)
-| File | Change |
-| --- | --- |
-| `core/views.py` `home` | Two counts for the dashboard tiles (your active posts, your open claims). |
-| `core/views.py` `create_post` | `?type=LOST` / `?type=FOUND` pre-selects the post type (sidebar "Report lost/found item"). |
-| `core/context_processors.py` | `current_can_review` so the sidebar shows review links only to verified moderators and admins (same rule as before). |
-| `static/js/app.js` | Live counts update every copy (sidebar and top bar); drawer open/close. |
-| `templates/500.html` | Green colours (it stays stand-alone on purpose). |
+**The 9 items that had a backend but no page (DES-004, 13 points)** are all built: verification details
+on Edit account; red-flagged accounts panel and Verification filter on Accounts; Developer view on
+Accounts; Withdraw an ID review (My profile); dormant location field (only with
+`FINDIT_LOCATION_ENABLED=1`); admin dashboard numbers; Audit trail page (`/staff/admin/audit/`);
+video length/size badge in chats; System status page (`/staff/admin/status/`).
+A check of every address in the program found no backend page without a link or button to it.
 
-## Bugs fixed
-| ID | Bug |
-| --- | --- |
-| BUG-008 | Leftover `<<<<<<< HEAD` line printed on every Browse card (on `design/v2-campus-background`; also needed on `main` / `release/1.1.2`). |
-| BUG-009 | Sideways scrolling on 5 staff/admin pages at phone width (17–487 px). Gone with the new layout: 0 px on every page at 320–1920 px. |
-| — | (found during this work) Staff workspace heading 129 px too wide for admins at 1280 px; report filter bars cramped; empty gap under headings on phones; one grey text colour at 4.4 : 1. All fixed before commit. |
+## 3. Added during integration
+### DES-005 — Version label (owner's rule CHG-007)
+- Small light-gray **"Find-IT v2.0.0"**: at the bottom of the sidebar on PC; in the page footer on
+  tablets and phones (where the sidebar is hidden); in the public footer when signed out; on the 500 page.
+- The number is read once from the `VERSION` file (`core/version.py`), never typed into a page.
+  `VERSION` is now `2.0.0`. **Change `VERSION` with every new version.**
 
-## Added after the owner's check of the v2.0.0 list (DES-004)
-The owner's v2.0.0 list (103 points) had 9 items (13 points) with a backend but no page yet. All are built now:
+### BUG-011 — Two styles lost in the new stylesheet
+`.accounts-panel` (Accounts, Edit account, Backups, Moderators, My reports: panels touched the content
+above) and `.compact-form` (small forms on the post page and chat). Added back; a test now checks
+that styles the pages use stay defined.
 
-| List item | Size | Where to see it |
+## 4. Master Instruction fixes (bug fixes on the front-end output)
+The three developers worked separately, so each page was measured in Chrome, for every role, at
+360, 390, 430 (phones), 768 (tablet), 1280 and 1920 px (desktops) with the new tool
+`tools/testing/responsive_check.py`. The stylesheets already used relative units; what the
+measurements found were sizes that were *relative* but **too small**:
+
+| ID | Problem | Fix |
 | --- | --- | --- |
-| 1. Account verification details | M 2 | Accounts → open an account (Edit account) → "Verification details": email verified date, Student ID and lock, Student IDs used (of 3), Student ID history table, ID conflict deadline, red flag, ID reviews. |
-| 1. Red-flagged accounts list/filter | M 2 | Accounts: "Red-flagged accounts" panel (shown when any exist) + new "Verification" filter (Red-flagged / Verified students / Not verified students / Student ID conflict) + a Verification column in the table. |
-| 1. Developer view of Accounts | S 1 | Signed in as the Developer: purple "Developer view" note on Accounts and Edit account; Role shows **Administrator** only for the Developer (backend rule unchanged). |
-| 1. Withdraw an ID review | S 1 | My profile → My ID reviews → **Withdraw** (only the student who asked, only while waiting). New: `withdraw_id_review()` in `core/verification.py`, `POST /id-review/<id>/withdraw/`, recorded in the audit trail. |
-| 2. Location input, filter and tag (dormant) | M 2 | Post form "Where (optional)" field, filter on Browse and tag on cards/post page. **Only when `FINDIT_LOCATION_ENABLED=1`** (decision 8); hidden and not collected otherwise. |
-| 3. Admin dashboard numbers | S 1 | Admin dashboard → "Students & Student IDs": Verified students, Not verified yet, Red-flagged accounts, Open ID reviews (each opens the matching list). |
-| 3. Full audit log page | M 2 | `/staff/admin/audit/` ("Audit trail" in the sidebar, Accounts and the admin dashboard): every recorded action, search, filter by action, 50 per page, read-only. Admins and the Developer only. |
-| 3. Video length/size badge in chat | S 1 | Under each video in a chat: "▶ 0:42 · 3.1 MB" (page and live messages). |
-| 3. System status page from /health/ | S 1 | `/staff/admin/status/` ("System status"): database (with answer time), migrations, daily backup age (warns after 26 h = timer runner not running), chat media queue (warns if stuck 15 min), open queues. Admins only. |
+| BUG-015 | Tap targets under 44 px: small buttons 36 px, profile-menu links 40 px, Browse tabs 38 px, password "Show" 32 px, phone menu button squeezed to 31 px wide, checkbox rows 24–39 px, text-only actions ("Report this listing", "Decline…", "Withdraw") 17–21 px. | Every one uses the shared tap size `--tap: 2.75rem` (44 px). |
+| BUG-016 | Text under 12 px: the smallest text size went down to 10.9 px on phones (help text, small labels, chips, badges, table headings, footer), plus 6 fixed sizes below 0.75rem. | Smallest size now 0.75rem (12 px), still with `clamp()`. |
+| BUG-017 | The 500 page used fixed px for width, margins, padding and button. | %, rem and `clamp()`; button 2.75rem tall. |
 
-**Demo data:** two fictional students so these screens have something to show — `2026-0016` Drew (red-flagged, inactive, used 3 IDs) and `morgan.shared@example.com` (not verified, typed Riley's Student ID, 14-day conflict deadline, open ID review to withdraw). Run `FindIT.cmd` → 3 (Reset the demo data) to get them.
+Result: **179 kinds of problems before → 0** on Find-IT pages; 0 sideways scrolling at any width;
+icons all between 12 and 48 px; text lines never wider than 75rem (content width is capped at 72rem).
 
-### Full v2.0.0 list status: 103 of 103 points
-| Part | Points | Built |
+## 5. Privacy fix
+### BUG-018 — Database helper files not ignored
+Since v1.1.1 (PERF-002) SQLite keeps `db.sqlite3-wal` and `db.sqlite3-shm` next to the database.
+`.gitignore` only listed `db.sqlite3`, so `git add -A` could commit the local database (sessions,
+demo accounts). It happened once during this integration and was removed before anything was pushed.
+`.gitignore` now covers these files and test screenshots; a test fails if any of them is tracked.
+
+## 6. Found and fixed by the front-end team (renumbered in the log)
+| New ID | Team's ID | What |
 | --- | --- | --- |
-| 1. Design system, accounts and identity | 36 | 36 |
-| 2. Posts, claims and guard house | 34 | 34 |
-| 3. Messages, safety and administration | 33 | 33 |
-Note: the list says every page is "drawn twice (PC + phone)". These are working pages that adapt to both (checked at 320–1920 px), not separate Figma drawings.
+| BUG-012 | BUG-008 | A leftover `<<<<<<< HEAD` line printed on every Browse card. **Still present in the released v1.1.2**; gone in v2.0.0. |
+| BUG-013 | BUG-009 | Sideways scrolling on 5 staff/admin pages at phone width. |
+| BUG-014 | BUG-010 | A model edit that would have dropped a database index (caught before commit). |
+The team's IDs clashed with v1.1.2's BUG-008/009/010, so they were renumbered in the log; their
+commits are unchanged.
 
-## Speed (see the test report)
-First visit is heavier because of the photo and fonts (79 KB → about 300 KB on the local server;
-the stylesheet is 16 KB instead of 82 KB in production, where it is compressed). Every page after
-that is as fast as before (about 0.2–0.35 s on a slow phone network), because the photo, fonts
-and stylesheet are kept by the browser.
+## 7. Speed (details in the test report)
+- **Server:** same as v1.1.2 (every page 5–15 ms; 100 people chatting: all messages delivered, 0 errors).
+- **Normal browsing on a slow phone:** same as v1.1.2 (about 0.24–0.36 s per page).
+- **First visit on a slow phone:** slower — about 1.2 s until usable (v1.1.2: 0.8 s), because the
+  monument photo (116 KB) and fonts (82 KB) are downloaded once. The browser keeps them afterwards.
+  On the hosted version the stylesheet is also compressed (84 KB → about 16 KB).
 
-## Migrations, packages
-- No database migrations. No new Python packages. Fonts are files, not packages.
+## 8. Database migrations and packages
+None.
 
-## Not included / still to do
-- Not merged into `main`; v2.0.0 version number not set; the small light-grey version label in
-  the footer (CHG-007 instruction on `release/1.1.2`) is not added yet.
-- The three front-end developers' own v2.0.0 wireframe work: this branch is the base to build on.
-- The screenshots' "Lost and found activity" counts on the admin dashboard were not added (not in the
-  owner's list); the audit trail now has its own page instead.
-- Not tested on real iPhones / Android phones or Safari.
+## 9. Tests
+266 automated tests (v1.1.2: 228; front-end team +26; integration +12 in `core/tests/test_v200.py`:
+version label, lost styles, Master Instruction rules, no database files in Git).
+
+## 10. Not included / still open
+**Pages that got the new colours but kept their v1.1.1 layout** (accepted for v2.0.0; for the team to
+redesign next). By developer, following the v2.0.0 list:
+- **Developer 1 (design system & accounts):** error pages 403 / 404 / 503 / security error; My profile;
+  Edit profile; Change password; Verify email; Change Student ID; Request an ID review; ID reviews
+  list + detail; shared parts avatar, pagination, red unverified-warning bar.
+- **Developer 2 (posts & guard house):** **Post page (XL)**; **Create / edit post (XL)** (also used by
+  Walk-in item); My posts; My claims; Private claim form view; Report a problem + My reports; Staff
+  workspace; Scan QR; Confirm turned in + public turn-in page; Categories + edit.
+- **Developer 3 (messages & admin):** Messages; **Chat room (XL)**; chat panel on the post page;
+  Report & block; Report a conversation; Notifications; Blocked people; Test inbox; Moderator
+  verification; Chat safety reports + detail; General reports + detail; Question bank + edit;
+  System settings; Backup status.
+
+Also open:
+- Phone first-visit download is larger (photo + fonts); a smaller phone-size photo is an idea for v2.1.0.
+- Not tested on real iPhones (Safari) or Android phones, or on the owner's Windows PC.
+- The v2.0.0 list asks for every page drawn twice in Figma (PC + phone); these are working pages that
+  adapt, not Figma drawings.

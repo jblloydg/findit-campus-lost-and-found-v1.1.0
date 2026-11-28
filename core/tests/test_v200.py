@@ -148,7 +148,6 @@ class MasterInstructionCssTests(SimpleTestCase):
             self.assertIn("var(--tap)", body, rule)
 
     def test_px_only_for_borders_shadows_and_outlines(self):
-        allowed = ("border", "shadow", "outline", "translateY(-1px)", ".sr-only", "blur(1px)", "1px dashed", "1px solid")
         bad = []
         css = re.sub(r"/\*.*?\*/", "", self.css(), flags=re.S)  # comments
         css = re.sub(r"(height:\s*1px|margin:\s*0 -1px -1px 0)", "", css)  # 1px divider lines, border overlap
