@@ -25,31 +25,33 @@ def logins_path():
     return Path(getattr(settings, "FINDIT_DEMO_LOGINS_FILE", "") or Path(settings.BASE_DIR) / "demo-logins.txt")
 
 
-def tester_passwords_path():
+def tester_accounts_path():
     if not settings.configured:
-        return Path.cwd() / "tester-passwords.txt"
-    return Path(getattr(settings, "FINDIT_TESTER_PASSWORDS_FILE", "") or Path(settings.BASE_DIR) / "tester-passwords.txt")
+        return Path.cwd() / "tester-accounts.txt"
+    return Path(getattr(settings, "FINDIT_TESTER_ACCOUNTS_FILE", "") or Path(settings.BASE_DIR) / "tester-accounts.txt")
 
 
-def fixed_passwords():
-    """CHG-014: fixed passwords for the tester accounts, from ``tester-passwords.txt``.
+def tester_accounts():
+    """CHG-014: the owner's tester accounts, from ``tester-accounts.txt`` (private).
 
-    That file is ignored by Git in the shared repository; only the owner's private copy holds it,
-    so the same tester sign-ins work on every PC that uses the private copy. One line per account:
-    ``username or email | password`` (lines starting with # are notes). Without the file the
-    tester accounts get random passwords like every other demo account.
+    Accounts are sensitive, so nothing about them is in the shared code: the file is ignored by
+    Git in the shared repository and only the owner's private copy holds it. One line per account:
+    ``Student ID | email | first name | last name | FOUND or LOST | password`` (# = note).
+    The FOUND tester posts a found item and the LOST tester a lost item; seed_demo then starts a
+    chat on each post between them. Without the file there are no tester accounts.
     """
-    path = tester_passwords_path()
-    found = {}
+    path = tester_accounts_path()
+    rows = []
     if not path.exists():
-        return found
+        return rows
     for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip() or line.lstrip().startswith("#"):
             continue
         parts = [part.strip() for part in line.split("|")]
-        if len(parts) == 2 and parts[0] and len(parts[1]) >= 8:
-            found[parts[0].lower()] = parts[1]
-    return found
+        if len(parts) == 6 and parts[4].upper() in ("FOUND", "LOST") and len(parts[5]) >= 8 and "@" in parts[1]:
+            rows.append({"username": parts[0], "email": parts[1].lower(), "first_name": parts[2],
+                         "last_name": parts[3], "posts": parts[4].upper(), "password": parts[5]})
+    return rows
 
 
 def new_password():

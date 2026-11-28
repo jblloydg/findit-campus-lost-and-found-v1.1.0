@@ -59,19 +59,17 @@ The team could not find how a finder contacts the owner of a LOST post.
   in the Next step box on the right. Same buttons, one shared file
   (`templates/core/includes/post_primary_actions.html`), so they can never differ.
 
-## CHG-014 — Two tester accounts for chat testing
-`python manage.py seed_demo` now also makes two fictional, verified tester students:
-| Account | Sign in with | Has posted | Already chatting |
-| --- | --- | --- | --- |
-| Tester A | `tester.a.found@example.com` (or Student ID `2026-0101`) | FOUND: Gray backpack with keychain | with Tester B on both posts |
-| Tester B | `tester.b.lost@example.com` (or Student ID `2026-0102`) | LOST: Silver USB flash drive | with Tester A on both posts |
-- Tester B has messaged Tester A's FOUND post, and Tester A has messaged Tester B's LOST post ("I found this").
-  In **both** chats Tester A is the finder, so Tester A sees **＋ → Ownership questions** and Tester B answers.
-- **Passwords:** read from `tester-passwords.txt` in the Find-IT folder (one line per account:
-  `email | password`). Git ignores that file; only the owner's private copy has it, so the same tester
-  sign-ins work on every PC that uses the private copy. Without the file they get random passwords like
-  the other demo accounts (shown in `demo-logins.txt` / FindIT.cmd menu 2).
-- Test it: sign in as Tester A in a normal window and as Tester B in a private window; open Messages.
+## CHG-014 — Tester accounts for chat testing (owner's private copy)
+`python manage.py seed_demo` can make the owner's two **tester students**: one has posted a FOUND item
+(*Gray backpack with keychain*), the other a LOST item (*Silver USB flash drive*), and they already chat with each
+other on **both** posts (the FOUND tester is the finder in both chats, so they have **＋ → Ownership questions** and
+the other tester answers).
+- **Accounts are sensitive**, so this shared repository has no tester names, emails, Student IDs or passwords.
+  They are in `tester-accounts.txt`, which Git ignores here and which only the owner's private copy contains
+  (one line per account: `Student ID | email | first name | last name | FOUND or LOST | password`).
+- Without that file `seed_demo` makes no tester accounts; everything else works as before.
+- Running `seed_demo` again keeps the passwords and never duplicates the posts or chats.
+- Team: ask the owner for the tester sign-ins. Test with two windows (normal + private), one per tester.
 
 ## DES-007 — Messenger-style chat bar and the chat window
 **Chat bar** (full chat page and chat window): **＋ · message · Send**, nothing else.

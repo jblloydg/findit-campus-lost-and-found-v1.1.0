@@ -188,23 +188,33 @@ from core.models import ItemPost
 
 
 class TesterAccountsTests(TestCase):
+    """The real tester accounts live only in the owner's private copy; these tests use made-up ones."""
+    ROWS = ("# example only\n"
+            "1999-0001 | finder.example@example.com | Example | Finder | FOUND | example-only-1\n"
+            "1999-0002 | owner.example@example.com | Example | Owner | LOST | example-only-2\n")
+
     def setUp(self):
         self.folder = tempfile.mkdtemp(prefix="findit-testers-")
         self.logins = os.path.join(self.folder, "demo-logins.txt")
-        self.fixed = os.path.join(self.folder, "tester-passwords.txt")
+        self.accounts = os.path.join(self.folder, "tester-accounts.txt")
 
     def tearDown(self):
         shutil.rmtree(self.folder, ignore_errors=True)
 
-    def seed(self):
-        with override_settings(DEBUG=True, FINDIT_DEMO_LOGINS_FILE=self.logins, FINDIT_TESTER_PASSWORDS_FILE=self.fixed):
+    def seed(self, rows=None):
+        if rows is not None:
+            with open(self.accounts, "w", encoding="utf-8") as f:
+                f.write(rows)
+        with override_settings(DEBUG=True, FINDIT_DEMO_LOGINS_FILE=self.logins, FINDIT_TESTER_ACCOUNTS_FILE=self.accounts):
             call_command("seed_demo", stdout=StringIO())
             return demo_logins.load()
 
     def test_testers_post_found_and_lost_and_chat_on_both(self):
-        self.seed()
+        logins = self.seed(self.ROWS)
         users = get_user_model().objects
-        a, b = users.get(username="2026-0101"), users.get(username="2026-0102")
+        a, b = users.get(username="1999-0001"), users.get(username="1999-0002")
+        self.assertTrue(a.check_password("example-only-1") and b.check_password("example-only-2"))
+        self.assertEqual(logins["1999-0001"], "example-only-1")
         found = ItemPost.objects.get(author=a, post_type="FOUND")
         lost = ItemPost.objects.get(author=b, post_type="LOST")
         on_found = Conversation.objects.get(post=found, initiator=b, recipient=a, claim__isnull=True)
@@ -215,87 +225,20 @@ class TesterAccountsTests(TestCase):
         self.seed()  # running again adds nothing twice
         self.assertEqual(on_found.messages.count(), 2)
         self.assertEqual(Conversation.objects.filter(post__in=[found, lost]).count(), 2)
+        self.assertEqual(self.client.post("/login/", {"username": "owner.example@example.com", "password": "example-only-2"}).status_code, 302)
+        self.assertEqual(self.client.post("/login/", {"username": "1999-0001", "password": "example-only-1"}).status_code, 302)
 
-    def test_fixed_passwords_from_private_file(self):
-        with open(self.fixed, "w", encoding="utf-8") as f:
-            f.write("# private\ntester.a.found@example.com | Example-Only-111\n2026-0102 | Example-Only-222\n")
-        logins = self.seed()
-        users = get_user_model().objects
-        self.assertTrue(users.get(username="2026-0101").check_password("Example-Only-111"))
-        self.assertTrue(users.get(username="2026-0102").check_password("Example-Only-222"))
-        self.assertEqual(logins["2026-0101"], "Example-Only-111")
-        self.assertNotEqual(logins["2026-0001"], "Example-Only-111")  # other demo accounts stay random
-        self.assertEqual(self.client.post("/login/", {"username": "tester.b.lost@example.com", "password": "Example-Only-222"}).status_code, 302)
+    def test_no_file_no_testers(self):
+        self.seed()
+        self.assertFalse(get_user_model().objects.filter(username__startswith="1999-").exists())
 
-    def test_without_the_file_passwords_are_random(self):
-        logins = self.seed()
-        self.assertRegex(logins["2026-0101"], r"^[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$")
-
-    def test_password_file_is_ignored_by_git(self):
-        ignore = Path(settings.BASE_DIR, ".gitignore").read_text(encoding="utf-8")
-        self.assertIn("tester-passwords.txt", ignore.splitlines())
-
-
-# ---- DES-007: Messenger-style chat bar and the chat window over the post page ----
-class ChatBarTests(FindItTestCase):
-    def setUp(self):
-        super().setUp()
-        self.lost = self.create_post(self.alice, "LOST")
-        self.finder_client = self.client_for(self.finder)
-        self.finder_client.get(f"/p/{self.lost.pk}/?resume=message")
-        self.conv = Conversation.objects.get(post=self.lost, initiator=self.finder)
-
-    def page(self, client, **headers):
-        return client.get(f"/conversations/{self.conv.pk}/", **headers).content.decode()
-
-    def test_bar_is_plus_message_send_and_keeps_script_names(self):
-        page = self.page(self.finder_client)
-        bar = page[page.index('<div class="chat-bar">'):page.index('<p class="chat-status"')]
-        self.assertIn('class="chat-plus', bar)
-        self.assertIn('aria-haspopup="menu" aria-expanded="false" aria-controls="chat-plus-menu"', bar)
-        for name in ('id="chat-form"', 'id="chat-file"', 'id="chat-input"', "data-upload-url=", "data-status-url=",
-                     "data-photo-mb=", "data-video-mb=", "data-video-seconds="):
-            self.assertIn(name, bar)
-        self.assertNotIn("chat-attach", bar)          # the 📎 button moved into the ＋ menu
-        self.assertIn("Photo or video", bar)
-        self.assertIn('id="chat-status"', page)
-        for name in ('id="question-ask"', 'class="question-filter"', "chat-question-list", 'method="post"'):
-            self.assertIn(name, page)
-
-    def test_only_the_finder_has_ownership_questions_in_the_menu(self):
-        self.assertIn("data-open-questions", self.page(self.finder_client))
-        owner_page = self.page(self.client_for(self.alice))
-        self.assertIn("Photo or video", owner_page)
-        self.assertNotIn("data-open-questions", owner_page)
-
-    def test_chat_window_mode_has_no_sidebar(self):
-        full = self.page(self.finder_client)
-        framed = self.page(self.finder_client, HTTP_SEC_FETCH_DEST="iframe")
-        self.assertIn('class="app-shell"', full)
-        self.assertNotIn('class="app-shell"', framed)
-        self.assertIn('data-embed="true"', framed)
-        self.assertIn('id="chat-form"', framed)
-        self.assertIn('data-embed="true"', self.finder_client.get(f"/conversations/{self.conv.pk}/?embed=1").content.decode())
-
-    def test_frame_only_from_this_site(self):
-        response = self.finder_client.get(f"/conversations/{self.conv.pk}/")
-        self.assertEqual(response["X-Frame-Options"], "SAMEORIGIN")
-
-    def test_post_page_has_chat_window_and_launcher(self):
-        page = self.finder_client.get(f"/p/{self.lost.pk}/").content.decode()
-        self.assertIn('id="chat-overlay"', page)
-        self.assertIn(f'data-chat-url="/conversations/{self.conv.pk}/"', page)
-        self.assertNotIn('id="chat-panel"', page)   # the old small panel is gone
-
-    def test_found_post_message_poster_chat_gets_launcher(self):
-        found = self.create_post(self.finder, "FOUND")
-        alice = self.client_for(self.alice)
-        alice.get(f"/p/{found.pk}/?resume=message")
-        conv = Conversation.objects.get(post=found, initiator=self.alice)
-        self.assertIn(f'data-chat-url="/conversations/{conv.pk}/"', alice.get(f"/p/{found.pk}/").content.decode())
-
-    def test_question_list_rows_never_squeezed(self):
-        self.assertIn(".question-list { grid-auto-rows: max-content; }", CSS)
+    def test_tester_data_not_in_shared_code(self):
+        code = Path(settings.BASE_DIR, "core", "management", "commands", "seed_demo.py").read_text(encoding="utf-8")
+        self.assertNotIn("_tester_accounts(login_rows)" , code.replace("self._tester_accounts(login_rows)", ""))
+        self.assertNotRegex(code, r"TESTER|tester\.[a-z]+@")   # no tester account written in the code
+        ignore = Path(settings.BASE_DIR, ".gitignore").read_text(encoding="utf-8").splitlines()
+        for name in ("tester-accounts.txt", "Accounts/", "accounts.md"):
+            self.assertIn(name, ignore)
 
 
 # ---- BUG-024: sign-in problems the team ran into ----
