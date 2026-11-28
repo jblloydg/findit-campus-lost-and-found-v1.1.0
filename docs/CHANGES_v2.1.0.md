@@ -206,6 +206,20 @@ Files: `core/views.py` (`global_search`, `SEARCH_PAGES`), `core/urls.py`, `templ
 fictional, by demo students), so testers can try **I found this – message the owner** right away. On a PC that already has
 demo data, run FindIT.cmd menu 3 or `python manage.py seed_demo` once. File: `core/management/commands/seed_demo.py`.
 
+## DES-009 — Redesign pass on the pages that only got the new colours (§10)
+Owner: Claude redesigns them, matching the lead interface developer's design (the student dashboard, landing, log in).
+- **Staff workspace** now looks like the student dashboard: green banner ("Hello, …") with **Scan turn-in QR**, **Walk-in
+  item** and **Staff inbox**; four tiles **On the way**, **At the guard house**, **Status requests**, **Waiting in staff
+  inbox**; reviewers/admins get their tools as chips; **Open items** use the full width (two per row on PC) instead of half
+  the page with an empty column; "1 claims" fixed to "1 claim".
+- **Side-by-side panels** keep their own height (e.g. *Add a category* no longer stretches down beside the list).
+- **Notifications:** unread notices have a green edge and dot; read ones are quieter.
+- Checked the rest of the §10 list at phone and PC size (profile, edit profile, change password, verify email, My posts,
+  My claims, Messages, Notifications, reports, categories, question bank, settings, backups, accounts, ID reviews): they
+  already use the lead design's parts after v2.0.0's Master Instruction fixes, so they were left as they are. The XL pages
+  were redone separately: Report an item (DES-006), chat room + chat window (DES-007/008), post page buttons (CHG-013/016).
+Files: `templates/core/staff_dashboard.html`, `templates/core/notifications.html`, `static/css/findit.css`.
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 

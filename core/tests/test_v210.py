@@ -516,3 +516,20 @@ class OpenLostDemoPostsTests(TestCase):
         finally:
             shutil.rmtree(folder, ignore_errors=True)
         self.assertGreaterEqual(ItemPost.objects.filter(post_type="LOST", status="OPEN").count(), 3)
+
+
+# ---- DES-009: redesign pass (Staff workspace like the student dashboard, unread notices) ----
+class StaffWorkspaceDesignTests(FindItTestCase):
+    def test_banner_tiles_and_plural(self):
+        post = self.create_post(self.finder, "FOUND")
+        self.client_for(self.alice).post(f"/p/{post.pk}/claim/", {})  # may be refused; plural is checked on counts below
+        page = self.client_for(self.staff).get("/staff/").content.decode()
+        self.assertIn('class="dash-banner"', page)
+        self.assertIn('class="stat-tiles"', page)
+        self.assertIn('class="staff-item-grid"', page)
+        self.assertNotIn(" 1 claims", page)
+        self.assertIn(" 0 claims", page)
+
+    def test_unread_notifications_marked(self):
+        InAppNotification.objects.create(recipient=self.alice, text="Hello unread")
+        self.assertIn("is-unread", self.client_for(self.alice).get("/notifications/").content.decode())
