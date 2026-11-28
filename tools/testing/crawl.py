@@ -16,13 +16,17 @@ settings.ALLOWED_HOSTS = ["*"]
 from django.test import Client
 from django.contrib.auth import get_user_model
 U = get_user_model()
-ROLES = ["2026-0001", "2026-0003", "2026-0005", "security.demo", "moderator.demo", "findit-admin", None]
+ROLES = ["2026-0001", "2026-0003", "2026-0005", "security.demo", "moderator.demo", "findit-admin", "dev.test", None]  # dev.test: a local Developer account made only for testing
 SKIP = ("/logout/", "/static/", "/media/", "/captcha/", "/django-admin/logout", "/django-admin/jsi18n")
 problems = []
 for name in ROLES:
     c = Client(raise_request_exception=False)
     if name:
-        c.force_login(U.objects.get(username=name))
+        user = U.objects.filter(username=name).first()
+        if user is None:
+            print(f"{name}: skipped (no such account on this PC)")
+            continue
+        c.force_login(user)
     seen, queue = set(), ["/", "/home/", "/staff/", "/staff/admin/", "/profile/", "/verify-email/", "/test-inbox/",
                           "/staff/id-reviews/", "/profile/blocked/", "/id-review/new/", "/profile/student-id/",
                           "/notifications/", "/messages/", "/my-claims/", "/my-posts/", "/signup/", "/login/",

@@ -57,7 +57,7 @@ If the script is blocked as "not digitally signed" (files from a downloaded zip)
 
 Already have a database from before this change and see `no such column: core_itempost.category`? Run `python manage.py migrate`.
 
-Demo accounts (fictional, local only) are listed in README.md, e.g. `2026-0001` / `DemoFindIt!2026`.
+Demo accounts (fictional, local only) are listed in README.md, e.g. `2026-0001` / (password: FindIT.cmd menu 2).
 
 ## Test steps
 

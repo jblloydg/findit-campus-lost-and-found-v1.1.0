@@ -198,12 +198,12 @@ python manage.py runserver 0.0.0.0:8000
 
 | Role | Sign-in | Password |
 | --- | --- | --- |
-| Finder (student) | 2026-0001 | DemoFindIt!2026 |
-| Claimant, approved #1 (student) | 2026-0002 | DemoFindIt!2026 |
-| Claimant, submitted (student) | 2026-0003 | DemoFindIt!2026 |
-| Claimant, declined (student) | 2026-0004 | DemoFindIt!2026 |
-| Guard-house staff | security.demo | DemoStaff!2026 |
-| Administrator | findit-admin | DemoAdmin!2026 |
+| Finder (student) | 2026-0001 | see FindIT.cmd menu 2 |
+| Claimant, approved #1 (student) | 2026-0002 | see FindIT.cmd menu 2 |
+| Claimant, submitted (student) | 2026-0003 | see FindIT.cmd menu 2 |
+| Claimant, declined (student) | 2026-0004 | see FindIT.cmd menu 2 |
+| Guard-house staff | security.demo | see FindIT.cmd menu 2 |
+| Administrator | findit-admin | see FindIT.cmd menu 2 |
 
 ---
 

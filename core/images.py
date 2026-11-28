@@ -7,6 +7,15 @@ The uploaded original is never stored or sent. When a photo is uploaded, Find-IT
 Both are JPEG. Re-saving also removes hidden photo data (EXIF), such as the GPS
 location some phones store in pictures.
 
+SEC-001 (v1.1.2) — hidden data becomes plain pixels:
+* Only real JPEG, PNG and WebP pictures are opened (no other picture formats).
+* The two lowest bits of every colour value are replaced by random noise before saving,
+  so data hidden in the pixels ("steganography") cannot survive. The change is at most
+  3 of 255 colour steps, which people cannot see, and the JPEG re-encoding changes more.
+* Nothing but the picture is written: no EXIF, no comments, no colour profile (phone photos
+  with a wide-colour profile are converted to normal sRGB colours first, so they look the same).
+* The finished file is checked: it must be one clean JPEG with nothing hidden after its end.
+
 Pages load text first; photos load by themselves afterwards ("lazy" loading), so a slow
 photo never holds up the rest of the page.
 """
@@ -15,9 +24,12 @@ import os
 import uuid
 
 from django.core.files.base import ContentFile
-from PIL import Image, ImageOps
+from PIL import Image, ImageChops, ImageOps
 
 Image.MAX_IMAGE_PIXELS = 60_000_000   # refuse absurdly large pictures ("decompression bombs")
+
+ALLOWED_FORMATS = ("JPEG", "PNG", "WEBP")  # SEC-001: never open any other picture format
+SCRAMBLE_MASK = 0xFC  # SEC-001: keep the top 6 bits of each colour value; the lowest 2 become random
 
 FULL = {"max_side": 1600, "max_bytes": 300 * 1024}
 PREVIEW = {"max_side": 480, "max_bytes": 40 * 1024}
@@ -34,18 +46,57 @@ def _flatten(image):
     return image.convert("RGB")
 
 
+def _to_srgb(image, icc_profile):
+    """Phone photos may carry a wide-colour profile. Convert to plain sRGB so the colours stay
+    right after the profile is removed. If that is not possible, keep the pixels as they are."""
+    if not icc_profile:
+        return image
+    try:
+        from PIL import ImageCms
+        source = ImageCms.ImageCmsProfile(io.BytesIO(icc_profile))
+        return ImageCms.profileToProfile(image, source, ImageCms.createProfile("sRGB"), outputMode="RGB")
+    except Exception:
+        return image
+
+
+def scramble_lowest_bits(image):
+    """SEC-001: replace the two lowest bits of every colour value with random noise
+    (at most 3 of 255 steps). Hidden data stored in those bits becomes meaningless."""
+    image = image.convert("RGB")
+    cleared = image.point([value & SCRAMBLE_MASK for value in range(256)] * 3)
+    noise = Image.frombytes("RGB", image.size, os.urandom(image.width * image.height * 3))
+    noise = noise.point([value & (~SCRAMBLE_MASK & 0xFF) for value in range(256)] * 3)
+    return ImageChops.add(cleared, noise)
+
+
+def check_clean_jpeg(data):
+    """SEC-001: accept only one clean JPEG: starts and ends like a JPEG, nothing appended,
+    opens as a JPEG, and carries no EXIF, comment or colour profile."""
+    if not (data.startswith(b"\xff\xd8") and data.endswith(b"\xff\xd9")):
+        raise ValueError("Output is not a clean JPEG.")
+    with Image.open(io.BytesIO(data), formats=["JPEG"]) as image:
+        image.load()
+        if any(key in image.info for key in ("exif", "icc_profile", "comment", "photoshop", "xmp")):
+            raise ValueError("Output JPEG still has extra data.")
+    return data
+
+
 def compress(source, max_side, max_bytes):
     """Return JPEG bytes no larger than max_side px and (as far as possible) max_bytes."""
     source.seek(0)
-    with Image.open(source) as opened:
+    with Image.open(source, formats=ALLOWED_FORMATS) as opened:
+        icc_profile = opened.info.get("icc_profile")
         image = _flatten(ImageOps.exif_transpose(opened))
+    image = _to_srgb(image, icc_profile)
+    image.info = {}
     image.thumbnail((max_side, max_side), Image.LANCZOS)
+    image = scramble_lowest_bits(image)
     quality = 82
     while True:
         buffer = io.BytesIO()
         image.save(buffer, "JPEG", quality=quality, optimize=True, progressive=True)
         if buffer.tell() <= max_bytes or (quality <= 45 and min(image.size) <= 200):
-            return buffer.getvalue()
+            return check_clean_jpeg(buffer.getvalue())
         if quality > 45:
             quality -= 8
         else:

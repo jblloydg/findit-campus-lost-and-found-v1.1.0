@@ -1,6 +1,7 @@
 import os, sys
 # Run from the project folder: python tools/testing/browser_queue.py  (see tools/testing/README.md)
 sys.path.insert(0, os.getcwd())
+from core.demo_logins import password_for  # CHG-008: demo passwords come from demo-logins.txt
 SERVER_CMD = [sys.executable, "manage.py", "runserver", "127.0.0.1:8765", "--noreload"]
 CHROME = {"executable_path": os.environ["CHROME_PATH"]} if os.environ.get("CHROME_PATH") else {}
 import os, subprocess, time, sqlite3
@@ -14,7 +15,7 @@ with sync_playwright() as pw:
     b = pw.chromium.launch(**CHROME, args=["--no-proxy-server"])
     page = b.new_page()
     page.goto(BASE + "/login/")
-    page.fill("input[name=username]", "jamie.claimant@example.com"); page.fill("input[name=password]", "DemoFindIt!2026")
+    page.fill("input[name=username]", "jamie.claimant@example.com"); page.fill("input[name=password]", password_for("jamie.claimant@example.com"))
     page.click("form.stack-form button[type=submit]")
     page.goto(BASE + "/messages/")
     href = page.locator("a[href^='/conversations/']").first.get_attribute("href")

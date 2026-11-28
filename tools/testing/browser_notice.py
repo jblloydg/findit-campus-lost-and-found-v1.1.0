@@ -1,6 +1,7 @@
 import os, sys
 # Run from the project folder: python tools/testing/browser_notice.py  (see tools/testing/README.md)
 sys.path.insert(0, os.getcwd())
+from core.demo_logins import password_for  # CHG-008: demo passwords come from demo-logins.txt
 SERVER_CMD = [sys.executable, "manage.py", "runserver", "127.0.0.1:8765", "--noreload"]
 CHROME = {"executable_path": os.environ["CHROME_PATH"]} if os.environ.get("CHROME_PATH") else {}
 import os, subprocess, time
@@ -18,7 +19,7 @@ with sync_playwright() as pw:
     ctx = b.new_context(); page = ctx.new_page(); chat = ctx.new_page()
     for p in (page, chat): p.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(BASE + "/login/")
-    page.fill("input[name=username]", "sam.second@example.com"); page.fill("input[name=password]", "DemoFindIt!2026")
+    page.fill("input[name=username]", "sam.second@example.com"); page.fill("input[name=password]", password_for("sam.second@example.com"))
     page.click("form.stack-form button[type=submit]")
     page.goto(BASE + "/notifications/"); page.goto(BASE + "/home/"); page.wait_for_timeout(1500)
     print("start badge:", page.locator(".notice-count").count() and page.inner_text(".notice-count"))
@@ -28,7 +29,7 @@ with sync_playwright() as pw:
     conv = href.strip("/").split("/")[1]
     # Live notification while connected: Alex (another browser) approves Sam's claim.
     alex_ctx = b.new_context(); alex = alex_ctx.new_page()
-    alex.goto(BASE + "/login/"); alex.fill("input[name=username]", "alex.finder@example.com"); alex.fill("input[name=password]", "DemoFindIt!2026")
+    alex.goto(BASE + "/login/"); alex.fill("input[name=username]", "alex.finder@example.com"); alex.fill("input[name=password]", password_for("alex.finder@example.com"))
     alex.click("form.stack-form button[type=submit]")
     alex.goto(BASE + href); alex.click("form[action*='/approve/'] button"); alex.wait_for_timeout(1500)
     page.wait_for_timeout(1500)

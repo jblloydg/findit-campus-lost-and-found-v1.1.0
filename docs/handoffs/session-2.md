@@ -95,7 +95,7 @@ Your database already records `core.0001_initial` as applied, so only `0002_item
 
 ## 6. See the feature working (about 5 minutes)
 
-Sign in as **2026-0001** / **DemoFindIt!2026** (fictional demo account).
+Sign in as **2026-0001** / (password: FindIT.cmd menu 2) (fictional demo account).
 
 1. **Create a LOST post with a time:** click **Create post**. Choose **Lost**, enter a title and description, pick yesterday's date and a time such as 3:40 PM, then click **Publish post**. You'll see "Your post is live." and the detail page shows **Approx. time lost: 3:40 PM**.
 2. **Photo preview:** create another post, this time **Found**. Fill in the five private questions and choose a JPG/PNG photo. A preview appears under the file box before you publish. After publishing, the photo shows on the detail page.
@@ -103,8 +103,8 @@ Sign in as **2026-0001** / **DemoFindIt!2026** (fictional demo account).
 4. **Edit:** open your post → **Edit post**. The time is already filled in. Change the title, date and time, then replace the photo (or tick **Remove the current photo**). Click **Save changes** to see "Your post was updated." and the new values.
 5. **Validation:** in a new post, enter a time but no date → "Add the approximate date as well…". A future date → "cannot be in the future". A `.gif` → "Upload a JPG, PNG, or WebP exterior photo."
 6. **Old records:** the two seeded demo posts ("Blue insulated bottle", "Black folding umbrella") have no time. They open fine and show "Not provided".
-7. **Status tracking:** the detail page shows **Current status**. Sign in as **2026-0002** / **DemoFindIt!2026** and claim "Blue insulated bottle" (status → Claim in Progress). As 2026-0001, open the post → **Mark returned** (→ Returned). As 2026-0002, **Confirm I received it** (→ Claimed). The status history panel lists each step.
-8. **Permissions:** as 2026-0002, visit the edit link of a post owned by 2026-0001 (`/posts/<id>/edit/`). You get "Only the post author or an administrator may edit this post." Staff account **security.demo** / **DemoStaff!2026** no longer sees an Edit button on other people's posts, but still has the staff actions.
+7. **Status tracking:** the detail page shows **Current status**. Sign in as **2026-0002** / (password: FindIT.cmd menu 2) and claim "Blue insulated bottle" (status → Claim in Progress). As 2026-0001, open the post → **Mark returned** (→ Returned). As 2026-0002, **Confirm I received it** (→ Claimed). The status history panel lists each step.
+8. **Permissions:** as 2026-0002, visit the edit link of a post owned by 2026-0001 (`/posts/<id>/edit/`). You get "Only the post author or an administrator may edit this post." Staff account **security.demo** / (password: FindIT.cmd menu 2) no longer sees an Edit button on other people's posts, but still has the staff actions.
 9. **Mobile:** in your browser, press F12 → device toolbar → choose a phone size. The date and time fields stack, and the photo preview fits the screen.
 
 ## 7. Test results

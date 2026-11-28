@@ -77,4 +77,4 @@ the same except 2 small count queries on the dashboard.
 - **Bug hunt, whole program again:** crawl (every page per role, 0 crashes), form fuzz (84 routes, 0 problems), address fuzz (none).
 - **Every page, every role at 320, 390, 768, 1280 and 1920 px:** 985 page views, photo on all, 0 px sideways scrolling, including the new Audit trail and System status pages.
 - Visual check of the new screens (Accounts with red-flag panel, Edit account verification details, Audit trail, System status, My profile with Withdraw on a phone).
-- Not tested: the video badge with a real uploaded video (tested with a rendered example; needs ffmpeg on the PC); the Developer view in a browser (tested in code; the Developer account is made only with `create_developer`).
+- Not tested: the video badge with a real uploaded video (tested with a rendered example; needs ffmpeg on the PC); the Developer view in a browser (tested in code; the Developer account is made only on the owner's PC).

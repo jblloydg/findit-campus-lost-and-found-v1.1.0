@@ -49,7 +49,9 @@ ID_CASES_PER_IP_PER_DAY = 5
 # ---------------------------------------------------------------------------
 
 def notify_account(user, text, link="", priority=False):
+    from .security import is_own_site_path
     text = text[:240]
+    link = link[:200] if is_own_site_path(link[:200]) else ""  # SEC-002: own pages only
     recent = InAppNotification.objects.filter(
         recipient=user, post__isnull=True, text=text, created_at__gte=timezone.now() - timedelta(seconds=60),
     ).first()

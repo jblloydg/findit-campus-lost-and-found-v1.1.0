@@ -18,11 +18,40 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 
 ## Branches and versions
 - `main` = the stable released version. Branch **`stable/v1.1.0`** is the frozen v1.1.0 rollback point (this session could not push tags; add tag `v1.1.0` from GitHub Releases if wanted).
-- Work for the next version happens on **`release/1.1.1`** (branched from `v1.1.0`).
+- Work for the next version happens on **`release/1.1.2`** (in both the public repo and the owner's private copy, see below) (branched from the finished v1.1.1 on `main`). v1.1.2 = bug fixes for v1.1.1 found by testers; it must keep running on local devices (one Windows PC, no hosting). Frozen copies: `stable/v1.1.0`, `stable/v1.1.1`.
 - One bug or change = one commit (message starts with its ID, e.g. `BUG-003: …`), so any fix can be reverted alone.
 - **Version plan:** v1.1.1 = V2-I school verification + bug fixes → v2.0.0 interface overhaul → v2.1.0 its bug fixes → v3.0.0 online hosting + PostgreSQL + all of V2-J (performance and uptime evidence). Don't start hosting/PostgreSQL/Redis/SMTP/V2-J work before v3.0.0 unless asked; keep the code PostgreSQL-compatible meanwhile. Details in `docs/ROADMAP.md`.
-- When the owner approves 1.1.1: merge `release/1.1.1` into `main`, tag `v1.1.1`. Never rewrite or delete history.
+- When the owner approves a version: merge its `release/…` branch into `main` and add a frozen `stable/v<version>` branch (tags can be added on GitHub). Never rewrite or delete history.
 - Log every fix in `docs/BUG_REPORTS.md` and add a "Changes in <version>" section to `HANDOFF.md`.
+
+## Version label (owner's instruction — implement in v2.0.0, not before)
+- From **v2.0.0** (after all v2.0.0 wireframes are integrated), every page shows the app version near the bottom: small, light-gray text such as "Find-IT v2.0.0". Its exact place is decided in the v2.0.0 wireframes.
+- The number must come from the **`VERSION`** file (read once by the app), never typed into pages.
+- For **every** version update from then on, change `VERSION` in the same work, so the label always matches the version people are running.
+
+## v1.1.2 instructions from the owner (do these in the v1.1.2 session)
+1. **BUG-009 — FindIT.cmd reopens the login page every ~20 seconds.** Cause: when Find-IT is already running, the "already running" branch opens the browser and returns to the menu, whose 20-second auto-start then fires again → endless loop (seen when the shortcut is opened twice). Fix: auto-start only the first time the menu shows; in the "already running" case open the browser once and wait at the menu with no timer (or close). Must still work on a plain Windows PC.
+2. **BUG-008 — post page category/location line** (`templates/core/post_detail.html`, the `item-tags` line): the category link is empty (`get_category_display` does not exist for the category model) and filters by name instead of id, and the dormant location is shown when a post has one. Fix: link to `?category=<id>` with the category name; show location only when `FINDIT_LOCATION_ENABLED=1`.
+3. **SEC-001 — media steganography / hidden payloads: everything becomes plain pixels.** Goal: anything hidden inside a photo or video (steganography, appended files, malicious metadata or streams) must end up as meaningless colors/noise in the stored copy, never as data a keylogger or other malware could read or run. Already true in v1.1.1: every photo/video is decoded and re-encoded (photo → JPEG, video → H.264/AAC MP4), originals deleted, files served with `nosniff` and a sandbox CSP. Strengthen in v1.1.2:
+   - **Videos:** keep only one video stream and at most one audio stream; drop everything else (`-map 0:v:0 -map 0:a:0? -sn -dn -map_chapters -1 -map_metadata -1`, no attachments/fonts/subtitles/data streams); never stream-copy, always re-encode.
+   - **Block tricky inputs:** only local files may be read (`-protocol_whitelist file,pipe`); refuse inputs whose detected container is not in an allow-list (mp4/mov, webm/matroska, 3gp) — e.g. HLS/playlist or "concat" files that try to read other files or the network.
+   - **Destroy hidden bits in pixels:** besides lossy re-encoding and resizing, apply a tiny change that scrambles the lowest bits (e.g. slight re-scaling, mild noise or colour re-quantisation) to photos, video frames and video posters, so least-significant-bit steganography cannot survive; check visually that people cannot see the change.
+   - **Check the output:** after encoding, probe the result and accept it only if it is exactly what we expect (JPEG photo; MP4 with H.264 video + optional AAC audio, no other streams, no metadata); otherwise refuse the file.
+   - **Run safely:** ffmpeg as a separate program with a time limit, in a temporary folder, without a shell, low priority; same rules for post photos, profile photos and status-request photos.
+   - **Tests:** a photo and a video with hidden data in pixel lowest bits, an appended ZIP, extra data/subtitle/attachment streams, metadata, and an HLS/concat "video" — the stored copy must contain none of it (compare bytes and extract the lowest bits). Log as SEC-001 and include it in the v1.1.2 test report.
+   - Plain explanation for the paper: hidden data in a picture cannot run by itself; the danger is a program that later reads it. Re-encoding turns that hidden data into ordinary color noise, so there is nothing left to read.
+
+## Private data stays out of the shared repository (owner's rule since v1.1.2 — EVERY version)
+This repository and its release branches are shared publicly. **Never** put any of these in a file, commit message, handoff, report or test here:
+- passwords of any kind (demo, test or real), sign-in lists with passwords, keys, `.env` values;
+- instructions for creating or managing the owner's Developer account;
+- real people's names, Student IDs, emails or other personal data;
+- any other sensitive instruction the owner marks as private.
+They belong only in the owner's **private copy** (a private repository or the owner's PC). If a task needs one, ask the owner instead of writing it here.
+
+**Two copies of every release (owner's rule since v1.1.2):** this **public** repository has the full program without the private parts; the owner's **private** repository has the same branches (`main`, `release/<version>`, `stable/v<version>`) plus the private notes. Changes flow **public → private only**: do the work here, then merge each public branch into the private branch of the same name. **Never push or merge a private branch into this repository.** When a version is approved, update and freeze both copies (merge into `main`, add `stable/v<version>` in both).
+
+Demo passwords are made per PC (`core/demo_logins.py`). `core/tests/test_v112.py::NoSensitiveDataInSharedFilesTests` scans every tracked file and must pass; extend its patterns when something new must stay private. Check for leaks in every version's bug hunt.
 
 ## Reports required for EVERY version (owner's rule since v1.1.1)
 Before a version is pushed for approval, it must include, in plain text (readable in any Claude session):
@@ -35,7 +64,7 @@ Run the bug hunt again after any big change (e.g. chat, media) and once more on 
 1. **Session 4's design has priority** whenever sessions named or behaved differently.
 2. **Claim states:** Submitted → Approved → Returned → Completed, plus Declined, Closed, Expired. Several claims can be approved; public counts, private rank; the finder picks who gets the item. Decline reason optional, shown to the claimant. Re-apply once. 7-day inactivity expiry (incl. Approved). **No automatic answer checking — people judge answers.**
 3. **Ownership questions** are picked from an admin question bank: 3–5 per found post (defaults fill to 3) + a required claimant description (no minimum length).
-4. **Roles:** Student, Staff, Admin, plus **Developer** (v1.1.1, above Admin: the only one who makes/removes admins and opens `/django-admin/`; created only with `manage.py create_developer`, never via a web page, no email reset; superusers are not admins). **Security guards = plain Staff:** approve/decline claims, guard house, finder status requests, view claim answer forms. **Verified moderators (Staff verified by an admin) + Admins only:** read other people's private chats, pause chats, review reports.
+4. **Roles:** Student, Staff, Admin, plus **Developer** (v1.1.1, above Admin: the only one who makes/removes admins and opens `/django-admin/`; never created or edited via a web page; superusers are not admins). How the owner creates and manages it is in the owner's private notes only. **Security guards = plain Staff:** approve/decline claims, guard house, finder status requests, view claim answer forms. **Verified moderators (Staff verified by an admin) + Admins only:** read other people's private chats, pause chats, review reports.
 5. **Share mode:** posts are visible signed-out only after someone signed in presses Copy link; then permanently.
 6. **Posts:** category required (admin-managed), 1–20 photos required, title/description optional, captcha above 10 photos (django-simple-captcha, randomized, **no audio**), posts-per-hour limit (admin setting).
 7. **Guard house:** only staff change the status (QR scan / code / manual). The QR link opens for anyone, but only staff see Confirm. Claims and chats stay open there; the finder sends status requests (reason required, photo optional). No storage location, no condition notes (main campus only).
@@ -56,13 +85,12 @@ Run the bug hunt again after any big change (e.g. chat, media) and once more on 
 ## Commands
 ```powershell
 python manage.py migrate            # never run makemigrations on a server; commit new migrations
-python manage.py seed_demo          # fictional demo data (local only)
-python manage.py test core          # 202 tests; keep them passing, add tests for each fix
-python manage.py create_developer   # the owner's Developer account (password typed privately)
+python manage.py seed_demo          # fictional demo data (local only); random passwords -> demo-logins.txt
+python manage.py test core          # 228 tests (v1.1.2); keep them passing, add tests for each fix
 python manage.py makemigrations --check --dry-run   # must say "No changes detected" before committing
 python manage.py backup_now [--list] / restore_backup NAME
 ```
-Demo sign-ins: students by email, e.g. `alex.finder@example.com` (or verified ID `2026-0001`) / `DemoFindIt!2026` (students 0001–0004 verified, `casey.unverified@example.com` not verified, `morgan.shared@example.com` not verified with a Student ID conflict and an open ID review; `2026-0016` Drew is a red-flagged, inactive example), `security.demo` (guard), `moderator.demo` (verified moderator) / `DemoStaff!2026`, `findit-admin` / `DemoAdmin!2026`.
+Demo sign-ins: made at random on each PC by `seed_demo`, saved in `demo-logins.txt` (ignored by Git), shown by FindIT.cmd menu 2. Students sign in by email (e.g. `alex.finder@example.com`); staff `security.demo` (guard), `moderator.demo` (verified moderator); admin `findit-admin`. Test scripts read passwords with `core.demo_logins.password_for()`. v2.0.0 examples: `casey.unverified@example.com` not verified, `morgan.shared@example.com` not verified with a Student ID conflict and an open ID review, Drew (`2026-0016`) red-flagged and disabled.
 
 ## Where things are
 - `core/models.py`, `forms.py`, `services.py` (all state changes go through services), `views.py`, `urls.py`, `permissions.py`

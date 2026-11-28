@@ -24,14 +24,15 @@ The V2 list was written before v1.1.0. The four sessions already built most of i
 | Version | Goal | Status |
 | --- | --- | --- |
 | **v1.1.0** | Sessions 1–4 integrated. Covers most V1 and V2 goals. | Released (`main`) |
-| **v1.1.1** | V2-I school account verification + bug fixes + easier start. | Built on `release/1.1.1`, waiting for owner approval (rollback: `stable/v1.1.0`) |
+| **v1.1.1** | V2-I school account verification, chat/media, speed + bug fixes + easier start. | Released on `main` (rollback: `stable/v1.1.0`) |
+| **v1.1.2** | Bug fixes for v1.1.1 from testers (`docs/BUG_REPORTS.md`). Must keep running on local devices. Branch `release/1.1.2`. | Waiting for bug reports |
 | **v2.0.0** | Interface overhaul. Lead: *(to be named)* | Planned |
 | **v2.1.0** | Fix bugs found in 2.0.0 **+ adaptive layout**: every page adapts from PC to phone using relative sizes (percentages / fluid units) instead of fixed pixel sizes. | Planned |
 | **v3.0.0** | Online hosting: put the app on the internet, move SQLite → PostgreSQL, all of V2-J (2.5-second and uptime evidence). | Planned |
 
 ### What v1.1.1 contains
 - **V2-I school account verification**: optional email code (printed locally + Test inbox), sign-in with email, Student ID rules (shared until verified, 14-day grace, 3 IDs = disabled), ID reviews, unverified limits and warning, Report & block.
-- **Developer role** (only it makes admins; `create_developer` command).
+- **Developer role** (only it makes admins).
 - **Easier start** (`FindIT.cmd` menu, `START-HERE.txt`).
 - **Chat:** message and notification queues (never lost or doubled), Messenger-style history (byte-sized pages, scroll to load, search), photos and videos in chats (re-encoded, private, limited).
 - **Speed:** smooth chat on slow phones, no overload with many users, photos compressed on upload.
@@ -47,7 +48,7 @@ The V2 list was written before v1.1.0. The four sessions already built most of i
 Also: PostgreSQL testing and switch, hosting provider, HTTPS, real email (SMTP) for password resets and verification, Redis for live chat across processes, uptime monitor (rest of V2-J), scheduled backups on the server.
 
 ### v2.0.0 / v2.1.0 — interface
-- **v2.0.0:** interface overhaul (lead to be named).
+- **v2.0.0:** interface overhaul (3 front-end developers, wireframes first). Includes the **version label**: small light-gray "Find-IT v…" near the bottom of every page, read from the `VERSION` file (placement from the wireframes; see CLAUDE.md).
 - **v2.1.0:** bug fixes for 2.0.0 and an **adaptive layout**: pages scale from PC to phone with
   relative sizes (%, `rem`, `vw`, `clamp()`), not fixed `px`; chat bubbles, photos and videos
   size themselves to the screen; touch-friendly buttons. (v1.1.1 only made the phone fast, not
