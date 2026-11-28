@@ -19,10 +19,11 @@ Every fix is its own commit (`git log --oneline`), so any single one can be reve
 | BUG-009 | `FindIT.cmd` opened the login page again about every 20 seconds when nobody pressed a key (seen when Find-IT was opened twice). | The 20-second auto-start now runs only the first time the menu shows. If Find-IT is already running, the extra window opens the browser once and waits; close it or press 0. |
 | BUG-008 | Post page: the category tag was empty and its link filtered by name; a dormant location could be shown. | The tag shows the category name and opens Browse filtered by that category. Location shows only when `FINDIT_LOCATION_ENABLED=1`. |
 
-## Security (planned, waiting for the owner's approval of the plan)
+## Security
 | ID | Change |
 | --- | --- |
-| SEC-001 | Photos and videos: anything hidden inside (steganography, appended files, extra streams, metadata, playlist tricks) ends up as plain color noise, never as readable data. |
+| SEC-002 | Notifications only ever open a page of Find-IT itself. Full web addresses, `//other.site`, backslash tricks such as `/\other.site` and `javascript:` links are refused, both when a notice is created and when it is tapped. |
+| SEC-001 (planned, waiting for the owner's approval) | Photos and videos: anything hidden inside (steganography, appended files, extra streams, metadata, playlist tricks) ends up as plain color noise, never as readable data. |
 
 ## Database migrations
 None so far.
@@ -31,7 +32,7 @@ None so far.
 None so far.
 
 ## Tests
-`python manage.py test core`: 207 tests (202 from v1.1.1 + 5 new in `core/tests/test_v112.py`).
+`python manage.py test core`: 210 tests (202 from v1.1.1 + 8 new in `core/tests/test_v112.py`).
 
 ## Not included / still open
 - `FindIT.cmd` still has to be run once on a real Windows PC (it cannot be run in Claude's Linux workspace).

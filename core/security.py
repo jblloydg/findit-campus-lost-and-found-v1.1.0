@@ -1,4 +1,4 @@
-"""Small security helpers: sign-in throttling.
+"""Small security helpers: sign-in throttling, own-site links (SEC-002).
 
 Failed sign-ins are counted per (username, client IP) in Django's cache. After
 LOGIN_FAILURE_LIMIT failures within LOGIN_LOCKOUT_SECONDS, that pair is refused
@@ -11,6 +11,7 @@ import hashlib
 
 from django.conf import settings
 from django.core.cache import cache
+from django.utils.http import url_has_allowed_host_and_scheme
 
 
 def client_ip(request):
@@ -40,3 +41,19 @@ def record_login_failure(username, ip):
 
 def clear_login_failures(username, ip):
     cache.delete(_key(username, ip))
+
+
+def is_own_site_path(link):
+    """SEC-002: notices only ever open a page of Find-IT itself.
+
+    Accepts plain paths such as "/profile/". Refuses full addresses ("https://..."),
+    protocol-relative ones ("//other.site"), backslash tricks ("/\\other.site", which
+    browsers read as "//other.site"), control characters and "javascript:" links.
+    """
+    if not link or not link.startswith("/") or "\\" in link:
+        return False
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in link):
+        return False
+    if link.startswith("//"):
+        return False
+    return url_has_allowed_host_and_scheme(link, allowed_hosts=set(), require_https=False)

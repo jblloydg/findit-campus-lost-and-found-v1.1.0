@@ -45,7 +45,7 @@ from .verification import (
     welcome_new_account, would_be_flagged,
 )
 from .matching import find_possible_matches
-from .security import clear_login_failures, client_ip, login_is_locked, record_login_failure
+from .security import clear_login_failures, client_ip, is_own_site_path, login_is_locked, record_login_failure
 from .permissions import (
     can_review_private_chats, can_review_reports, is_admin, is_developer, is_staff_or_admin, is_unverified_student,
     role_of,
@@ -1271,7 +1271,7 @@ def notifications(request):
             if notice.read_at is None:
                 notice.read_at = timezone.now()
                 notice.save(update_fields=["read_at"])
-            if notice.link and notice.link.startswith("/") and not notice.link.startswith("//"):
+            if is_own_site_path(notice.link):
                 return redirect(notice.link)
             if notice.post_id:
                 return redirect("post-detail", post_id=notice.post_id)
