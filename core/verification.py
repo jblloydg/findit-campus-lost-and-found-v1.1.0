@@ -425,6 +425,23 @@ def decide_id_review(case, actor, transfer, note=""):
     return case
 
 
+@transaction.atomic
+def withdraw_id_review(case, user):
+    """v2.0.0: the student who asked for an ID review can take it back while it is still open."""
+    case = IdReviewCase.objects.select_for_update().get(pk=case.pk)
+    if case.requester_id != user.pk:
+        raise PermissionError("Only the person who asked for this review can withdraw it.")
+    if case.status != IdReviewCase.Status.OPEN:
+        raise ValueError("This review was already decided or withdrawn.")
+    case.status = IdReviewCase.Status.WITHDRAWN
+    case.decided_at = timezone.now()
+    case.decision_note = "Withdrawn by the student who asked."
+    case.save(update_fields=["status", "decided_at", "decision_note"])
+    from .services import audit
+    audit(user, "withdrew_id_review", case, f"{case.reference} withdrawn by the requester")
+    return case
+
+
 # ---------------------------------------------------------------------------
 # Limits for unverified students
 # ---------------------------------------------------------------------------

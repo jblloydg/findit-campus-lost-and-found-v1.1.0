@@ -1,12 +1,28 @@
-# Find-IT handoff — v1.1.1 (and the v1.1.0 integration below)
+# Find-IT handoff — v2.0.0 (and earlier versions below)
 
-> **Continuing the work?** Read `CLAUDE.md` (rules and decisions), `docs/ROADMAP.md` (V2 status and what's next) and `docs/BUG_REPORTS.md` (how to report). Version 1.1.1 is on branch `release/1.1.1`; branch **`stable/v1.1.0`** is the frozen v1.1.0 rollback point (`main` stays on v1.1.0 until the owner approves 1.1.1). A paste-ready prompt for a new Claude session is in `docs/TRANSFER_PROMPT.md`.
+> **Continuing the work?** Read `CLAUDE.md` (rules and decisions), `docs/ROADMAP.md` (V2 status and what's next) and `docs/BUG_REPORTS.md` (how to report). Version 2.0.0 is released on `main` (approved 2026-11-28). Frozen rollback points: `stable/v1.1.0`, `stable/v1.1.1`, `stable/v1.1.2`, `stable/v2.0.0`. A paste-ready prompt for a new Claude session is in `docs/TRANSFER_PROMPT.md`.
 
 Version **1.1.0** combines the work of four separate development sessions on top of the original Find-IT starter. Each session's own handoff is kept unchanged in `docs/handoffs/session-1.md` … `session-4.md`.
 
 All accounts, names and photos in the demo are fictional. The repository contains **no** database file, real student data, real passwords, secret keys, backups, uploads or report attachments.
 
 ---
+
+## Changes in 2.0.0
+
+The interface overhaul (branch `release/2.0.0`): **v1.1.2 + the front-end team's v2.0.0 interface**.
+Full patch notes with the reason behind each change: **`docs/CHANGES_v2.0.0.md`**; tests and speed:
+**`docs/TEST_REPORT_v2.0.0.md`**. In short:
+- **New look** (DES-001…004, front-end team): dark-green sidebar (slide-in menu on phones), DOrSU monument
+  photo behind every page, new colours and fonts (`static/css/findit.css` replaces `app.css`,
+  `static/css/campus-bg.css`), the 9 backend features that had no page (Audit trail, System status, …).
+- **CHG-009** v1.1.2 merged in; the team's new demo examples (Drew, Morgan) get random passwords too.
+- **DES-005** version label "Find-IT v2.0.0" from `VERSION` (`core/version.py`).
+- **BUG-011** two lost styles; **BUG-015** tap targets ≥ 2.75rem; **BUG-016** text ≥ 12 px;
+  **BUG-017** 500 page without fixed px; **BUG-018** SQLite `-wal`/`-shm` files ignored by Git.
+- Renumbered team entries: BUG-012 (leftover `<<<<<<<` line on Browse, still in v1.1.2), BUG-013, BUG-014.
+- New tool `tools/testing/responsive_check.py` (Master Instruction check). No migrations, no new packages. Tests: 266.
+- Still to redesign (layout kept from v1.1.1): see `docs/CHANGES_v2.0.0.md` §10.
 
 ## Changes in 1.1.2
 

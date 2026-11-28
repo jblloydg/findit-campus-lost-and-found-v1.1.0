@@ -1,6 +1,7 @@
 import re
 
 from django import forms
+from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm, PasswordResetForm, SetPasswordForm
 from django.contrib.auth.password_validation import validate_password
@@ -491,8 +492,9 @@ class ItemPostForm(forms.ModelForm):
 
     class Meta:
         model = ItemPost
-        fields = ["post_type", "category", "title", "description", "approximate_date", "approximate_time"]
+        fields = ["post_type", "category", "title", "description", "approximate_date", "approximate_time", "location"]
         widgets = {
+            "location": forms.TextInput(attrs={"placeholder": "Optional: a broad place, such as Library 2nd floor", "maxlength": 120}),
             "post_type": forms.Select(attrs={"data-post-type": "true"}),
             "category": forms.Select(attrs={"data-category": "true"}),
             "title": forms.TextInput(attrs={"placeholder": "Optional: a broad name, such as blue water bottle"}),
@@ -513,6 +515,13 @@ class ItemPostForm(forms.ModelForm):
         if self.is_bound and not self._captcha_needed():
             # Only uploads that bring a post above 10 photos are checked.
             del self.fields["captcha"]
+        if not getattr(settings, "FINDIT_LOCATION_ENABLED", False):
+            # Location is DORMANT (owner decision 8): not shown or collected unless the setting is on.
+            del self.fields["location"]
+        else:
+            self.fields["location"].required = False
+            self.fields["location"].label = "Where (optional)"
+            self.fields["location"].help_text = "A broad place on the main campus. Keep exact spots for the private claim form."
         categories = Category.objects.filter(is_active=True)
         if self.instance.pk and self.instance.category_id:
             categories = Category.objects.filter(Q(is_active=True) | Q(pk=self.instance.category_id))

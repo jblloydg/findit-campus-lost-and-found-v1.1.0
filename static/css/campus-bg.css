@@ -1,0 +1,255 @@
+/* ==========================================================================
+   Find-IT v2.0.0 — DOrSU campus monument background kit
+   --------------------------------------------------------------------------
+   One photo, used the same way on every page:
+     <body class="campus-bg campus-bg--hero">  public pages (landing, login,
+                                                sign-up, password reset, QR
+                                                turn-in, error pages)
+     <body class="campus-bg campus-bg--app">   every signed-in page (student,
+                                                staff, moderator, admin)
+
+   The photo itself is never edited. It sits in a fixed layer behind the page,
+   with a green (hero) or off-white (app) wash on top so text stays readable.
+
+   To swap in a bigger photo later: replace the two files in
+   static/img/campus/ with the same names. Nothing else changes.
+
+   Units follow the master instruction: %, rem, clamp(), vw/dvh. Fixed px is
+   only used for 1px borders and shadows.
+   ========================================================================== */
+
+:root {
+  /* Find-IT v2 palette (forest, emerald, sage, off-white) */
+  --fi-forest: #0b2a23;
+  --fi-forest-2: #14392f;
+  --fi-emerald: #1f5245;
+  --fi-emerald-2: #2d6a59;
+  --fi-sage: #9fc2b0;
+  --fi-sage-pale: #e2eee7;
+  --fi-canvas: #eef3ee;
+  --fi-paper: #fbfaf6;
+  --fi-ink: #10261f;
+  --fi-muted: #3a4d44;
+  --fi-line: rgba(16, 38, 31, .12);
+  --fi-shadow: 0 1px 2px rgba(11, 42, 35, .06), 0 10px 30px rgba(11, 42, 35, .08);
+  --fi-radius: clamp(0.85rem, 0.7rem + 0.5vw, 1.25rem);
+
+  /* Where the photo is anchored. Keeps the monument figures in view. */
+  --campus-pos: 50% 38%;
+  /* Softening for the current 554 px photo when it is enlarged a lot.
+     Set to 0 once a photo of 1600 px or wider is in place. */
+  --campus-blur: 0rem;
+}
+
+/* ---------- 1. The photo layer (shared by both variants) ---------- */
+body.campus-bg {
+  position: relative;
+  isolation: isolate;               /* keeps the layers behind this page only */
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: var(--fi-canvas);
+}
+
+/* A fixed layer instead of background-attachment: fixed, which iPhones ignore. */
+body.campus-bg::before,
+body.campus-bg::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+body.campus-bg::before {
+  z-index: -2;
+  background-color: var(--fi-forest);
+  background-image: url("../img/campus/dorsu-monument.jpg");
+  background-image: image-set(
+    url("../img/campus/dorsu-monument.webp") type("image/webp"),
+    url("../img/campus/dorsu-monument.jpg") type("image/jpeg")
+  );
+  background-repeat: no-repeat;
+  background-size: cover;           /* fills the screen, never stretched */
+  background-position: var(--campus-pos);
+  filter: blur(var(--campus-blur));
+  transform: scale(1.03);           /* hides the soft edge a blur leaves */
+}
+
+body.campus-bg::after {
+  z-index: -1;
+}
+
+/* ---------- 2. Hero variant: public pages ---------- */
+/* Deep forest wash. Darkest where the text sits (left), lighter toward the
+   right so the monument shows through. */
+body.campus-bg--hero::after {
+  background:
+    linear-gradient(180deg, rgba(11, 42, 35, .35) 0%, rgba(11, 42, 35, 0) 30%, rgba(11, 42, 35, .55) 100%),
+    linear-gradient(105deg, rgba(9, 36, 30, .94) 0%, rgba(11, 42, 35, .86) 42%, rgba(20, 57, 47, .62) 100%);
+}
+body.campus-bg--hero { color: #f4f7f2; }
+
+/* ---------- 3. App variant: every signed-in page ---------- */
+/* Off-white wash. The monument shows faintly near the top (page header)
+   and fades to calm off-white where tables and forms sit. */
+body.campus-bg--app::after {
+  background:
+    linear-gradient(180deg,
+      rgba(238, 243, 238, .84) 0%,
+      rgba(238, 243, 238, .89) 35%,
+      rgba(238, 243, 238, .94) 70%,
+      rgba(238, 243, 238, .96) 100%);
+}
+body.campus-bg--app { color: var(--fi-ink); }
+
+/* ---------- 4. Responsive photo anchoring ---------- */
+/* Phones (portrait): the square photo is cropped left/right; keep centre. */
+/* Tablets and up: the photo is cropped top/bottom; lift the anchor so the
+   graduates' raised arms and caps stay in view. */
+@media (min-width: 48em) {
+  :root { --campus-pos: 50% 34%; }
+}
+@media (min-width: 80em) {
+  :root { --campus-pos: 50% 30%; --campus-blur: 0.1rem; }
+}
+@media (min-width: 120em) {
+  :root { --campus-blur: 0.15rem; }
+}
+/* Short landscape phones */
+@media (orientation: landscape) and (max-height: 32em) {
+  :root { --campus-pos: 50% 28%; }
+}
+/* On phones the hero text runs full width, so use an even wash. */
+@media (max-width: 47.99em) {
+  body.campus-bg--hero::after {
+    background:
+      linear-gradient(180deg, rgba(9, 36, 30, .78) 0%, rgba(11, 42, 35, .86) 45%, rgba(9, 36, 30, .93) 100%);
+  }
+}
+
+/* ---------- 5. Readable surfaces ---------- */
+/* Solid card: forms, tables, anything people read or type in. */
+.campus-card {
+  background: var(--fi-paper);
+  color: var(--fi-ink);
+  border: 1px solid var(--fi-line);
+  border-radius: var(--fi-radius);
+  box-shadow: var(--fi-shadow);
+}
+
+/* Glass card: light, slightly see-through. Only for short text
+   (stat tiles, page headers, top bar). Never for forms or tables. */
+.campus-glass {
+  background: rgba(251, 250, 246, .84);
+  color: var(--fi-ink);
+  border: 1px solid rgba(255, 255, 255, .6);
+  border-radius: var(--fi-radius);
+  box-shadow: var(--fi-shadow);
+  -webkit-backdrop-filter: blur(0.75rem) saturate(1.1);
+  backdrop-filter: blur(0.75rem) saturate(1.1);
+}
+
+/* Top bar (sticky header) */
+.campus-topbar {
+  background: rgba(251, 250, 246, .86);
+  border-bottom: 1px solid var(--fi-line);
+  -webkit-backdrop-filter: blur(0.9rem);
+  backdrop-filter: blur(0.9rem);
+}
+/* Top bar on hero pages */
+.campus-bg--hero .campus-topbar {
+  background: rgba(11, 42, 35, .55);
+  border-bottom-color: rgba(255, 255, 255, .1);
+  color: #f4f7f2;
+}
+
+/* Dark sidebar: lets the monument glow through very slightly. */
+.campus-sidebar {
+  background: linear-gradient(180deg, rgba(11, 42, 35, .93) 0%, rgba(11, 42, 35, .97) 100%);
+  color: #e9f0ec;
+  border-right: 1px solid rgba(255, 255, 255, .06);
+  -webkit-backdrop-filter: blur(0.6rem);
+  backdrop-filter: blur(0.6rem);
+}
+
+/* Dashboard greeting banner ("Hello, Alex."): the one place inside the app
+   where the monument is shown clearly. */
+.campus-banner {
+  position: relative;
+  overflow: hidden;
+  color: #f4f7f2;
+  border-radius: var(--fi-radius);
+  background-color: var(--fi-forest);
+  background-image:
+    linear-gradient(100deg, rgba(11, 42, 35, .97) 0%, rgba(11, 42, 35, .9) 45%, rgba(20, 57, 47, .55) 100%),
+    url("../img/campus/dorsu-monument.jpg");
+  background-image:
+    linear-gradient(100deg, rgba(11, 42, 35, .97) 0%, rgba(11, 42, 35, .9) 45%, rgba(20, 57, 47, .55) 100%),
+    image-set(
+      url("../img/campus/dorsu-monument.webp") type("image/webp"),
+      url("../img/campus/dorsu-monument.jpg") type("image/jpeg")
+    );
+  background-size: cover, cover;
+  background-position: center, 70% 32%;
+  background-repeat: no-repeat;
+  box-shadow: var(--fi-shadow);
+}
+@media (max-width: 47.99em) {
+  .campus-banner {
+    background-image:
+      linear-gradient(180deg, rgba(11, 42, 35, .9) 0%, rgba(11, 42, 35, .95) 100%),
+      url("../img/campus/dorsu-monument.jpg");
+    background-position: center, 50% 30%;
+  }
+}
+
+/* Modal backdrop */
+.campus-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(9, 36, 30, .55);
+  -webkit-backdrop-filter: blur(0.25rem);
+  backdrop-filter: blur(0.25rem);
+}
+
+/* Form fields and tables always sit on solid white, even inside glass. */
+.campus-bg input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.campus-bg select,
+.campus-bg textarea {
+  background-color: #fff;
+  color: var(--fi-ink);
+}
+.campus-bg table { background-color: var(--fi-paper); }
+
+/* Credit line (optional, small, bottom of the landing page) */
+.campus-photo-credit {
+  font-size: clamp(0.7rem, 0.66rem + 0.2vw, 0.78rem);
+  opacity: .75;
+}
+
+/* ---------- 6. Accessibility and fallbacks ---------- */
+/* Browsers without blur support: make glass solid so text stays crisp. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .campus-glass, .campus-topbar { background: var(--fi-paper); }
+  .campus-bg--hero .campus-topbar { background: var(--fi-forest); }
+  .campus-sidebar { background: var(--fi-forest); }
+}
+/* People who ask their device for less see-through UI. */
+@media (prefers-reduced-transparency: reduce) {
+  .campus-glass, .campus-topbar { background: var(--fi-paper); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .campus-bg--hero .campus-topbar, .campus-sidebar { background: var(--fi-forest); }
+}
+/* People who ask for more contrast: thicker wash. */
+@media (prefers-contrast: more) {
+  body.campus-bg--app::after { background: rgba(238, 243, 238, .97); }
+  body.campus-bg--hero::after { background: rgba(9, 36, 30, .94); }
+}
+/* Windows high-contrast mode: hide the photo entirely. */
+@media (forced-colors: active) {
+  body.campus-bg::before, body.campus-bg::after { display: none; }
+  .campus-banner { background-image: none; }
+}
+/* Printing: no photo, saves ink. */
+@media print {
+  body.campus-bg::before, body.campus-bg::after { display: none; }
+  .campus-banner { background-image: none; color: #000; }
+}

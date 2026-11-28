@@ -125,7 +125,24 @@ document.addEventListener("DOMContentLoaded", function () {
     if (a.preview_url) video.poster = a.preview_url;
     if (a.width) { video.width = a.width; video.height = a.height; }
     video.src = a.url;
-    return video;
+    // v2.0.0: length and size badge under each video, e.g. "▶ 0:42 · 3.1 MB".
+    var wrap = document.createElement("span");
+    wrap.className = "chat-media-wrap";
+    var badge = document.createElement("span");
+    badge.className = "media-badge";
+    badge.textContent = "▶ " + durationLabel(a.duration) + " · " + sizeLabel(a.bytes);
+    wrap.append(video, badge);
+    return wrap;
+  }
+  function durationLabel(seconds) {
+    var s = Math.round(Number(seconds) || 0);
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  }
+  function sizeLabel(bytes) {
+    var b = Number(bytes) || 0;
+    if (b < 1024) return b + " bytes";
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + " KB";
+    return (b / 1024 / 1024).toFixed(1) + " MB";
   }
   function messageNode(message) {
     var article = bubble(message.sender, formatTime(message.sent_at), message.text, String(message.sender_id) === userId);

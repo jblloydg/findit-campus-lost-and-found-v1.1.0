@@ -111,8 +111,8 @@ class DemoLoginsTests(FindItTestCase):
 
     def test_random_passwords_saved_and_working(self):
         logins = self.seed()
-        self.assertEqual(len(logins), 8)
-        self.assertEqual(len(set(logins.values())), 8)  # every account gets its own
+        self.assertEqual(len(logins), 10)  # 8 demo accounts + the 2 v2.0.0 examples (Drew, Morgan)
+        self.assertEqual(len(set(logins.values())), 10)  # every account gets its own
         for username, password in logins.items():
             self.assertRegex(password, r"^[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$")
             self.assertTrue(User.objects.get(username=username).check_password(password), username)
@@ -139,7 +139,8 @@ class DemoLoginsTests(FindItTestCase):
         users = User.objects.count()
         os.remove(self.file)
         logins = self.seed("--logins-only")
-        self.assertEqual(len(logins), 8)
+        self.assertEqual(len(logins), 10)
+        self.assertTrue(User.objects.get(username="2026-0017").check_password(logins["2026-0017"]))
         self.assertEqual(User.objects.count(), users)
         self.assertEqual(ItemPost.objects.count(), posts)
         self.assertTrue(User.objects.get(username="2026-0002").check_password(logins["2026-0002"]))
@@ -204,9 +205,9 @@ class StaticFileTypeTests(TestCase):
         try:
             mimetypes.add_type("text/plain", ".css")  # what a broken Windows registry does
             mimetypes.add_type("text/plain", ".js")
-            self.assertTrue(self.serve("css/app.css").startswith("text/plain"))  # the bug, reproduced
+            self.assertTrue(self.serve("css/findit.css").startswith("text/plain"))  # the bug, reproduced
             use_standard_file_types()  # what Find-IT does when it starts
-            self.assertTrue(self.serve("css/app.css").startswith("text/css"))
+            self.assertTrue(self.serve("css/findit.css").startswith("text/css"))
             self.assertTrue(self.serve("js/app.js").startswith("text/javascript"))
         finally:
             use_standard_file_types()
@@ -214,7 +215,7 @@ class StaticFileTypeTests(TestCase):
     def test_pages_link_the_stylesheet(self):
         from django.test import Client
         html = Client().get(reverse("login")).content.decode()
-        self.assertIn('rel="stylesheet" href="/static/css/app.css', html)
+        self.assertIn('rel="stylesheet" href="/static/css/findit.css', html)
 
 
 # ---------------------------------------------------------------------------

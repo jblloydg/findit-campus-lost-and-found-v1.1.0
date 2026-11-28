@@ -41,7 +41,7 @@ from .mail import test_inbox_enabled
 from .verification import (
     ReviewLimitError, block_user, blocked_between, check_code, change_student_id, claim_limit_message,
     code_send_wait, decide_id_review, distinct_student_ids, has_relationship, id_review_block_reason,
-    locked_holder, open_id_review, posting_limit_message, send_verification_code, unblock_user,
+    locked_holder, open_id_review, posting_limit_message, send_verification_code, unblock_user, withdraw_id_review,
     welcome_new_account, would_be_flagged,
 )
 from .matching import find_possible_matches
@@ -249,7 +249,17 @@ def home(request):
         if date_to:
             posts = posts.filter(item_date__lte=date_to)
     page_obj = _paginate(request, posts, 24)  # session 1: pagination
+    # v2.0.0 dashboard tiles (read-only counts for the signed-in person).
+    dashboard = {
+        "active_posts": ItemPost.objects.filter(author=request.user, is_archived=False).exclude(
+            status__in=[ItemPost.Status.CLOSED, ItemPost.Status.CLAIMED, ItemPost.Status.RETURNED]
+        ).count(),
+        "open_claims": ClaimApplication.objects.filter(
+            claimant=request.user, status__in=[ClaimApplication.Status.SUBMITTED, ClaimApplication.Status.APPROVED]
+        ).count(),
+    }
     return render(request, "core/home.html", {
+        "dashboard": dashboard,
         "posts": page_obj,
         "page_obj": page_obj,
         "querystring": _querystring_without_page(request),
@@ -450,7 +460,10 @@ def _posting_rate_limited(user):
 
 @login_required
 def create_post(request):
-    form = ItemPostForm(request.POST or None, request.FILES or None)
+    # v2.0.0: "Report lost item" / "Report found item" open the form with the type already chosen.
+    preset_type = request.GET.get("type", "")
+    initial = {"post_type": preset_type} if preset_type in {ItemPost.Type.LOST, ItemPost.Type.FOUND} else None
+    form = ItemPostForm(request.POST or None, request.FILES or None, initial=initial)
     if request.method == "POST":
         daily_limit = posting_limit_message(request.user)
         if daily_limit:
@@ -1366,7 +1379,26 @@ def staff_accounts(request):
         accounts = accounts.filter(is_active=status_filter == "active")
     else:
         status_filter = ""
+    # v2.0.0: verification filter (red-flagged accounts, verified / not verified students, ID conflicts).
+    verify_filter = request.GET.get("verify", "").strip()
+    verify_filters = {
+        "flagged": Q(profile__flagged_at__isnull=False),
+        "verified": Q(profile__role=Profile.Role.STUDENT, profile__email_verified_at__isnull=False),
+        "unverified": Q(profile__role=Profile.Role.STUDENT, profile__email_verified_at__isnull=True),
+        "conflict": Q(profile__id_conflict_deadline__isnull=False),
+    }
+    if verify_filter in verify_filters:
+        accounts = accounts.filter(verify_filters[verify_filter])
+    else:
+        verify_filter = ""
+    flagged_accounts = (
+        User.objects.filter(profile__flagged_at__isnull=False).select_related("profile").order_by("-profile__flagged_at")
+    )
     return render(request, "core/staff_accounts.html", {
+        "verify_filter": verify_filter,
+        "flagged_accounts": flagged_accounts[:5],
+        "flagged_count": flagged_accounts.count(),
+        "acting_is_developer": is_developer(request.user),
         "form": form,
         "staff_users": staff_users,
         "page_obj": _paginate(request, accounts, 20),
@@ -1444,6 +1476,11 @@ def edit_account(request, user_id):
     verification = ModeratorVerification.objects.filter(staff=account).first()
     return render(request, "core/account_edit.html", {
         "form": form, "account": account, "verification": verification,
+        # v2.0.0: verification details (verified date, locked ID, ID history, conflict deadline, red flag).
+        "id_records": StudentIdRecord.objects.filter(user=account),
+        "id_cases": IdReviewCase.objects.filter(Q(requester=account) | Q(holder=account)).select_related(
+            "requester", "holder").order_by("-created_at")[:10],
+        "acting_is_developer": is_developer(request.user),
         "recent_activity": StaffAuditLog.objects.filter(target_type="User", target_id=str(account.pk))[:10],
     })
 
@@ -1465,6 +1502,7 @@ def admin_dashboard(request):
         active=Count("pk", filter=Q(is_active=True)),
         inactive=Count("pk", filter=Q(is_active=False)),
     )
+    account_counts["unverified_students"] = account_counts["students"] - account_counts["verified_students"]
     verification_counts = {
         value: ModeratorVerification.objects.filter(status=value).count()
         for value in ModeratorVerification.Status.values
@@ -1504,6 +1542,94 @@ def backup_status(request):
     backups = list_backups()
     return render(request, "core/backup_status.html", {
         "status": last_status(), "backups": backups, "keep_days": settings.BACKUP_KEEP_DAYS,
+    })
+
+
+@never_cache
+@login_required
+def audit_log(request):
+    """v2.0.0: the full staff audit log for administrators (read-only, newest first)."""
+    if not is_admin(request.user):
+        return HttpResponseForbidden("Administrator access is required.")
+    entries = StaffAuditLog.objects.select_related("actor")
+    q = request.GET.get("q", "").strip()[:80]
+    action = request.GET.get("action", "").strip()[:80]
+    actions = list(StaffAuditLog.objects.order_by("action").values_list("action", flat=True).distinct())
+    if q:
+        entries = entries.filter(
+            Q(details__icontains=q) | Q(target_id__icontains=q) | Q(target_type__icontains=q)
+            | Q(actor__username__icontains=q) | Q(actor__first_name__icontains=q) | Q(actor__last_name__icontains=q)
+        )
+    if action in actions:
+        entries = entries.filter(action=action)
+    else:
+        action = ""
+    return render(request, "core/audit_log.html", {
+        "page_obj": _paginate(request, entries, 50),
+        "querystring": _querystring_without_page(request),
+        "q": q, "action": action,
+        "action_choices": [(a, a.replace("_", " ").capitalize()) for a in actions],
+    })
+
+
+@never_cache
+@login_required
+def system_status(request):
+    """v2.0.0: a readable version of /health/ for administrators, plus a few safe checks."""
+    if not is_admin(request.user):
+        return HttpResponseForbidden("Administrator access is required.")
+    import time
+    from django.db import connection
+    from django.db.migrations.executor import MigrationExecutor
+    from .backups import last_status
+
+    checks = []
+    started = time.perf_counter()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+        ms = (time.perf_counter() - started) * 1000
+        checks.append({"name": "Database", "ok": True, "detail": f"Answered in {ms:.0f} ms ({connection.vendor})."})
+    except Exception:  # noqa: BLE001 - shown as a failed check, details stay in the log
+        logging.getLogger("findit.errors").exception("Status page database failure")
+        checks.append({"name": "Database", "ok": False, "detail": "The database did not answer. See the error log."})
+    try:
+        executor = MigrationExecutor(connection)
+        pending = len(executor.migration_plan(executor.loader.graph.leaf_nodes()))
+        checks.append({"name": "Database updates (migrations)", "ok": pending == 0,
+                       "detail": "All applied." if pending == 0 else f"{pending} not applied. Run python manage.py migrate."})
+    except Exception:  # noqa: BLE001
+        checks.append({"name": "Database updates (migrations)", "ok": False, "detail": "Could not be checked."})
+    status = last_status() or {}
+    if not status:
+        checks.append({"name": "Daily backup (made by the timer runner)", "ok": False,
+                       "detail": "No backup yet. Start the timer runner or run python manage.py backup_now."})
+    elif not status.get("ok"):
+        checks.append({"name": "Daily backup (made by the timer runner)", "ok": False,
+                       "detail": "The last backup failed. Open Backups for details."})
+    else:
+        from datetime import datetime
+        try:
+            age_hours = (timezone.now() - datetime.fromisoformat(status.get("at", ""))).total_seconds() / 3600
+        except (TypeError, ValueError):
+            age_hours = None
+        fresh = age_hours is not None and age_hours <= 26
+        checks.append({"name": "Daily backup (made by the timer runner)", "ok": fresh,
+                       "detail": (f"Last backup {age_hours:.0f} hours ago." if age_hours is not None else "Last backup time unknown.")
+                       + ("" if fresh else " Older than a day: is the timer runner (process_due --loop) running?")})
+    waiting = ChatAttachment.objects.filter(status=ChatAttachment.Status.PROCESSING)
+    oldest = waiting.order_by("created_at").values_list("created_at", flat=True).first()
+    stuck = oldest is not None and (timezone.now() - oldest).total_seconds() > 15 * 60
+    checks.append({"name": "Chat photos and videos queue", "ok": not stuck,
+                   "detail": f"{waiting.count()} waiting" + (" (the oldest for over 15 minutes: is the media worker running?)" if stuck else ".")})
+    return render(request, "core/system_status.html", {
+        "checks": checks, "all_ok": all(c["ok"] for c in checks), "checked_at": timezone.now(),
+        "open_queues": {
+            "chat_reports": AbuseReport.objects.filter(status__in=OPEN_REPORT_STATUSES).count(),
+            "general_reports": GeneralReport.objects.filter(status__in=OPEN_REPORT_STATUSES).count(),
+            "id_reviews": IdReviewCase.objects.filter(status=IdReviewCase.Status.OPEN).count(),
+        },
     })
 
 
@@ -2061,6 +2187,20 @@ def id_review_new(request):
     return render(request, "core/id_review_form.html", {"form": form, "blocked_reason": blocked_reason})
 
 
+@login_required
+@require_POST
+def id_review_withdraw(request, case_id):
+    """v2.0.0: the student who asked can withdraw an open ID review."""
+    case = get_object_or_404(IdReviewCase, pk=case_id, requester=request.user)
+    try:
+        withdraw_id_review(case, request.user)
+    except (ValueError, PermissionError) as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, f"ID review {case.reference} was withdrawn.")
+    return redirect("my-profile")
+
+
 @never_cache
 @login_required
 def id_reviews(request):
@@ -2179,3 +2319,12 @@ def test_inbox(request):
         Q(recipient=request.user) | Q(to__iexact=request.user.email or "-")
     )
     return render(request, "core/test_inbox.html", {"emails": rows[:50]})
+
+
+def server_error(request):
+    """DES-005: the 500 page with only the version label added. No database, no request context,
+    so it still works when something else in Find-IT is failing."""
+    from django.http import HttpResponseServerError
+    from django.template import loader
+    from .version import FINDIT_VERSION
+    return HttpResponseServerError(loader.get_template("500.html").render({"findit_version": FINDIT_VERSION}))

@@ -1,19 +1,24 @@
 from .mail import test_inbox_enabled
 from .models import InAppNotification, Profile
-from .permissions import is_admin, is_developer, is_staff_or_admin, role_of
+from .version import FINDIT_VERSION
+from .permissions import can_review_reports, is_admin, is_developer, is_staff_or_admin, role_of
 
 
 def site_context(request):
     if not request.user.is_authenticated:
-        return {"unread_notification_count": 0, "current_role": None, "priority_message_count": 0}
+        return {"unread_notification_count": 0, "current_role": None, "priority_message_count": 0,
+                "findit_version": FINDIT_VERSION}
     try:
         profile = request.user.profile
     except Profile.DoesNotExist:
         profile = None
     return {
+        "findit_version": FINDIT_VERSION,  # DES-005: version label, read once from VERSION
         "current_is_staff": is_staff_or_admin(request.user),
         "current_is_admin": is_admin(request.user),
         "current_is_developer": is_developer(request.user),
+        # v2.0.0 sidebar: verified moderators and admins see the review links.
+        "current_can_review": can_review_reports(request.user),
         "current_unverified": bool(profile and profile.role == Profile.Role.STUDENT and not profile.email_verified_at),
         "current_sign_in_name": profile.sign_in_name if profile else request.user.username,
         "test_inbox_enabled": test_inbox_enabled(),

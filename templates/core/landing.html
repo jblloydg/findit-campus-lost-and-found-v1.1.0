@@ -1,39 +1,91 @@
 {% extends "core/base.html" %}
-{% block title %}Welcome to Find-IT{% endblock %}
+{% block bg_variant %}campus-bg--hero{% endblock %}
+{% block title %}Find-IT · Campus lost and found · DOrSU{% endblock %}
+{% block public_nav %}
+<nav class="public-nav" aria-label="Page sections">
+  <a href="#overview">Overview</a>
+  <a href="#how-it-works">How it works</a>
+  <a href="#privacy">Privacy</a>
+</nav>
+{% endblock %}
 {% block content %}
-<section class="landing-grid page-wrap">
-  <div class="landing-story">
-    <span class="eyebrow">Campus lost and found</span>
-    <h1>Lost something?<br><span class="text-teal">Found something?</span></h1>
-    <p class="lead">Find-IT helps the Davao Oriental State University community reconnect items with the people who own them.</p>
-    <div class="story-points">
-      <div><span class="story-icon">⌕</span><p><strong>Search campus listings</strong><br><small>Browse broad item details without exposing private information.</small></p></div>
-      <div><span class="story-icon">✓</span><p><strong>Verify ownership privately</strong><br><small>Answer five finder questions that only the finder and authorized staff can review.</small></p></div>
-      <div><span class="story-icon">↗</span><p><strong>Arrange a safe return</strong><br><small>Coordinate through Find-IT and meet only within school premises.</small></p></div>
+<section class="hero" id="overview">
+  <div class="page-wrap hero-grid">
+    <div>
+      <span class="hero-badge">Campus community, connected</span>
+      <h1>Lost something? <em>Found something?</em></h1>
+      <p class="lead">Find-IT helps the Davao Oriental State University community reunite belongings with their owners through simple posts and private ownership checks.</p>
+      <div class="button-row">
+        <a class="button button-light" href="{% url 'signup' %}">Create a student account {% include "core/includes/icon.html" with name="arrow-right" %}</a>
+        <a class="button button-ghost-light" href="#how-it-works">How it works</a>
+      </div>
+      <ul class="hero-points">
+        <li><span class="point-icon">{% include "core/includes/icon.html" with name="search" %}</span><span><strong>Search campus listings</strong><small>Browse broad item details without exposing private information.</small></span></li>
+        <li><span class="point-icon">{% include "core/includes/icon.html" with name="lock" %}</span><span><strong>Verify ownership privately</strong><small>Answer five finder questions that only the finder and authorized staff can review.</small></span></li>
+        <li><span class="point-icon">{% include "core/includes/icon.html" with name="pin" %}</span><span><strong>Arrange a safe return</strong><small>Coordinate through Find-IT and meet only within school premises.</small></span></li>
+      </ul>
     </div>
-    <div class="privacy-note"><span aria-hidden="true">◆</span><span><strong>Your details stay protected.</strong> Student IDs, verification answers, and private messages never appear in public search.</span></div>
+    <section class="login-card" aria-labelledby="landing-login-title">
+      <div class="login-card-head">
+        <span class="brand-mark brand-mark-small" aria-hidden="true">F</span>
+        <div><span class="eyebrow">Welcome back</span><h2 id="landing-login-title">Log in to Find-IT</h2></div>
+      </div>
+      <p class="muted">Use your Student ID or staff username.</p>
+      {% if login_form.non_field_errors %}<div class="form-errors">{{ login_form.non_field_errors }}</div>{% endif %}
+      <form method="post" action="{% url 'login' %}" class="stack-form">
+        {% csrf_token %}
+        <label>School ID or staff username<input name="username" autocomplete="username" placeholder="2020-0001" required>
+          <span class="form-help">Not verified yet? Students can always use their email address here.</span></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" placeholder="Enter your password" data-password-toggle="true" required></label>
+        <button class="button button-primary button-full" type="submit">Log in</button>
+      </form>
+      <p class="fine-print center"><a href="{% url 'password_reset' %}">Forgot your password?</a></p>
+      <div class="auth-divider"><span>New to Find-IT?</span></div>
+      <a class="button button-soft button-full" href="{% url 'signup' %}">Create a student demo account</a>
+      <p class="form-help center">Student ID format: <strong>YYYY-NNNN</strong></p>
+      <p class="fine-print center">Direct post links can be viewed without signing in. Claiming, commenting, and messaging require an account.</p>
+    </section>
   </div>
-  <section class="auth-card">
-    <div class="auth-card-heading">
-      <span class="brand-mark brand-mark-small" aria-hidden="true">F</span>
-      <div><span class="eyebrow">Welcome back</span><h2>Log in to Find-IT</h2></div>
-    </div>
-    <p class="muted">Use your school ID or staff username.</p>
-    {% if login_form.non_field_errors %}<div class="form-errors">{{ login_form.non_field_errors }}</div>{% endif %}
-    <form method="post" action="{% url 'login' %}" class="stack-form">
-      {% csrf_token %}
-      <label>School ID or staff username<input name="username" autocomplete="username" placeholder="2020-0001" required></label>
-      <label>Password<input name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required></label>
-      <button class="button button-primary button-full" type="submit">Log in</button>
-    </form>
-    <div class="auth-divider"><span>New to Find-IT?</span></div>
-    <a class="button button-soft button-full" href="{% url 'signup' %}">Create a student demo account</a>
-    <p class="form-help center">Student ID format: <strong>YYYY-NNNN</strong></p>
-    <p class="fine-print center">Direct post links can be viewed without signing in. Actions such as claiming, commenting, and messaging require an account.</p>
-  </section>
 </section>
-<section class="landing-bottom page-wrap">
-  <div><span class="eyebrow">A safer hand-off</span><h2>Keep the public post broad.<br>Keep proof private.</h2></div>
-  <p>Share a general description and, if helpful, a broad exterior photo. Keep precise identifying details for the private claim form.</p>
+
+<section class="landing-section" id="how-it-works">
+  <div class="page-wrap">
+    <div class="section-intro">
+      <div><span class="eyebrow">02 — How it works</span><h2>A safer way to <em>reconnect.</em></h2></div>
+      <p>Three steps, in order. Nothing identifying about the owner is public until the item is back in their hands.</p>
+    </div>
+    <div class="steps-grid">
+      <article class="step-card"><span class="step-num">01</span><h3>Discover</h3><p>Browse public item posts. Broad descriptions only — the identifying details stay private.</p></article>
+      <article class="step-card"><span class="step-num">02</span><h3>Verify</h3><p>Answer private ownership questions. Only the finder and authorized staff can read them.</p></article>
+      <article class="step-card"><span class="step-num">03</span><h3>Return safely</h3><p>Coordinate the return in a private chat, or pick the item up at the guard house on campus.</p></article>
+    </div>
+    <div class="chip-row status-legend" aria-label="Item statuses">
+      <span class="mono-chip">Open for claim</span><span class="mono-chip">Claim in progress</span><span class="mono-chip">At guard house</span><span class="mono-chip">Returned</span><span class="mono-chip">Claimed</span><span class="mono-chip">Closed</span>
+    </div>
+  </div>
+</section>
+
+<section class="landing-section alt" id="privacy">
+  <div class="page-wrap">
+    <div class="section-intro">
+      <div><span class="eyebrow">03 — Privacy by design</span><h2>Public by default. <em>Private by proof.</em></h2></div>
+      <p>Four decisions keep a shared link safe and every hand-off accountable.</p>
+    </div>
+    <div class="feature-grid">
+      <article class="feature-card">{% include "core/includes/icon.html" with name="eye" %}<h3>View without login</h3><p>Shared post links stay public; actions open sign-in in place.</p></article>
+      <article class="feature-card">{% include "core/includes/icon.html" with name="lock" %}<h3>Private proof</h3><p>Finders and authorized staff review custom ownership answers.</p></article>
+      <article class="feature-card">{% include "core/includes/icon.html" with name="building" %}<h3>Meet on campus</h3><p>Private chat and the guard house keep hand-offs on school premises.</p></article>
+      <article class="feature-card">{% include "core/includes/icon.html" with name="history" %}<h3>Trace outcomes</h3><p>Statuses and audit records track claims, returns, turnovers, and closures.</p></article>
+    </div>
+  </div>
+</section>
+
+<section class="landing-section">
+  <div class="page-wrap">
+    <div class="cta-band">
+      <div><span class="eyebrow">A safer hand-off</span><h2>Keep the public post broad.<br>Keep proof private.</h2></div>
+      <p>Share a general description and, if helpful, a broad exterior photo. Keep precise identifying details for the private claim form.</p>
+    </div>
+  </div>
 </section>
 {% endblock %}

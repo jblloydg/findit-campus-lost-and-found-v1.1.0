@@ -1,0 +1,36 @@
+{% extends "core/base.html" %}
+{% block title %}Audit trail · Find-IT{% endblock %}
+{% block content %}
+<section class="page-wrap">
+  <a class="back-link" href="{% url 'admin-dashboard' %}">← Admin dashboard</a>
+  <div class="page-heading"><div><span class="eyebrow">Administrator only · accountability</span><h1>Audit <em>trail</em></h1><p>Every recorded staff and administrator action, newest first. Read-only: entries cannot be changed or deleted here.</p></div></div>
+  <form method="get" class="search-panel audit-filters">
+    <label class="search-field"><span aria-hidden="true">⌕</span><input type="search" name="q" value="{{ q }}" placeholder="Person, reference or details" aria-label="Search the audit trail"></label>
+    <label class="select-field"><span class="sr-only">Action</span><select name="action"><option value="">All actions</option>{% for value,label in action_choices %}<option value="{{ value }}" {% if action == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <button class="button button-outline" type="submit">Filter</button>
+    {% if q or action %}<a class="text-action" href="{% url 'audit-log' %}">Clear</a>{% endif %}
+  </form>
+  <section class="panel report-table-panel">
+    <div class="result-heading"><h2>Recorded actions</h2><span class="muted">{{ page_obj.paginator.count }} entr{{ page_obj.paginator.count|pluralize:"y,ies" }}</span></div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>When</th><th>Who</th><th>Action</th><th>About</th><th>Details</th></tr></thead>
+        <tbody>
+          {% for entry in page_obj %}
+          <tr>
+            <td class="nowrap">{{ entry.created_at|date:"M j, Y · g:i a" }}</td>
+            <td>{% firstof entry.actor.get_full_name entry.actor.username %}</td>
+            <td><strong>{{ entry.action_label }}</strong></td>
+            <td><code>{{ entry.target_type }} {{ entry.target_id }}</code></td>
+            <td class="wrap-cell">{{ entry.details|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5"><div class="empty-state compact-empty"><div class="empty-icon">⌕</div><h3>No recorded actions match</h3><p>Try another search or clear the filters.</p></div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "core/includes/pagination.html" %}
+  </section>
+</section>
+{% endblock %}

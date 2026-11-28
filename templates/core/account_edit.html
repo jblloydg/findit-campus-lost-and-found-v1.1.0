@@ -22,11 +22,31 @@
         <div><label>{{ form.role.label }}{{ form.role }}{% if form.role.help_text %}<small class="form-help">{{ form.role.help_text }}</small>{% endif %}</label>{% if form.role.errors %}<div class="field-error">{{ form.role.errors }}</div>{% endif %}</div>
         <div><label>{{ form.is_active.label }}{{ form.is_active }}</label>{% if form.is_active.errors %}<div class="field-error">{{ form.is_active.errors }}</div>{% endif %}</div>
       </div>
+      {% if acting_is_developer %}<div class="form-callout developer-callout"><strong>Developer view</strong><span>You can choose <strong>Administrator</strong> in Role. Only the Developer can give or remove it.</span></div>{% endif %}
       {% if form.locked_reason %}<div class="form-callout warning-callout"><strong>Role and status locked</strong><span>{{ form.locked_reason }}</span></div>{% endif %}
       <p class="form-help">Changing a Staff account to another role automatically revokes any moderator authorization. Student ID and username cannot be changed.</p>
       <div class="form-actions"><a class="button button-outline" href="{% url 'staff-accounts' %}">Cancel</a><button class="button button-primary" type="submit">Save changes</button></div>
     </form>
   </div>
+  {% with p=account.profile %}
+  <section class="panel verification-panel">
+    <div class="section-heading"><div><span class="eyebrow">Account verification</span><h2>Verification details</h2></div>{% include "core/includes/verification_chip.html" with person=account %}</div>
+    {% if p.flagged_at %}<div class="closed-banner"><strong>⚑ Red flag · {{ p.flagged_at|date:"M j, Y · g:i a" }}</strong><span>{{ p.flag_reason|default:"This account used three different Student IDs." }}</span></div>{% endif %}
+    {% if p.id_conflict_deadline %}<div class="form-callout warning-callout"><strong>Student ID conflict</strong><span>Another account verified Student ID {{ p.student_id }}. Unless this changes, the ID will be cleared from this account on: <strong>{{ p.id_conflict_deadline|date:"M j, Y · g:i a" }}</strong></span></div>{% endif %}
+    <dl class="profile-details">
+      <div><dt>Email verified</dt><dd>{% if p.email_verified_at %}✔ {{ p.email_verified_at|date:"M j, Y · g:i a" }}{% elif p.role == "student" %}Not verified{% else %}Not needed ({{ p.get_role_display }}){% endif %}</dd></div>
+      <div><dt>Student ID</dt><dd>{% if p.student_id %}{{ p.student_id }} · {% if p.student_id_locked %}🔒 Locked to this account{% else %}Not locked{% endif %}{% else %}—{% endif %}</dd></div>
+      <div><dt>Sign-in name</dt><dd>{{ p.sign_in_name }}</dd></div>
+      <div><dt>Student IDs used</dt><dd>{{ id_records|length }} of 3 allowed</dd></div>
+    </dl>
+    <h3 class="sub-heading">Student ID history</h3>
+    {% if id_records %}<div class="table-scroll"><table class="data-table"><thead><tr><th>Student ID</th><th>How</th><th>When</th></tr></thead><tbody>
+      {% for r in id_records %}<tr><td><code>{{ r.student_id }}</code></td><td>{{ r.get_source_display }}</td><td>{{ r.created_at|date:"M j, Y · g:i a" }}</td></tr>{% endfor %}
+    </tbody></table></div>{% else %}<p class="empty-inline">No Student ID recorded.</p>{% endif %}
+    {% if id_cases %}<h3 class="sub-heading">ID reviews</h3>
+    {% for c in id_cases %}<div class="staff-row"><div><strong><a href="{% url 'id-review-detail' c.pk %}">{{ c.reference }}</a> · {{ c.student_id }}</strong><small>{% if c.requester_id == account.pk %}Asked by this account{% else %}About this account's ID (asked by {% firstof c.requester.get_full_name c.requester.username %}){% endif %} · {{ c.get_status_display }} · {{ c.created_at|date:"M j, Y" }}</small></div></div>{% endfor %}{% endif %}
+  </section>
+  {% endwith %}
   {% if recent_activity %}<section class="panel accounts-panel"><h2>Recent administrator activity</h2>
     {% for entry in recent_activity %}<div class="staff-row"><div><strong>{{ entry.action_label }}</strong><small>{% firstof entry.actor.get_full_name entry.actor.username %} · {{ entry.created_at|date:"M j, Y · g:i a" }}{% if entry.details %} · {{ entry.details }}{% endif %}</small></div></div>{% endfor %}
   </section>{% endif %}

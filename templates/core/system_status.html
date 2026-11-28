@@ -1,0 +1,28 @@
+{% extends "core/base.html" %}
+{% block title %}System status · Find-IT{% endblock %}
+{% block content %}
+<section class="page-wrap">
+  <a class="back-link" href="{% url 'admin-dashboard' %}">← Admin dashboard</a>
+  <div class="page-heading"><div><span class="eyebrow">Administrator only · uptime</span><h1>System <em>status</em></h1><p>A readable version of the <code>/health/</code> check that monitoring services use, plus a few safe checks. Nothing here can be changed.</p></div>
+    <div class="button-row"><a class="button button-outline" href="{% url 'system-status' %}">Check again</a><a class="button button-soft" href="{% url 'health' %}" target="_blank" rel="noopener">Open /health/</a></div></div>
+  <section class="panel status-summary {% if all_ok %}is-ok{% else %}is-warn{% endif %}">
+    <span class="stat-tile-icon {% if not all_ok %}is-alert{% endif %}">{% if all_ok %}{% include "core/includes/icon.html" with name="check" %}{% else %}{% include "core/includes/icon.html" with name="alert" %}{% endif %}</span>
+    <div><h2>{% if all_ok %}Everything is working{% else %}Something needs attention{% endif %}</h2><p class="muted">Checked {{ checked_at|date:"M j, Y · g:i:s a" }}</p></div>
+  </section>
+  <section class="panel">
+    <div class="section-heading"><div><span class="eyebrow">Checks</span><h2>Parts of Find-IT</h2></div></div>
+    {% for c in checks %}
+    <div class="staff-row status-row"><span class="status-pill {% if c.ok %}status-approved{% else %}status-declined{% endif %}">{% if c.ok %}OK{% else %}Check{% endif %}</span><div><h3>{{ c.name }}</h3><small>{{ c.detail }}</small></div></div>
+    {% endfor %}
+  </section>
+  <section class="panel">
+    <div class="section-heading"><div><span class="eyebrow">Work waiting for people</span><h2>Open queues</h2></div></div>
+    <div class="stat-grid-4">
+      <a class="stat-card stat-submitted" href="{% url 'admin-reports' %}"><span>Chat &amp; item reports</span><strong>{{ open_queues.chat_reports }}</strong></a>
+      <a class="stat-card stat-submitted" href="{% url 'general-reports' %}"><span>System reports</span><strong>{{ open_queues.general_reports }}</strong></a>
+      <a class="stat-card stat-review" href="{% url 'id-reviews' %}"><span>ID reviews</span><strong>{{ open_queues.id_reviews }}</strong></a>
+      <a class="stat-card" href="{% url 'backup-status' %}"><span>Backups</span><strong class="stat-small">Open</strong></a>
+    </div>
+  </section>
+</section>
+{% endblock %}

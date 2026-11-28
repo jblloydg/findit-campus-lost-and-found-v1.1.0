@@ -3,12 +3,19 @@
 {% block content %}
 <section class="page-wrap">
   <div class="page-heading"><div><span class="eyebrow">Administrator only</span><h1>Admin dashboard</h1><p class="muted">Live counts from the Find-IT database. Select a number to open the matching list.</p></div>
-    <div class="button-row"><a class="button button-outline" href="{% url 'staff-dashboard' %}">Staff workspace</a><a class="button button-outline" href="{% url 'admin-settings' %}">System timers</a><a class="button button-outline" href="{% url 'backup-status' %}">Backups</a></div></div>
+    <div class="button-row"><a class="button button-outline" href="{% url 'staff-dashboard' %}">Staff workspace</a><a class="button button-outline" href="{% url 'admin-settings' %}">{% include "core/includes/icon.html" with name="settings" %}System settings</a><a class="button button-outline" href="{% url 'backup-status' %}">Backups</a></div></div>
+
+  <nav class="quick-links" aria-label="Administrator shortcuts">
+    <a class="quick-link" href="{% url 'staff-accounts' %}"><span class="stat-tile-icon">{% include "core/includes/icon.html" with name="users" %}</span><span><strong>Accounts</strong><small>Create staff, edit roles</small></span></a>
+    <a class="quick-link" href="{% url 'moderator-verifications' %}"><span class="stat-tile-icon">{% include "core/includes/icon.html" with name="user-check" %}</span><span><strong>Moderator verification</strong><small>Verify staff moderators</small></span></a>
+    <a class="quick-link" href="{% url 'audit-log' %}"><span class="stat-tile-icon">{% include "core/includes/icon.html" with name="history" %}</span><span><strong>Audit trail</strong><small>Recorded staff actions</small></span></a>
+    <a class="quick-link" href="{% url 'system-status' %}"><span class="stat-tile-icon">{% include "core/includes/icon.html" with name="shield" %}</span><span><strong>System status</strong><small>Database, backups, queues</small></span></a>
+  </nav>
 
   <section class="panel dash-section">
-    <div class="section-heading"><div><span class="eyebrow">A</span><h2>User accounts</h2></div><a class="button button-soft button-small" href="{% url 'staff-accounts' %}">Manage accounts</a></div>
+    <div class="section-heading"><div><span class="eyebrow">Accounts</span><h2>User accounts</h2></div><a class="button button-soft button-small" href="{% url 'staff-accounts' %}">Manage accounts</a></div>
     <div class="staff-stats stat-grid-6">
-      <a class="stat-card" href="{% url 'staff-accounts' %}"><span>Total users</span><strong>{{ account_counts.total }}</strong></a>
+      <a class="stat-card is-featured" href="{% url 'staff-accounts' %}"><span>Total users</span><strong>{{ account_counts.total }}</strong></a>
       <a class="stat-card" href="{% url 'staff-accounts' %}?role=student"><span>Students</span><strong>{{ account_counts.students }}</strong></a>
       <a class="stat-card" href="{% url 'staff-accounts' %}?role=staff"><span>Staff</span><strong>{{ account_counts.staff }}</strong></a>
       <a class="stat-card" href="{% url 'staff-accounts' %}?role=admin"><span>Admins</span><strong>{{ account_counts.admins }}</strong></a>
@@ -18,7 +25,16 @@
   </section>
 
   <section class="panel dash-section">
-    <div class="section-heading"><div><span class="eyebrow">B</span><h2>Moderator verification</h2></div><a class="button button-soft button-small" href="{% url 'moderator-verifications' %}">Review verifications</a></div>
+    <div class="section-heading"><div><span class="eyebrow">Students &amp; Student IDs</span><h2>Verification</h2></div><a class="button button-soft button-small" href="{% url 'id-reviews' %}">Open ID reviews</a></div>
+    <div class="stat-grid-4">
+      <a class="stat-card stat-resolved" href="{% url 'staff-accounts' %}?verify=verified"><span>Verified students</span><strong>{{ account_counts.verified_students }}</strong><small>of {{ account_counts.students }} students</small></a>
+      <a class="stat-card stat-review" href="{% url 'staff-accounts' %}?verify=unverified"><span>Not verified yet</span><strong>{{ account_counts.unverified_students }}</strong></a>
+      <a class="stat-card stat-danger" href="{% url 'staff-accounts' %}?verify=flagged"><span>Red-flagged accounts</span><strong>{{ account_counts.flagged }}</strong></a>
+      <a class="stat-card stat-submitted" href="{% url 'id-reviews' %}"><span>Open ID reviews</span><strong>{{ open_id_reviews }}</strong></a>
+    </div>
+  </section>
+  <section class="panel dash-section">
+    <div class="section-heading"><div><span class="eyebrow">Moderators</span><h2>Moderator verification</h2></div><a class="button button-soft button-small" href="{% url 'moderator-verifications' %}">Review verifications</a></div>
     <div class="staff-stats stat-grid-4">
       <a class="stat-card stat-submitted" href="{% url 'moderator-verifications' %}?status=PENDING"><span>Pending</span><strong>{{ verification_counts.PENDING }}</strong></a>
       <a class="stat-card stat-resolved" href="{% url 'moderator-verifications' %}?status=VERIFIED"><span>Verified moderators</span><strong>{{ verification_counts.VERIFIED }}</strong></a>
@@ -32,14 +48,14 @@
   </section>
 
   <section class="panel dash-section">
-    <div class="section-heading"><div><span class="eyebrow">C</span><h2>Chat safety reports</h2></div><a class="button button-soft button-small" href="{% url 'admin-reports' %}">Open queue</a></div>
+    <div class="section-heading"><div><span class="eyebrow">Safety</span><h2>Chat safety reports</h2></div><a class="button button-soft button-small" href="{% url 'admin-reports' %}">Open queue</a></div>
     {% include "core/includes/report_count_cards.html" with counts=chat_counts list_url="admin-reports" %}
     <h3>Open reports</h3>
     {% for r in open_chat_reports %}<div class="staff-row"><div><strong><a href="{% url 'review-report' r.pk %}">{{ r.reference }}</a> · {{ r.get_reason_display }}</strong><small>About {% firstof r.target_user.get_full_name r.target_user.username "—" %} · {{ r.created_at|date:"M j, g:i a" }}</small></div>{% include "core/includes/report_status.html" with status=r.status label=r.get_status_display %}</div>{% empty %}<p class="muted">No open chat safety reports.</p>{% endfor %}
   </section>
 
   <section class="panel dash-section">
-    <div class="section-heading"><div><span class="eyebrow">D</span><h2>General item &amp; system reports</h2></div><a class="button button-soft button-small" href="{% url 'general-reports' %}">Open queue</a></div>
+    <div class="section-heading"><div><span class="eyebrow">Listings &amp; platform</span><h2>General item &amp; system reports</h2></div><a class="button button-soft button-small" href="{% url 'general-reports' %}">Open queue</a></div>
     {% include "core/includes/report_count_cards.html" with counts=general_counts list_url="general-reports" %}
     <h3>Open reports</h3>
     {% for r in open_general_reports %}<div class="staff-row"><div><strong><a href="{% url 'general-report-detail' r.pk %}">{{ r.reference }}</a> · {{ r.get_category_display }}</strong><small>{% if r.post %}{{ r.post.title|truncatechars:50 }} · {% endif %}{{ r.created_at|date:"M j, g:i a" }}</small></div>{% include "core/includes/report_status.html" with status=r.status label=r.get_status_display %}</div>{% empty %}<p class="muted">No open general reports.</p>{% endfor %}

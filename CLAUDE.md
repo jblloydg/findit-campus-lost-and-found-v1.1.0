@@ -17,17 +17,20 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 | `jblloydg/findit-campus-lost-and-found-v1.1.0` | **This repo — the only one to work in.** |
 
 ## Branches and versions
-- `main` = the stable released version. Branch **`stable/v1.1.0`** is the frozen v1.1.0 rollback point (this session could not push tags; add tag `v1.1.0` from GitHub Releases if wanted).
-- Work for the next version happens on **`release/1.1.2`** (in both the public repo and the owner's private copy, see below) (branched from the finished v1.1.1 on `main`). v1.1.2 = bug fixes for v1.1.1 found by testers; it must keep running on local devices (one Windows PC, no hosting). Frozen copies: `stable/v1.1.0`, `stable/v1.1.1`.
+- `main` = the stable released version (**v2.0.0**, approved 2026-11-28). Frozen rollback copies, never changed: `stable/v1.1.0`, `stable/v1.1.1`, `stable/v1.1.2`, `stable/v2.0.0`.
+- Work for the next version happens on **`release/2.0.0`** (in both the public repo and the owner's private copy). **v2.0.0 = v1.1.2 + the front-end team's interface** (their repo BASTA-KAY = branch `design/v2-interface`), plus the Master Instruction fixes. It must keep running on local devices (one Windows PC, no hosting). The earlier, unused v2 draft is kept on `archive/v2-alt-design`. Next: v2.1.0 (bug fixes for 2.0.0 + redesign of the pages that only got the new colours, list in `docs/CHANGES_v2.0.0.md` §10).
 - One bug or change = one commit (message starts with its ID, e.g. `BUG-003: …`), so any fix can be reverted alone.
 - **Version plan:** v1.1.1 = V2-I school verification + bug fixes → v2.0.0 interface overhaul → v2.1.0 its bug fixes → v3.0.0 online hosting + PostgreSQL + all of V2-J (performance and uptime evidence). Don't start hosting/PostgreSQL/Redis/SMTP/V2-J work before v3.0.0 unless asked; keep the code PostgreSQL-compatible meanwhile. Details in `docs/ROADMAP.md`.
 - When the owner approves a version: merge its `release/…` branch into `main` and add a frozen `stable/v<version>` branch (tags can be added on GitHub). Never rewrite or delete history.
 - Log every fix in `docs/BUG_REPORTS.md` and add a "Changes in <version>" section to `HANDOFF.md`.
 
-## Version label (owner's instruction — implement in v2.0.0, not before)
-- From **v2.0.0** (after all v2.0.0 wireframes are integrated), every page shows the app version near the bottom: small, light-gray text such as "Find-IT v2.0.0". Its exact place is decided in the v2.0.0 wireframes.
-- The number must come from the **`VERSION`** file (read once by the app), never typed into pages.
-- For **every** version update from then on, change `VERSION` in the same work, so the label always matches the version people are running.
+## Version label (owner's instruction — built in v2.0.0, DES-005)
+- Every page shows small, light-gray "Find-IT v<version>": bottom of the sidebar on PC, page footer on tablet/phone, public footer when signed out, 500 page.
+- The number comes from the **`VERSION`** file (`core/version.py`, read once), never typed into pages (a test checks this).
+- For **every** version update, change `VERSION` in the same work, so the label always matches the version people are running.
+
+## v2.0.0 Master Instruction (owner's rule for every page, from v2.0.0 on)
+One layout that adapts to phone, tablet and desktop. No fixed px for size or placement (only 1px borders, shadows, icon lines). Widths/columns/gaps in % or fr; text and spacing in rem with `clamp()`; full-screen parts in vw/vh/dvh; images and videos `max-width: 100%; height: auto`; content max width (72rem); **tap targets at least 2.75rem (`var(--tap)`)**; **text at least 0.75rem (12 px)**. Check every page at 360–430, 768 and 1280–1920 px with `tools/testing/responsive_check.py` (must report no Find-IT problems) and `campus_bg_check.py`. Tests: `core/tests/test_v200.py`.
 
 ## v1.1.2 instructions from the owner (do these in the v1.1.2 session)
 1. **BUG-009 — FindIT.cmd reopens the login page every ~20 seconds.** Cause: when Find-IT is already running, the "already running" branch opens the browser and returns to the menu, whose 20-second auto-start then fires again → endless loop (seen when the shortcut is opened twice). Fix: auto-start only the first time the menu shows; in the "already running" case open the browser once and wait at the menu with no timer (or close). Must still work on a plain Windows PC.
@@ -86,11 +89,11 @@ Run the bug hunt again after any big change (e.g. chat, media) and once more on 
 ```powershell
 python manage.py migrate            # never run makemigrations on a server; commit new migrations
 python manage.py seed_demo          # fictional demo data (local only); random passwords -> demo-logins.txt
-python manage.py test core          # 228 tests (v1.1.2); keep them passing, add tests for each fix
+python manage.py test core          # 266 tests (v2.0.0); keep them passing, add tests for each fix
 python manage.py makemigrations --check --dry-run   # must say "No changes detected" before committing
 python manage.py backup_now [--list] / restore_backup NAME
 ```
-Demo sign-ins: made at random on each PC by `seed_demo`, saved in `demo-logins.txt` (ignored by Git), shown by FindIT.cmd menu 2. Students sign in by email (e.g. `alex.finder@example.com`); staff `security.demo` (guard), `moderator.demo` (verified moderator); admin `findit-admin`. Test scripts read passwords with `core.demo_logins.password_for()`.
+Demo sign-ins: made at random on each PC by `seed_demo`, saved in `demo-logins.txt` (ignored by Git), shown by FindIT.cmd menu 2. Students sign in by email (e.g. `alex.finder@example.com`); staff `security.demo` (guard), `moderator.demo` (verified moderator); admin `findit-admin`. Test scripts read passwords with `core.demo_logins.password_for()`. v2.0.0 examples: `casey.unverified@example.com` not verified, `morgan.shared@example.com` not verified with a Student ID conflict and an open ID review, Drew (`2026-0016`) red-flagged and disabled.
 
 ## Where things are
 - `core/models.py`, `forms.py`, `services.py` (all state changes go through services), `views.py`, `urls.py`, `permissions.py`
@@ -98,6 +101,6 @@ Demo sign-ins: made at random on each PC by `seed_demo`, saved in `demo-logins.t
 - `docs/CHANGES_v1.1.1.md`, `docs/TEST_REPORT_v1.1.1.md`, `tools/testing/` (bug-hunt and performance scripts)
 - `core/verification.py` (v1.1.1 verification, Student IDs, ID reviews, limits, report & block), `core/auth.py` (sign-in rules), `core/mail.py` (Test inbox)
 - `core/matching.py` (LOST↔FOUND matches), `core/backups.py`, `core/idempotency.py` (duplicate-submit protection), `core/security.py` (sign-in lockout)
-- `templates/core/`, `static/css/app.css`, `static/js/app.js`, `chat.js`, `scan.js`
+- `templates/core/` (shell: `base.html`, `includes/sidebar.html`, `includes/icon.html`), `static/css/findit.css` (v2.0.0 look, replaced `app.css`), `static/css/campus-bg.css` (monument background), `static/js/app.js`, `chat.js`, `scan.js`
 - `core/tests/` (sessions 1–4 tests), `docs/handoffs/session-N.md` (each session's original handoff), `docs/OPERATIONS.md`
 - Figma: https://www.figma.com/design/HlBvwAA17U86RADmkm56Fk — Starter plan (3 pages max); new screens live in the "New Features (Nov 2026)" section on page "01 — Screens & Overview".

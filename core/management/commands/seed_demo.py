@@ -44,6 +44,13 @@ ACCOUNTS = [
 ]
 
 
+# v2.0.0 example accounts made by _verification_examples (no Student ID sign-in: not verified).
+EXTRA_LOGINS = (
+    ("2026-0016", "Student, red-flagged (disabled)"),
+    ("2026-0017", "Student, NOT verified, ID conflict"),
+)
+
+
 def demo_photo(label, color):
     """A plain generated picture (no real photo)."""
     image = Image.new("RGB", (640, 480), (236, 242, 245))
@@ -100,6 +107,10 @@ class Command(BaseCommand):
             users[username] = User.objects.select_related("profile").get(pk=user.pk)
             self.stdout.write(f"{'Created' if created else 'Ready'} demo account: {username} ({role})")
         if logins_only:
+            for username, label in EXTRA_LOGINS:
+                extra = User.objects.filter(username=username).first()
+                if extra:
+                    self._demo_login(extra, known, login_rows, label, created=False)
             path = demo_logins.save(login_rows)
             self.stdout.write(f"Demo sign-ins for this PC saved in {path.name}.")
             return
@@ -116,6 +127,7 @@ class Command(BaseCommand):
             self._lost_post_verification(alex, jamie)
             self._guardhouse_item(alex, sam, staff)
             self._walk_in(staff)
+            self._verification_examples(riley, known, login_rows)
         path = demo_logins.save(login_rows)
         self.stdout.write(f"Demo sign-ins for this PC saved in {path.name} (FindIT.cmd menu 2 shows them).")
         self.stdout.write(self.style.WARNING(
@@ -203,6 +215,56 @@ class Command(BaseCommand):
             post=post, requester=alex, requested_status=StatusChangeRequest.Requested.OPEN,
             reason="Demo request: the owner contacted me directly, I'd like to return it myself.",
         )
+
+    def _demo_login(self, user, known, login_rows, label, created):
+        """v2.0.0 + CHG-008: the v2 example accounts get a random per-PC password like every demo account."""
+        password = known.get(user.username)
+        if created or not password or not user.check_password(password):
+            password = demo_logins.new_password()
+            user.set_password(password)
+            user.save(update_fields=["password"])
+        login_rows.append((label, user.username, user.email, "", password))
+
+    def _verification_examples(self, riley, known, login_rows):
+        """v2.0.0: examples so the red-flag list, ID conflict and ID review screens have something to show.
+
+        - Drew used three different Student IDs, so the account is red-flagged and disabled (decision 12).
+        - Morgan (not verified) typed Riley's Student ID; Riley verified first, so Morgan has 14 days
+          before the ID is cleared, and Morgan asked for an ID review (which Morgan can withdraw).
+        """
+        from datetime import timedelta
+        from core.models import IdReviewCase, StudentIdRecord
+        drew, created = User.objects.get_or_create(
+            username="2026-0016", defaults={"first_name": "Drew", "last_name": "Flagged", "email": "drew.flagged@example.com"},
+        )
+        self._demo_login(drew, known, login_rows, dict(EXTRA_LOGINS)[drew.username], created)
+        if created:
+            drew.is_active = False
+            drew.save(update_fields=["is_active"])
+            profile, _ = Profile.objects.get_or_create(user=drew)
+            for student_id in ("2026-0016", "2026-0026", "2026-0036"):
+                StudentIdRecord.objects.get_or_create(user=drew, student_id=student_id, defaults={"source": "CHANGE"})
+            profile.student_id = "2026-0036"
+            profile.flagged_at = timezone.now()
+            profile.flag_reason = "Used 3 different Student IDs (demo)."
+            profile.save()
+            self.stdout.write("Created demo account: 2026-0016 (red-flagged, inactive)")
+        morgan, created = User.objects.get_or_create(
+            username="2026-0017", defaults={"first_name": "Morgan", "last_name": "Shared", "email": "morgan.shared@example.com"},
+        )
+        self._demo_login(morgan, known, login_rows, dict(EXTRA_LOGINS)[morgan.username], created)
+        if created:
+            profile, _ = Profile.objects.get_or_create(user=morgan)
+            shared_id = riley.profile.student_id
+            StudentIdRecord.objects.get_or_create(user=morgan, student_id=shared_id, defaults={"source": "SIGNUP"})
+            profile.student_id = shared_id
+            profile.id_conflict_deadline = timezone.now() + timedelta(days=14)
+            profile.save()
+            IdReviewCase.objects.create(
+                kind=IdReviewCase.Kind.IMPOSTOR, requester=morgan, student_id=shared_id, holder=riley,
+                message="Demo: I think this Student ID is mine; the verified account is not me.",
+            )
+            self.stdout.write("Created demo account: morgan.shared@example.com (ID conflict + open ID review)")
 
     def _walk_in(self, staff):
         post, created = self._post(
