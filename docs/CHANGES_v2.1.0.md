@@ -59,6 +59,20 @@ The team could not find how a finder contacts the owner of a LOST post.
   in the Next step box on the right. Same buttons, one shared file
   (`templates/core/includes/post_primary_actions.html`), so they can never differ.
 
+## CHG-014 — Two tester accounts for chat testing
+`python manage.py seed_demo` now also makes two fictional, verified tester students:
+| Account | Sign in with | Has posted | Already chatting |
+| --- | --- | --- | --- |
+| Tester A | `tester.a.found@example.com` (or Student ID `2026-0101`) | FOUND: Gray backpack with keychain | with Tester B on both posts |
+| Tester B | `tester.b.lost@example.com` (or Student ID `2026-0102`) | LOST: Silver USB flash drive | with Tester A on both posts |
+- Tester B has messaged Tester A's FOUND post, and Tester A has messaged Tester B's LOST post ("I found this").
+  In **both** chats Tester A is the finder, so Tester A sees **＋ → Ownership questions** and Tester B answers.
+- **Passwords:** read from `tester-passwords.txt` in the Find-IT folder (one line per account:
+  `email | password`). Git ignores that file; only the owner's private copy has it, so the same tester
+  sign-ins work on every PC that uses the private copy. Without the file they get random passwords like
+  the other demo accounts (shown in `demo-logins.txt` / FindIT.cmd menu 2).
+- Test it: sign in as Tester A in a normal window and as Tester B in a private window; open Messages.
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 

@@ -171,3 +171,66 @@ class FinderActionButtonTests(FindItTestCase):
     def test_css_shows_top_copy_only_on_small_screens(self):
         self.assertIn(".top-actions { display: none; }", CSS)
         self.assertRegex(CSS, r"@media \(max-width: 56em\) \{\s*\.top-actions \{ display: grid")
+
+
+# ---- CHG-014: two tester accounts that already chat with each other ----
+import os
+import shutil
+import tempfile
+from io import StringIO
+
+from django.contrib.auth import get_user_model
+from django.core.management import call_command
+from django.test import TestCase, override_settings
+
+from core import demo_logins
+from core.models import ItemPost
+
+
+class TesterAccountsTests(TestCase):
+    def setUp(self):
+        self.folder = tempfile.mkdtemp(prefix="findit-testers-")
+        self.logins = os.path.join(self.folder, "demo-logins.txt")
+        self.fixed = os.path.join(self.folder, "tester-passwords.txt")
+
+    def tearDown(self):
+        shutil.rmtree(self.folder, ignore_errors=True)
+
+    def seed(self):
+        with override_settings(DEBUG=True, FINDIT_DEMO_LOGINS_FILE=self.logins, FINDIT_TESTER_PASSWORDS_FILE=self.fixed):
+            call_command("seed_demo", stdout=StringIO())
+            return demo_logins.load()
+
+    def test_testers_post_found_and_lost_and_chat_on_both(self):
+        self.seed()
+        users = get_user_model().objects
+        a, b = users.get(username="2026-0101"), users.get(username="2026-0102")
+        found = ItemPost.objects.get(author=a, post_type="FOUND")
+        lost = ItemPost.objects.get(author=b, post_type="LOST")
+        on_found = Conversation.objects.get(post=found, initiator=b, recipient=a, claim__isnull=True)
+        on_lost = Conversation.objects.get(post=lost, initiator=a, recipient=b, claim__isnull=True)
+        self.assertEqual(on_found.messages.count(), 2)
+        self.assertEqual(on_lost.messages.count(), 2)
+        self.assertTrue(a.profile.is_verified and b.profile.is_verified)
+        self.seed()  # running again adds nothing twice
+        self.assertEqual(on_found.messages.count(), 2)
+        self.assertEqual(Conversation.objects.filter(post__in=[found, lost]).count(), 2)
+
+    def test_fixed_passwords_from_private_file(self):
+        with open(self.fixed, "w", encoding="utf-8") as f:
+            f.write("# private\ntester.a.found@example.com | Example-Only-111\n2026-0102 | Example-Only-222\n")
+        logins = self.seed()
+        users = get_user_model().objects
+        self.assertTrue(users.get(username="2026-0101").check_password("Example-Only-111"))
+        self.assertTrue(users.get(username="2026-0102").check_password("Example-Only-222"))
+        self.assertEqual(logins["2026-0101"], "Example-Only-111")
+        self.assertNotEqual(logins["2026-0001"], "Example-Only-111")  # other demo accounts stay random
+        self.assertEqual(self.client.post("/login/", {"username": "tester.b.lost@example.com", "password": "Example-Only-222"}).status_code, 302)
+
+    def test_without_the_file_passwords_are_random(self):
+        logins = self.seed()
+        self.assertRegex(logins["2026-0101"], r"^[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$")
+
+    def test_password_file_is_ignored_by_git(self):
+        ignore = Path(settings.BASE_DIR, ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("tester-passwords.txt", ignore.splitlines())

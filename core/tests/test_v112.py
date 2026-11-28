@@ -105,14 +105,15 @@ class DemoLoginsTests(FindItTestCase):
         super().tearDown()
 
     def seed(self, *args):
-        with override_settings(DEBUG=True, FINDIT_DEMO_LOGINS_FILE=self.file):
+        with override_settings(DEBUG=True, FINDIT_DEMO_LOGINS_FILE=self.file,
+                               FINDIT_TESTER_PASSWORDS_FILE=os.path.join(self.folder, "tester-passwords.txt")):
             call_command("seed_demo", *args, stdout=StringIO())
             return demo_logins.load()
 
     def test_random_passwords_saved_and_working(self):
         logins = self.seed()
-        self.assertEqual(len(logins), 10)  # 8 demo accounts + the 2 v2.0.0 examples (Drew, Morgan)
-        self.assertEqual(len(set(logins.values())), 10)  # every account gets its own
+        self.assertEqual(len(logins), 12)  # 8 demo accounts + 2 testers (CHG-014) + the 2 v2.0.0 examples (Drew, Morgan)
+        self.assertEqual(len(set(logins.values())), 12)  # every account gets its own
         for username, password in logins.items():
             self.assertRegex(password, r"^[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$")
             self.assertTrue(User.objects.get(username=username).check_password(password), username)
@@ -139,7 +140,7 @@ class DemoLoginsTests(FindItTestCase):
         users = User.objects.count()
         os.remove(self.file)
         logins = self.seed("--logins-only")
-        self.assertEqual(len(logins), 10)
+        self.assertEqual(len(logins), 12)
         self.assertTrue(User.objects.get(username="2026-0017").check_password(logins["2026-0017"]))
         self.assertEqual(User.objects.count(), users)
         self.assertEqual(ItemPost.objects.count(), posts)
@@ -172,6 +173,7 @@ class NoSensitiveDataInSharedFilesTests(SimpleTestCase):
         except (OSError, subprocess.CalledProcessError):
             self.skipTest("Git is not available in this folder.")
         self.assertNotIn("demo-logins.txt", files)
+        self.assertNotIn("tester-passwords.txt", files)  # CHG-014: fixed tester passwords stay private
         problems = []
         for name in files:
             path = root / name

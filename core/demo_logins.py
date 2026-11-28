@@ -25,6 +25,33 @@ def logins_path():
     return Path(getattr(settings, "FINDIT_DEMO_LOGINS_FILE", "") or Path(settings.BASE_DIR) / "demo-logins.txt")
 
 
+def tester_passwords_path():
+    if not settings.configured:
+        return Path.cwd() / "tester-passwords.txt"
+    return Path(getattr(settings, "FINDIT_TESTER_PASSWORDS_FILE", "") or Path(settings.BASE_DIR) / "tester-passwords.txt")
+
+
+def fixed_passwords():
+    """CHG-014: fixed passwords for the tester accounts, from ``tester-passwords.txt``.
+
+    That file is ignored by Git in the shared repository; only the owner's private copy holds it,
+    so the same tester sign-ins work on every PC that uses the private copy. One line per account:
+    ``username or email | password`` (lines starting with # are notes). Without the file the
+    tester accounts get random passwords like every other demo account.
+    """
+    path = tester_passwords_path()
+    found = {}
+    if not path.exists():
+        return found
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        parts = [part.strip() for part in line.split("|")]
+        if len(parts) == 2 and parts[0] and len(parts[1]) >= 8:
+            found[parts[0].lower()] = parts[1]
+    return found
+
+
 def new_password():
     """A random password that is easy to type: three groups of four, e.g. 'k7Qm-x2Pa-9TrE'."""
     return "-".join("".join(secrets.choice(_ALPHABET) for _ in range(4)) for _ in range(3))
