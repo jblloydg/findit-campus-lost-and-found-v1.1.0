@@ -499,6 +499,17 @@ def create_post(request):
                     note="Listing created.",
                 )
             messages.success(request, "Your post is live.")
+            if post.post_type == ItemPost.Type.FOUND and request.POST.get("bring_to_guardhouse"):
+                # CHG-016: the finder chose "I'll bring this item to the guard house" while posting.
+                ticket = post.turn_in_tickets.filter(finder=request.user).first()
+                if ticket:
+                    try:
+                        request_guardhouse(ticket, request.user)
+                    except ValueError as exc:
+                        messages.error(request, str(exc))
+                    else:
+                        messages.info(request, f"Staff were told you're bringing it. Show turn-in code {ticket.code} "
+                                               "(or the QR on your post) at the guard house.")
             if post.post_type == ItemPost.Type.LOST:
                 match_count = len(find_possible_matches(post))
                 if match_count:

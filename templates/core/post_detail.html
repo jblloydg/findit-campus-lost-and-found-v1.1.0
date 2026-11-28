@@ -167,7 +167,7 @@
         {% endif %}
       </div>
       {% if my_ticket or can_moderate and post.status == "TURNED_OVER" or pending_status_requests %}
-      <div class="panel guardhouse-panel">
+      <div class="panel guardhouse-panel" id="guardhouse-panel">
         <span class="eyebrow">Guard house</span>
         {% if intake and can_moderate %}<p class="fine-print">Received by {{ intake.received_by.first_name|default:intake.received_by.username }} · {{ intake.received_at|date:"M j, Y · g:i a" }} · {{ intake.get_method_display }}<br>Handed over by {{ intake.handed_over_by_label }}</p>{% endif %}
         {% if my_ticket %}
@@ -185,7 +185,7 @@
             </details>{% endif %}
           {% elif post.status != "CLAIMED" and post.status != "CLOSED" %}
             {% if my_ticket.requested_at %}<p class="muted">You said you're bringing it ({{ my_ticket.requested_at|date:"M j, g:i a" }}). Show this QR or code to the guard.</p>
-            {% else %}<form method="post" action="{% url 'turnover' post.pk %}">{% csrf_token %}<button class="button button-outline button-full" type="submit">I'm bringing it to the guard house</button></form>{% endif %}
+            {% elif post.post_type != "FOUND" or user.pk != post.author_id %}<form method="post" action="{% url 'turnover' post.pk %}">{% csrf_token %}<button class="button button-outline button-full" type="submit">I'm bringing it to the guard house</button></form>{% else %}<p class="muted">Bringing it to the guard house? Use the button under the title (Next step).</p>{% endif %}
           {% endif %}
           {% if post.status != "CLAIMED" and post.status != "CLOSED" %}
           <button type="button" class="button button-soft button-full" data-qr-toggle{% if not my_ticket_qr %} disabled title="Connect to the internet to load the QR"{% endif %}>Show turn-in QR</button>

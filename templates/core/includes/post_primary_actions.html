@@ -2,7 +2,7 @@
 and right under the title on phones and tablets (where the side box is far down the page).{% endcomment %}
 {% if post.post_type == "FOUND" and post.can_accept_claims and not user_claim and can_interact %}
   {% if user.is_authenticated %}
-    {% if user.pk != post.author_id %}<a class="button button-primary button-full" href="#claim-form">Claim this item</a>{% else %}<p class="muted">This is your found-item post.</p>{% endif %}
+    {% if user.pk != post.author_id %}<a class="button button-primary button-full" href="#claim-form">Claim this item</a>{% endif %}
   {% else %}<button class="button button-primary button-full" data-login-next="{{ request.path }}?resume=claim#claim-form">Claim this item</button>{% endif %}
 {% endif %}
 {% if user.is_authenticated and user.pk != post.author_id and can_interact %}
@@ -14,4 +14,13 @@ and right under the title on phones and tablets (where the side box is far down 
   {% endif %}
 {% elif not user.is_authenticated and can_interact %}
   <button class="button {% if post.post_type == 'LOST' %}button-primary{% else %}button-outline{% endif %} button-full" data-login-next="{{ request.path }}?resume=message">{% if post.post_type == "LOST" %}Sign in to message the owner{% else %}Sign in to message{% endif %}</button>
+{% endif %}
+{% comment %}CHG-016: the finder's guard-house step, with the main buttons (near the top on phones).{% endcomment %}
+{% if my_ticket and post.post_type == "FOUND" and user.pk == post.author_id and post.status != "TURNED_OVER" and post.status != "CLAIMED" and post.status != "CLOSED" and post.status != "RETURNED" %}
+  {% if my_ticket.requested_at %}
+  <a class="button button-soft button-full" href="#guardhouse-panel">Show my turn-in QR for the guard house</a>
+  {% else %}
+  <form method="post" action="{% url 'turnover' post.pk %}">{% csrf_token %}<button class="button button-outline button-full" type="submit">I'm bringing it to the guard house</button></form>
+  <p class="finder-hint">The guard keeps it until the owner picks it up; they scan your QR and the post becomes At Guard House.</p>
+  {% endif %}
 {% endif %}

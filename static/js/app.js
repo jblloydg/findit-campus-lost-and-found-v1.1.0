@@ -159,6 +159,8 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateQuestions() {
     if (!typeSelect || !questionBlock) return;
     questionBlock.hidden = typeSelect.value !== "FOUND";
+    // CHG-016: "I'll bring this item to the guard house" is only for found items.
+    Array.prototype.forEach.call(document.querySelectorAll("[data-found-only]"), function (el) { el.hidden = typeSelect.value !== "FOUND"; });
     // BUG-020: the sidebar highlights "Report lost item" or "Report found item" to match the chosen type.
     Array.prototype.forEach.call(document.querySelectorAll("[data-report-kind]"), function (link) {
       var on = link.getAttribute("data-report-kind") === typeSelect.value;

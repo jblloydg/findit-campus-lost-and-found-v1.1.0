@@ -87,6 +87,12 @@
         {% endif %}
       </section>
 
+      {% if not editing and not walk_in %}
+      <label class="panel post-form-card guardhouse-choice" id="guardhouse-choice" data-found-only>
+        <input type="checkbox" name="bring_to_guardhouse" value="1"{% if request.POST.bring_to_guardhouse %} checked{% endif %}>
+        <span><strong>I'll bring this item to the guard house</strong><small>The guard keeps it safe until the owner picks it up. After you publish, show your turn-in QR or code at the guard house; the guard scans it and the post becomes <em>At Guard House</em>. You can also choose this later on your post.</small></span>
+      </label>
+      {% endif %}
       <div class="form-callout post-form-reminder"><strong>Meet-up reminder</strong><span>Arrange any hand-off only within school premises. You don't set the status: a new post is <em>Open for Claim</em>, and Find-IT changes it as people claim, return or bring the item to the guard house (only a guard can mark it <em>At Guard House</em>).</span></div>
       <section class="panel post-form-card post-form-submit" aria-label="Save">
         <div class="form-actions"><a class="button button-outline" href="{% if post %}{% url 'post-detail' post.pk %}{% else %}{% url 'home' %}{% endif %}">Cancel</a><button class="button button-primary" type="submit">{% if walk_in %}Post and record at guard house{% elif editing %}Save changes{% else %}Publish post{% endif %}</button></div>

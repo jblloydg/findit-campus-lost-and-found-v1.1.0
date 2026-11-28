@@ -297,3 +297,45 @@ class StatusHelpTests(FindItTestCase):
         self.assertIn("How does the status change?", page)
         self.assertIn("only a guard (staff) can set this", page)
         self.assertIn("You don't set the status", self.client_for(self.alice).get("/posts/new/").content.decode())
+
+
+# ---- CHG-016: the guard-house step can be found (while posting, and with the main buttons) ----
+from django.core.files.uploadedfile import SimpleUploadedFile
+from core.models import Category, TurnInTicket
+
+
+def _jpeg():
+    import io
+    from PIL import Image
+    buffer = io.BytesIO()
+    Image.new("RGB", (64, 64), (10, 120, 90)).save(buffer, "JPEG")
+    return SimpleUploadedFile("item.jpg", buffer.getvalue(), content_type="image/jpeg")
+
+
+class GuardhouseWhilePostingTests(FindItTestCase):
+    def post_found(self, **extra):
+        data = {"post_type": "FOUND", "category": Category.objects.first().pk, "photos": _jpeg(), **extra}
+        return self.client_for(self.finder).post("/posts/new/", data, follow=True)
+
+    def test_choice_on_form_for_found_only_markup(self):
+        page = self.client_for(self.finder).get("/posts/new/?type=FOUND").content.decode()
+        self.assertIn('name="bring_to_guardhouse"', page)
+        self.assertIn("data-found-only", page)
+
+    def test_ticking_it_tells_staff(self):
+        response = self.post_found(bring_to_guardhouse="1")
+        post = ItemPost.objects.filter(author=self.finder).latest("created_at")
+        ticket = TurnInTicket.objects.get(post=post, finder=self.finder)
+        self.assertIsNotNone(ticket.requested_at)
+        self.assertContains(response, ticket.code)
+
+    def test_not_ticked_nothing_requested(self):
+        self.post_found()
+        post = ItemPost.objects.filter(author=self.finder).latest("created_at")
+        self.assertIsNone(TurnInTicket.objects.get(post=post, finder=self.finder).requested_at)
+
+    def test_button_with_main_actions_for_the_finder(self):
+        post = self.create_post(self.finder, "FOUND")
+        page = self.client_for(self.finder).get(f"/p/{post.pk}/").content.decode()
+        top = page[page.index('class="primary-actions top-actions"'):page.index('class="item-facts"')]
+        self.assertIn("I'm bringing it to the guard house", top)

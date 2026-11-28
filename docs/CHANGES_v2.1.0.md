@@ -134,6 +134,17 @@ people do, and **At Guard House** can only be set by a guard (staff) who scans t
 walk-in (decision 7, for security). This is now explained on every post (**How does the status change?** under the facts)
 and in the reminder on Report an item. Files: `templates/core/includes/status_help.html` (new), `post_detail.html`, `post_form.html`, `findit.css`.
 
+## CHG-016 — Bringing a found item to the guard house: easy to find
+The team could not find where a finder asks to bring an item to the guard house. It existed only as a button in the
+Guard house box far down the post. Now:
+- **While posting** a FOUND item: a tick box **I'll bring this item to the guard house** (hidden for LOST). After
+  Publish, staff are told and the finder sees the turn-in code.
+- **On the post**, the finder's **I'm bringing it to the guard house** (or, once chosen, **Show my turn-in QR for the
+  guard house**) is with the main buttons — under the title on phones, in Next step on PC.
+- Then, as before, the guard scans the QR / types the code and the post becomes **At Guard House** (only staff can).
+Files: `templates/core/post_form.html`, `templates/core/includes/post_primary_actions.html`, `templates/core/post_detail.html`,
+`core/views.py` (`create_post`), `static/js/app.js`, `static/css/findit.css`.
+
 ## Files
 `templates/core/post_form.html`, `static/css/findit.css` (new section at the end), `core/tests/test_v210.py` (6 tests).
 
