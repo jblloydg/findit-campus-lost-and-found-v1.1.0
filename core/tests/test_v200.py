@@ -123,3 +123,38 @@ class LocalDataNeverTrackedTests(SimpleTestCase):
             if result.returncode == 128:
                 self.skipTest("Not a Git folder.")
             self.assertEqual(result.returncode, 0, f"{name} is not in .gitignore")
+
+
+class MasterInstructionCssTests(SimpleTestCase):
+    """BUG-015 / BUG-016: the stylesheet keeps the v2.0.0 Master Instruction rules.
+    The full on-screen check is tools/testing/responsive_check.py (every page, 360-1920 px)."""
+
+    def css(self):
+        return "".join(p.read_text(encoding="utf-8") for p in (BASE / "static" / "css").glob("*.css"))
+
+    def test_no_text_below_12px(self):
+        css = self.css()
+        small_rem = [m.group(0) for m in re.finditer(r"font-size:\s*(0?\.\d+)rem", css) if float(m.group(1)) < 0.75]
+        self.assertEqual(small_rem, [])
+        steps = dict(re.findall(r"(--step-[-0-9]+):\s*clamp\(([0-9.]+)rem", css))
+        self.assertTrue(steps, "type scale not found")
+        self.assertTrue(all(float(v) >= 0.75 for v in steps.values()), steps)
+
+    def test_tap_size_is_2_75rem_and_used_by_small_controls(self):
+        css = self.css()
+        self.assertIn("--tap: 2.75rem", css)
+        for rule in (".button-small {", ".link-button, .text-action {", ".password-toggle {", ".segmented a {"):
+            body = css.split(rule, 1)[1].split("}", 1)[0]
+            self.assertIn("var(--tap)", body, rule)
+
+    def test_px_only_for_borders_shadows_and_outlines(self):
+        allowed = ("border", "shadow", "outline", "translateY(-1px)", ".sr-only", "blur(1px)", "1px dashed", "1px solid")
+        bad = []
+        css = re.sub(r"/\*.*?\*/", "", self.css(), flags=re.S)  # comments
+        css = re.sub(r"(height:\s*1px|margin:\s*0 -1px -1px 0)", "", css)  # 1px divider lines, border overlap
+        for line in css.splitlines():
+            if re.search(r"\d+px", line) and not line.strip().startswith(("/*", "*")):
+                rest = re.sub(r"(border[^;]*;|[a-z-]*shadow[^;]*;|outline[^;]*;|translateY\(-1px\)|blur\(1px\))", "", line)
+                if re.search(r"\d+px", rest) and ".sr-only" not in line and "--shadow" not in line:
+                    bad.append(line.strip()[:90])
+        self.assertEqual(bad, [])
