@@ -419,6 +419,8 @@ def post_detail(request, post_id):
             panel_conversation and panel_conversation.includes(request.user)
             and not panel_conversation.is_closed and not panel_conversation.is_paused
         ),
+        # BUG-008: location is dormant; only show it when the feature is turned on.
+        "location_enabled": getattr(settings, "FINDIT_LOCATION_ENABLED", False),
     }
     return render(request, "core/post_detail.html", context)
 
