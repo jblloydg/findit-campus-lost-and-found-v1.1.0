@@ -47,3 +47,59 @@ class FinderAsksInFoundChatTests(FindItTestCase):
         self.ask(self.finder_client, bank)
         self.assertEqual(self.conv.questions.count(), 5)
         self.assertNotIn("＋ Questions", self.finder_client.get(f"/conversations/{self.conv.pk}/").content.decode())
+
+# ---- DES-006: Report an item wide layout (create / edit post, walk-in) ----
+from pathlib import Path
+
+from django.conf import settings
+from django.test import SimpleTestCase
+
+CSS = Path(settings.BASE_DIR, "static", "css", "findit.css").read_text(encoding="utf-8")
+
+# Every field the post form sent before the redesign; the layout change must keep them all.
+FIELD_NAMES = ["post_type", "category", "photos", "title", "description", "approximate_date", "approximate_time", "questions"]
+
+
+class PostFormLayoutCssTests(SimpleTestCase):
+    def test_two_columns_on_pc_one_on_phones(self):
+        self.assertIn("grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);", CSS)
+        self.assertIn(".post-form-grid { grid-template-columns: minmax(0, 1fr); }", CSS)
+
+
+class PostFormLayoutPageTests(FindItTestCase):
+    def assert_fields_kept(self, response):
+        for name in FIELD_NAMES:
+            self.assertContains(response, f'name="{name}"')
+        for element_id in ["verification-questions", "question-list", "question-search", "question-picked",
+                           "photo-preview-grid", "photo-count", "human-check"]:
+            self.assertContains(response, f'id="{element_id}"')
+
+    def test_create_page_has_the_wide_layout_and_every_field(self):
+        response = self.client_for(self.finder).get("/posts/new/?type=FOUND")
+        for part in ["post-form-grid", "post-form-details", "post-form-photos", "post-form-side", "post-form-submit"]:
+            self.assertContains(response, part)
+        self.assertContains(response, "About the item")
+        self.assertContains(response, "Meet-up reminder")
+        self.assert_fields_kept(response)
+
+    def test_edit_page(self):
+        post = self.create_post()
+        response = self.client_for(self.finder).get(f"/posts/{post.pk}/edit/")
+        self.assertContains(response, "post-form-grid")
+        self.assertContains(response, "Save changes")
+        self.assertContains(response, 'name="remove_photos"')
+
+    def test_walk_in_page(self):
+        response = self.client_for(self.staff).get("/staff/walk-in/")
+        self.assertContains(response, "post-form-grid")
+        self.assertContains(response, 'name="handed_over_by_name"')
+        self.assertContains(response, "Post and record at guard house")
+
+    def test_posting_still_works(self):
+        from .base import photo
+        from core.models import ItemPost
+        response = self.client_for(self.finder).post("/posts/new/", {
+            "post_type": "LOST", "category": self.category.pk, "title": "Blue umbrella", "photos": photo(),
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(ItemPost.objects.filter(title="Blue umbrella", post_type="LOST").exists())

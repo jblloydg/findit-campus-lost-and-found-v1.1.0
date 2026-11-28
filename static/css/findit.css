@@ -1108,3 +1108,66 @@ a.stat-card:hover, a.stat-card.is-active { color: var(--ink); border-color: var(
   .dash-banner, .auth-banner, .cta-band { color: #000; background: none; }
   .dash-banner h1, .auth-banner h2, .cta-band h2 { color: #000; }
 }
+
+/* ==========================================================================
+   v2.1.0 (DES-006): Report an item / Create / Edit post / Walk-in, wide layout
+   Two columns on PC (item + photos | questions + publish), one on phones.
+   Fields are unchanged; only their placement.
+   ========================================================================== */
+.post-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(1rem, 0.6rem + 1.5vw, 1.5rem);
+}
+.post-form-wide { grid-column: 1 / -1; }
+.post-form-main, .post-form-side { display: grid; gap: clamp(1rem, 0.6rem + 1.5vw, 1.5rem); min-width: 0; }
+.post-form-card { display: grid; gap: 1rem; min-width: 0; }
+.post-form-grid .panel + .panel { margin-top: 0; }
+.post-form-step { display: flex; align-items: center; gap: 0.6rem; margin: 0; font-size: var(--step-1); }
+.step-dot {
+  display: inline-grid; place-items: center; flex: 0 0 auto;
+  width: 1.9rem; height: 1.9rem; border-radius: 50%;
+  color: #fff; background: var(--emerald); font-size: var(--step--1); font-weight: 650;
+}
+.post-form-card .photo-editor { padding: 0; border: 0; }
+.post-form-card .photo-editor input[type="file"] {
+  min-height: 5.5rem; padding: 1rem;
+  border: 1px dashed var(--line-2); border-radius: var(--radius);
+  background: var(--sage-wash); cursor: pointer;
+}
+.post-form-card .photo-editor input[type="file"]:hover { border-color: var(--emerald-2); }
+.post-form-side .question-editor { gap: 0.9rem; }
+.post-form-side .question-editor .eyebrow { margin-top: 0.4rem; }
+.post-form-side .question-list { max-height: min(56vh, 32rem); max-height: min(56dvh, 32rem); }
+.post-form-reminder { margin: 0; }
+.post-form-submit .form-actions { margin-top: 0; }
+/* Two short columns, so this page may use more width than the usual 72rem without long lines. */
+.app-content .post-form-page { width: min(100%, 90rem); }
+
+/* LOST posts have no ownership questions: put Photos in the right-hand column instead,
+   so both columns are used (browsers without :has() keep the plain two-column layout). */
+@media (min-width: 56.01em) {
+  .post-form-grid:has(#verification-questions[hidden]) {
+    grid-template-areas: "details photos" "details reminder" "details submit";
+    grid-template-rows: auto auto 1fr;
+  }
+  .post-form-grid:has(#verification-questions[hidden]) > .post-form-main,
+  .post-form-grid:has(#verification-questions[hidden]) > .post-form-side { display: contents; }
+  .post-form-grid:has(#verification-questions[hidden]) .post-form-details { grid-area: details; }
+  .post-form-grid:has(#verification-questions[hidden]) .post-form-photos { grid-area: photos; }
+  .post-form-grid:has(#verification-questions[hidden]) .post-form-reminder { grid-area: reminder; }
+  .post-form-grid:has(#verification-questions[hidden]) .post-form-submit { grid-area: submit; align-self: start; }
+}
+
+@media (max-width: 56em) {
+  .post-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .post-form-side .question-list { max-height: 24rem; }
+  /* phones and tablets: Cancel / Publish stay at the bottom of the screen */
+  .post-form-submit { position: sticky; bottom: 0.5rem; z-index: 5; box-shadow: var(--shadow-lg); }
+}
+@media (max-width: 30em) {
+  .post-form-submit { padding: 0.75rem; }
+  .post-form-submit .form-actions { flex-direction: row; }
+  .post-form-submit .form-actions .button { flex: 1 1 0; width: auto; }
+}
