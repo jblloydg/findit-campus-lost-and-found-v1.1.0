@@ -1,4 +1,4 @@
-# Find-IT handoff — v2.0.0 (and earlier versions below)
+# Find-IT handoff — v2.1.0 (and earlier versions below)
 
 > **Continuing the work?** Read `CLAUDE.md` (rules and decisions), `docs/ROADMAP.md` (V2 status and what's next) and `docs/BUG_REPORTS.md` (how to report). Version 2.0.0 is released on `main` (approved 2026-11-28). Frozen rollback points: `stable/v1.1.0`, `stable/v1.1.1`, `stable/v1.1.2`, `stable/v2.0.0`. A paste-ready prompt for a new Claude session is in `docs/TRANSFER_PROMPT.md`.
 
@@ -8,11 +8,26 @@ All accounts, names and photos in the demo are fictional. The repository contain
 
 ---
 
-## Work in progress: 2.1.0 (branch `release/2.1.0`)
-Started 2026-11-28 after v2.0.0 was released. Done so far: **BUG-019** (no question picker on LOST posts),
-**BUG-020** (sidebar highlight), **CHG-011** (whoever is the finder can send ownership questions in the chat,
-also FOUND-post authors). To build next: see CLAUDE.md "v2.1.0 instructions" (Messenger-style ＋ chat bar,
-make the finder flow easy to find, more LOST demo posts, redesign the pages from `docs/CHANGES_v2.0.0.md` §10).
+## Changes in 2.1.0
+Branch `release/2.1.0` (major update after v2.0.0). Full patch notes with the reason for each change:
+**`docs/CHANGES_v2.1.0.md`**; tests, bug hunt and speed: **`docs/TEST_REPORT_v2.1.0.md`**; who does what for each post
+status: **`docs/STATUS_GUIDE.md`**. In short:
+- **Chat:** Messenger-style bar ＋ · message · Send (＋ menu: Photo or video; Ownership questions for the finder) —
+  DES-007; the chat opens in a window over whatever page you are on, with the chat's own address — DES-007/008;
+  same name/time live and after reload — BUG-022; chats still possible At Guard House — CHG-017.
+- **Finding things:** Messages icon on phones — BUG-021; "how a chat starts" explained, author sees "Chats about this
+  post" — BUG-023; LOST posts: "I found this – message the owner", near the top on phones — CHG-013; guard-house step
+  while posting and with the main buttons — CHG-016; "How does the status change?" on every post — CHG-015.
+- **New:** Contact staff / shared **Staff inbox** for all staff and admins — CHG-019 (**migration 0015**); top bar =
+  search everything, dashboard = filter listings — CHG-020; Report an item uses the whole screen — DES-006; Staff
+  workspace redesign + unread notices — DES-009.
+- **Fixes:** sign-in confusion — BUG-024; AVIF photos accepted, clear HEIC message — BUG-025 (Pillow ≥ 11.3);
+  question picker on LOST posts — BUG-019; sidebar highlight — BUG-020.
+- **Testing aids:** tester accounts from the owner's private `tester-accounts.txt` — CHG-014; open LOST demo posts —
+  CHG-021; `tools/testing/status_journeys.py` (every status by clicking) and `tools/testing/reachability.py` (every page
+  reachable by clicking, per role) — CHG-018/022.
+- **Upgrading a PC from 2.0.0:** pull, then FindIT.cmd (it runs `migrate`), or `pip install -r requirements.txt` and
+  `python manage.py migrate`; FindIT.cmd menu 3 (or `python manage.py seed_demo`) for the new demo posts.
 
 ## Changes in 2.0.0
 

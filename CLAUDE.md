@@ -32,7 +32,7 @@ Read this first, then `HANDOFF.md` (what v1.1.0 contains) and `docs/ROADMAP.md` 
 ## v2.0.0 Master Instruction (owner's rule for every page, from v2.0.0 on)
 One layout that adapts to phone, tablet and desktop. No fixed px for size or placement (only 1px borders, shadows, icon lines). Widths/columns/gaps in % or fr; text and spacing in rem with `clamp()`; full-screen parts in vw/vh/dvh; images and videos `max-width: 100%; height: auto`; content max width (72rem); **tap targets at least 2.75rem (`var(--tap)`)**; **text at least 0.75rem (12 px)**. Check every page at 360–430, 768 and 1280–1920 px with `tools/testing/responsive_check.py` (must report no Find-IT problems) and `campus_bg_check.py`. Tests: `core/tests/test_v200.py`.
 
-## v2.1.0 instructions from the owner (branch `release/2.1.0`, started 2026-11-28)
+## v2.1.0 instructions from the owner (branch `release/2.1.0`, started 2026-11-28) — all built; see `docs/CHANGES_v2.1.0.md`
 **Ownership questions on LOST posts — how it must work** (owner's explanation to the team, 2026-11-28):
 - Situation: someone **loses** an item and makes a **LOST** post. The author is the owner.
 - **Posting a LOST item has NO ownership-question options.** The question picker ("Pick ownership questions · found items") is only for FOUND posts. Done: **BUG-019** (the picker showed on Lost because `.question-editor { display: grid }` beat `hidden`; global `[hidden] { display: none !important; }`). The server already ignores questions on LOST posts (`apply_post_questions`).
@@ -80,6 +80,8 @@ This repository and its release branches are shared publicly. **Never** put any 
 - any other sensitive instruction the owner marks as private.
 They belong only in the owner's **private copy** (a private repository or the owner's PC). If a task needs one, ask the owner instead of writing it here.
 
+**Accounts are sensitive (owner, v2.1.0):** tester accounts (IDs, emails, password) and the owner's `Accounts/accounts.md` live only in the private copy (`tester-accounts.txt`, ignored by Git here). Never write tester sign-ins in this repository, its docs or tests.
+
 **Two copies of every release (owner's rule since v1.1.2):** this **public** repository has the full program without the private parts; the owner's **private** repository has the same branches (`main`, `release/<version>`, `stable/v<version>`) plus the private notes. Changes flow **public → private only**: do the work here, then merge each public branch into the private branch of the same name. **Never push or merge a private branch into this repository.** When a version is approved, update and freeze both copies (merge into `main`, add `stable/v<version>` in both).
 
 Demo passwords are made per PC (`core/demo_logins.py`). `core/tests/test_v112.py::NoSensitiveDataInSharedFilesTests` scans every tracked file and must pass; extend its patterns when something new must stay private. Check for leaks in every version's bug hunt.
@@ -117,7 +119,9 @@ Run the bug hunt again after any big change (e.g. chat, media) and once more on 
 ```powershell
 python manage.py migrate            # never run makemigrations on a server; commit new migrations
 python manage.py seed_demo          # fictional demo data (local only); random passwords -> demo-logins.txt
-python manage.py test core          # 272 tests (v2.1.0 so far); keep them passing, add tests for each fix
+python manage.py test core          # 320 tests (v2.1.0); keep them passing, add tests for each fix
+python tools/testing/status_journeys.py   # every post status reached by clicking (server on :8000)
+python tools/testing/reachability.py      # every page/action reachable by clicking, per role
 python manage.py makemigrations --check --dry-run   # must say "No changes detected" before committing
 python manage.py backup_now [--list] / restore_backup NAME
 ```
@@ -130,5 +134,6 @@ Demo sign-ins: made at random on each PC by `seed_demo`, saved in `demo-logins.t
 - `core/verification.py` (v1.1.1 verification, Student IDs, ID reviews, limits, report & block), `core/auth.py` (sign-in rules), `core/mail.py` (Test inbox)
 - `core/matching.py` (LOST↔FOUND matches), `core/backups.py`, `core/idempotency.py` (duplicate-submit protection), `core/security.py` (sign-in lockout)
 - `templates/core/` (shell: `base.html`, `includes/sidebar.html`, `includes/icon.html`), `static/css/findit.css` (v2.0.0 look, replaced `app.css`), `static/css/campus-bg.css` (monument background), `static/js/app.js`, `chat.js`, `scan.js`
+- v2.1.0: `core/views.py` → `global_search` (top-bar search), `staff_help_*` (Contact staff / Staff inbox), `_is_embedded` (chat window); `templates/core/chat_embed_base.html`; `docs/STATUS_GUIDE.md`
 - `core/tests/` (sessions 1–4 tests), `docs/handoffs/session-N.md` (each session's original handoff), `docs/OPERATIONS.md`
 - Figma: https://www.figma.com/design/HlBvwAA17U86RADmkm56Fk — Starter plan (3 pages max); new screens live in the "New Features (Nov 2026)" section on page "01 — Screens & Overview".
