@@ -14,8 +14,8 @@
     <a class="nav-link{% if nav == 'home' and kind == 'FOUND' %} is-active{% endif %}" href="{% url 'home' %}?type=FOUND"{% if nav == 'home' and kind == 'FOUND' %} aria-current="page"{% endif %}>{% include "core/includes/icon.html" with name="found" %}Found items</a>
 
     <p class="nav-section">Report an item</p>
-    <a class="nav-link{% if nav == 'create-post' and kind == 'LOST' %} is-active{% endif %}" href="{% url 'create-post' %}?type=LOST">{% include "core/includes/icon.html" with name="plus-circle" %}Report lost item</a>
-    <a class="nav-link{% if nav == 'create-post' and kind != 'LOST' %} is-active{% endif %}" href="{% url 'create-post' %}?type=FOUND">{% include "core/includes/icon.html" with name="file-plus" %}Report found item</a>
+    <a class="nav-link{% if nav == 'create-post' and kind == 'LOST' %} is-active{% endif %}" href="{% url 'create-post' %}?type=LOST" data-report-kind="LOST">{% include "core/includes/icon.html" with name="plus-circle" %}Report lost item</a>
+    <a class="nav-link{% if nav == 'create-post' and kind == 'FOUND' %} is-active{% endif %}" href="{% url 'create-post' %}?type=FOUND" data-report-kind="FOUND">{% include "core/includes/icon.html" with name="file-plus" %}Report found item</a>
 
     <p class="nav-section">My activity</p>
     <a class="nav-link{% if nav == 'my-posts' %} is-active{% endif %}" href="{% url 'my-posts' %}">{% include "core/includes/icon.html" with name="folder" %}My posts</a>

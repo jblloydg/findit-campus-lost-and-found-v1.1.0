@@ -170,3 +170,15 @@ class HiddenAttributeTests(SimpleTestCase):
     def test_question_picker_is_hidden_for_lost_by_script(self):
         js = (BASE / "static" / "js" / "app.js").read_text(encoding="utf-8")
         self.assertIn('questionBlock.hidden = typeSelect.value !== "FOUND"', js)
+
+
+class ReportLinkHighlightTests(SimpleTestCase):
+    """BUG-020: the sidebar highlighted "Report found item" on a Lost post form."""
+
+    def test_sidebar_follows_the_chosen_type(self):
+        sidebar = (BASE / "templates" / "core" / "includes" / "sidebar.html").read_text(encoding="utf-8")
+        self.assertIn('data-report-kind="LOST"', sidebar)
+        self.assertIn('data-report-kind="FOUND"', sidebar)
+        self.assertNotIn("kind != 'LOST'", sidebar)  # no type chosen must not mean "found"
+        js = (BASE / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('link.getAttribute("data-report-kind") === typeSelect.value', js)

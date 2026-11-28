@@ -159,6 +159,12 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateQuestions() {
     if (!typeSelect || !questionBlock) return;
     questionBlock.hidden = typeSelect.value !== "FOUND";
+    // BUG-020: the sidebar highlights "Report lost item" or "Report found item" to match the chosen type.
+    Array.prototype.forEach.call(document.querySelectorAll("[data-report-kind]"), function (link) {
+      var on = link.getAttribute("data-report-kind") === typeSelect.value;
+      link.classList.toggle("is-active", on);
+      if (on) { link.setAttribute("aria-current", "page"); } else { link.removeAttribute("aria-current"); }
+    });
   }
   function questionOptions() {
     return questionList ? Array.prototype.slice.call(questionList.querySelectorAll(".question-option")) : [];
