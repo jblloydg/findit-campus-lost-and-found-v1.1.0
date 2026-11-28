@@ -60,6 +60,7 @@
       <span><strong>{% firstof user.get_full_name user.username %}</strong><small>{{ current_role_label }}</small></span>
     </a>
     <p class="sidebar-note">{% include "core/includes/icon.html" with name="pin" %}<span>Hand-offs happen on school premises only.</span></p>
+    {% if findit_version %}<p class="version-label version-label--sidebar">Find-IT v{{ findit_version }}</p>{% endif %}
   </div>
 </aside>
 <div class="drawer-scrim" data-drawer-close></div>

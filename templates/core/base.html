@@ -74,6 +74,7 @@
     <footer class="app-footer">
       <span>Find-IT · Davao Oriental State University</span>
       <span>Meet-ups and item hand-offs must happen within school premises.</span>
+      {% if findit_version %}<span class="version-label version-label--footer">Find-IT v{{ findit_version }}</span>{% endif %}
     </footer>
   </div>
 </div>
@@ -84,6 +85,7 @@
     <p>A campus repository for lost and found items, private ownership checks, and safe hand-offs on school premises.</p>
   </div>
   <div class="footer-mono">Davao Oriental State University<br>Meet-ups and item hand-offs must happen within school premises.</div>
+  {% if findit_version %}<p class="version-label version-label--public">Find-IT v{{ findit_version }}</p>{% endif %}
 </footer>
 <div class="modal-backdrop" id="login-modal" aria-hidden="true">
   <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">

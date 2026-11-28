@@ -2319,3 +2319,12 @@ def test_inbox(request):
         Q(recipient=request.user) | Q(to__iexact=request.user.email or "-")
     )
     return render(request, "core/test_inbox.html", {"emails": rows[:50]})
+
+
+def server_error(request):
+    """DES-005: the 500 page with only the version label added. No database, no request context,
+    so it still works when something else in Find-IT is failing."""
+    from django.http import HttpResponseServerError
+    from django.template import loader
+    from .version import FINDIT_VERSION
+    return HttpResponseServerError(loader.get_template("500.html").render({"findit_version": FINDIT_VERSION}))

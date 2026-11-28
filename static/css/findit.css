@@ -390,6 +390,12 @@ body.modal-open { overflow: hidden; }
 .sidebar-user strong { display: block; font-size: var(--step--1); line-height: 1.2; }
 .sidebar-user small { color: rgba(223,233,227,.62); font-size: var(--step--2); }
 .sidebar-note { display: flex; gap: 0.45rem; margin: 0.75rem 0 0; color: rgba(223,233,227,.6); font-size: var(--step--2); line-height: 1.45; }
+/* DES-005: small light-gray version label ("Find-IT v2.0.0"), read from VERSION.
+   PC: bottom of the sidebar. Phone/tablet (sidebar is a drawer): page footer. Signed out: public footer. */
+.version-label { margin: 0; color: #a7b3ad; font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.04em; }
+.version-label--sidebar { margin-top: 0.6rem; color: rgba(223, 233, 227, .45); }
+.version-label--footer { display: none; flex-basis: 100%; text-align: center; }
+.version-label--public { flex-basis: 100%; width: 100%; margin-top: 0.8rem; color: rgba(223, 233, 227, .5); text-align: center; }
 .sidebar-note svg { flex: 0 0 auto; width: 0.95rem; height: 0.95rem; margin-top: 0.1rem; }
 .sidebar .avatar { color: var(--forest); background: var(--sage-pale); }
 
@@ -1015,6 +1021,7 @@ a.stat-card:hover, a.stat-card.is-active { color: var(--ink); border-color: var(
   body.drawer-open .drawer-scrim { display: block; }
   body.drawer-open { overflow: hidden; }
   .sidebar-close, .menu-toggle { display: inline-grid; }
+  .version-label--footer { display: block; }
   .detail-layout { grid-template-columns: minmax(0, 1fr) minmax(14rem, 18rem); }
   .quick-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
